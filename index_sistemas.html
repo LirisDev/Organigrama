@@ -388,8 +388,17 @@
             '<text style="font-size: 12px; font-style: italic;" fill="#999999" x="{cw}" y="{ch}" text-anchor="middle">{val}</text>'; // Puesto centrado
 
           const chartConfig = {
+            // Configuraciones básicas de layout e interacción
+            mouseScrool: OrgChart.action.zoom,    // Zoom con scroll
+            enableSearch: false,
+            template: "olivia", // Usar plantilla 'ana' por defecto
+            mode: 'dark',
+            nodeExtent: { width: 220, height: 80 }, // Tamaño de tarjeta
+            scaleInitial: OrgChart.match.boundary, // Ajustar al contenedor
+            layout: OrgChart.normal, // Layout estándar
+            nodeMenu: { details: { text: "Detalles" } }, // Menú simple
+            padding: 20, // Margen
             nodes: sanitizedNodes,
-            template: "ana", // Usar plantilla 'ana' por defecto
             nodeBinding: {
               // Mapeo para plantilla 'ana'
               field_0: "nombre",
@@ -424,13 +433,6 @@
               // Puedes añadir más niveles si es necesario
               // --- FIN ---
             },
-            // Configuraciones básicas de layout e interacción
-            nodeExtent: { width: 220, height: 80 }, // Tamaño de tarjeta
-            scaleInitial: OrgChart.match.boundary, // Ajustar al contenedor
-            mouseScrool: OrgChart.action.zoom,
-            layout: OrgChart.normal, // Layout estándar
-            nodeMenu: { details: { text: "Detalles" } }, // Menú simple
-            padding: 20, // Margen
           };
 
           // 5. Renderizar el Gráfico

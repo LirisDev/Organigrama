@@ -1,0 +1,467 @@
+//import *   from 'orgchart.js';
+
+// --- Referencias a divs de estado ---
+const statusDiv = document.getElementById("status-message");
+const errorDiv = document.getElementById("error-message");
+const treeDiv = document.getElementById("tree");
+let rangeScaleElement = document.getElementById("range_scale");
+let txtScaleElement = document.getElementById("txt_scale");
+
+let currentChart = null;
+let sensitivity = 100;
+let colors = ["#F57C00", "#039BE5", "#FFCA28"];
+
+// --- Función Sanitize (para evitar bucles infinitos) ---
+function sanitizeCircularReferences(nodes) {
+  const nodeMap = new Map();
+  nodes.forEach((node) => {
+    if (node && node.id != null) nodeMap.set(node.id, node);
+    else {
+      console.warn(
+        "Sanitizing: Omitiendo nodo inválido durante creación de mapa:",
+        node
+      );
+    }
+  });
+
+  let loopsBroken = 0;
+  console.log("Sanitizing: Iniciando sanitización de bucles...");
+  const nodeIds = Array.from(nodeMap.keys());
+  for (const nodeId of nodeIds) {
+    const startNode = nodeMap.get(nodeId);
+    if (!startNode || startNode.pid == null) continue;
+    const pathVisited = new Set();
+    let currentNode = startNode;
+    while (currentNode && currentNode.pid != null) {
+      const currentId = currentNode.id;
+      const parentId = currentNode.pid;
+
+      // 1. Detectar bucle en esta traza
+      if (pathVisited.has(currentId)) {
+        console.warn(
+          `¡Bucle detectado! Traza desde ${startNode.id} encontró un ciclo al volver a ${currentId}. Rompiendo enlace ${currentId} -> ${parentId}`
+        );
+        currentNode.pid = undefined; // Romper
+        loopsBroken++;
+        break;
+      }
+      pathVisited.add(currentId);
+
+      // 2. Verificar si el padre existe en el mapa
+      if (!nodeMap.has(parentId)) {
+        // console.warn(`Sanitizing: Nodo ${currentId} tiene un pid inválido o faltante: ${parentId}. Tratando nodo como raíz.`);
+        currentNode.pid = undefined; // Convertir en raíz
+        break;
+      }
+
+      currentNode = nodeMap.get(parentId);
+      if (!currentNode) {
+        console.error(
+          "Sanitizing: Error inesperado al obtener el padre",
+          parentId
+        );
+        break;
+      }
+    }
+  }
+  console.log(`Sanitizing: Sanitización completa...`);
+  return Array.from(nodeMap.values());
+}
+
+// --- Mapeo de nivelJerarquico a Tag de Subnivel (Tu función) ---
+function getSubLevelTag(nivelJerarquico) {
+  const nivel = parseInt(nivelJerarquico);
+  if (nivel === 5) return "sub-level-1"; // Senior
+  if (nivel === 6) return "sub-level-2"; // Junior
+  if (nivel === 7) return "sub-level-3"; // Asistente
+  return "sub-level-0"; // Otros
+}
+
+// --- Función Principal: Cargar, Mapear y Renderizar ---
+async function loadAndRenderChart(apiUrl) {
+  statusDiv.innerText = "Llamando a la API...";
+  errorDiv.style.display = "none";
+  treeDiv.innerHTML = "";
+
+  try {
+    // 1. Fetch API
+    console.log("Iniciando fetch a:", apiUrl);
+    const response = await fetch(apiUrl);
+    statusDiv.innerText = `API respondió (${response.status}). Procesando...`;
+    if (!response.ok)
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+    const apiResponse = await response.json();
+    const flatApiData = Array.isArray(apiResponse?.Persona)
+      ? apiResponse.Persona
+      : null;
+    if (!Array.isArray(flatApiData))
+      throw new Error("Formato inválido. No se encontró array en 'Persona'.");
+    if (flatApiData.length === 0) {
+      statusDiv.innerText = "API OK, pero no hay datos.";
+      return;
+    }
+    statusDiv.innerText = `Datos recibidos (${flatApiData.length}). Procesando...`;
+
+    // 2. Pre-cálculo Mapa Posición -> Empleado (Lógica clave de la jerarquía de personas)
+    const positionToEmployeeMap = new Map();
+    flatApiData
+      .filter(
+        (emp) =>
+          emp &&
+          emp.codigoPosicion != null &&
+          emp.vacante !== "1" &&
+          emp.codigoEmpleado
+      )
+      .forEach((emp) => {
+        const positionId = String(emp.codigoPosicion).trim();
+        const employeeId = String(emp.codigoEmpleado).trim();
+        if (!positionToEmployeeMap.has(positionId)) {
+          positionToEmployeeMap.set(positionId, employeeId);
+        } else {
+          console.warn(
+            `Advertencia: Posición ${positionId} asignada a múltiples empleados. Usando ${positionToEmployeeMap.get(
+              positionId
+            )}.`
+          );
+        }
+      });
+    console.log(
+      `Mapa Posición->Empleado creado con ${positionToEmployeeMap.size} entradas.`
+    );
+
+    // 3. Transformación (Lógica Híbrida: IDs de Empleado + IDs de Posición para vacantes)
+    const balkanNodes = flatApiData
+      .filter(
+        (emp) =>
+          emp &&
+          emp.codigoPosicion != null &&
+          String(emp.codigoPosicion).trim() !== "00006" &&
+          // Filtramos solo el departamento de Sistemas y Directorio
+          (emp.nombreDepartamento === "SISTEMAS" ||
+            emp.nombreDepartamento === "DIRECTORIO" ||
+            emp.nombreDepartamento === "IMPORTACIONES" ||
+            emp.nombreDepartamento === "LEGAL" ||
+            emp.nombreDepartamento === "PROCESOS Y PROYECTOS" ||
+            (emp.nombreDepartamento === "FINANZAS" &&
+              emp.nombreCentroCosto === "DERIVADOS"))
+      )
+      .map((emp) => {
+        const isVacant = emp.vacante === "1";
+
+        // ID HÍBRIDO: Usamos codigoEmpleado si existe, si no, codigoPosicion
+        const id = isVacant
+          ? String(emp.codigoPosicion).trim()
+          : String(emp.codigoEmpleado).trim();
+
+        let pid = emp.codigoPosicionReporta
+          ? String(emp.codigoPosicionReporta).trim()
+          : null;
+
+        if (pid && pid !== "0") {
+          // El 'pid' SIEMPRE es una POSICIÓN.
+          // Buscamos a qué 'id' (empleado o posición) corresponde.
+          const managerEmployeeId = positionToEmployeeMap.get(pid);
+
+          if (managerEmployeeId) {
+            // Encontrado: El jefe (empleado) es el pid.
+            pid = managerEmployeeId;
+          } else {
+            // No encontrado: El jefe está vacante, el 'pid' es la POSICIÓN del jefe.
+            pid = pid; // Se mantiene como codigoPosicion
+          }
+
+          if (pid === id) pid = undefined; // Evitar auto-referencia
+        } else {
+          pid = undefined; // Es raíz
+        }
+
+        // Lógica de Tags (Tu lógica de estilo)
+        const subLevelTag = getSubLevelTag(emp.nivelJerarquico);
+        const levelTag = `level-${emp.nivelJerarquico || "99"}`; // Tag para CSS
+        let tags = [levelTag];
+
+        if (subLevelTag !== "sub-level-0") {
+          tags.push(subLevelTag); // Tag para JS (subLevels)
+          tags.push("sublevel-node"); // Tag para CSS (línea punteada)
+        }
+
+        const order = parseInt(emp.nivelJerarquico || 99);
+
+        // Crear el objeto del nodo
+        if (isVacant) {
+          tags.push("vacante");
+          return {
+            id,
+            pid,
+            tags,
+            puesto: emp.puesto || "Puesto Vacante",
+            order,
+          };
+        } else {
+          return {
+            id,
+            pid,
+            tags,
+            nombre: `${emp.nombre || "N/A"} ${emp.apellido || ""}`.trim(),
+            puesto: emp.puesto || "Puesto no definido",
+            img:
+              emp.foto ||
+              "https://via.placeholder.com/60/cccccc/ffffff?text=N/A",
+            order,
+          };
+        }
+      })
+      .filter(Boolean); // Filtrar nulos si los hubiera
+
+    console.log(`Transformación completa (${balkanNodes.length} nodos).`);
+
+    // 4. Sanitización
+    const sanitizedNodes = sanitizeCircularReferences(balkanNodes);
+    statusDiv.innerText = `Datos sanitizados. Renderizando...`;
+    if (sanitizedNodes.length === 0)
+      throw new Error("No hay nodos válidos después de sanitizar.");
+    console.log("Nodos sanitizados:", sanitizedNodes);
+
+    // 5. Definir Plantillas (Tu definición)
+    // Plantilla base 'Ficha'
+    OrgChart.templates.fichaTemplate = Object.assign(
+      {},
+      OrgChart.templates.base
+    );
+    OrgChart.templates.fichaTemplate.size = [250, 110]; // Keep the increased height
+    OrgChart.templates.fichaTemplate.node =
+      '<rect x="0" y="0" width="250" height="110" fill="#FFEDD5" stroke="#e0e0e0" rx="6" ry="6"></rect>';
+
+    OrgChart.templates.fichaTemplate.img_0 =
+      /* ... (sin cambios) ... */
+      '<clipPath id="{randId}"><circle cx="40" cy="55" r="30"></circle></clipPath>' +
+      '<image preserveAspectRatio="xMidYMid slice" clip-path="url(#{randId})" xlink:href="{val}" x="10" y="25" width="60" height="60"></image>';
+
+    // --- CAMBIO: Ajustar foreignObject y añadir ellipsis ---
+    OrgChart.templates.fichaTemplate.field_0 = // Nombre
+      '<foreignObject x="85" y="25" width="155" height="40">' + // Contenedor
+      // Div interno: auto height, max-height for 2 lines approx, ellipsis
+      '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-weight: bold; color: #D35400; line-height: 1.2; height: auto; max-height: 34px; /* Approx 2 lines */ overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
+      "{val}" +
+      "</div>" +
+      "</foreignObject>";
+
+    OrgChart.templates.fichaTemplate.field_1 = // Puesto
+      '<foreignObject x="85" y="60" width="155" height="30">' + // Contenedor
+      // Div interno: similar adjustments for ellipsis
+      '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 11px; color: #797D7F; line-height: 1.2; height: auto; max-height: 27px; /* Approx 2 lines */ overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
+      "{val}" +
+      "</div>" +
+      "</foreignObject>";
+    // --- FIN CAMBIO ---
+
+    OrgChart.templates.fichaTemplate.field_2 =
+      /* ... (botón sin cambios) ... */
+      '<rect x="85" y="88" width="70" height="18" fill="#4285F4" rx="4" ry="4"></rect>' +
+      '<text style="font-size: 10px; cursor: pointer;" fill="#ffffff" x="120" y="100" text-anchor="middle">{val}</text>';
+
+    OrgChart.templates.fichaTemplate.ripple = {
+      radius: 15,
+      color: "#F57C00",
+      rect: { x: 0, y: 0, width: 250, height: 110, rx: 15, ry: 15 },
+    }; // Ripple effect, al dar click en el nodo da un efecto visual
+
+    // --- Plantilla Vacante 'Ficha' (Ajustar tamaño y posición vertical) ---
+    OrgChart.templates.vacanteFichaTemplate = Object.assign(
+      {},
+      OrgChart.templates.fichaTemplate
+    );
+    OrgChart.templates.vacanteFichaTemplate.size = [250, 110]; // Usar nueva altura
+    OrgChart.templates.vacanteFichaTemplate.node =
+      '<rect x="0" y="0" width="250" height="110" fill="#fafafa" stroke="#dddddd" rx="6" ry="6" stroke-dasharray="3 3"></rect>'; // Usar nueva altura
+    OrgChart.templates.vacanteFichaTemplate.img_0 =
+      '<circle cx="40" cy="55" r="30" fill="#e0e0e0"></circle>' + // Centrar (cy=55)
+      '<text fill="#999999" x="40" y="60" text-anchor="middle" style="font-size: 24px;">?</text>'; // Ajustar Y
+    // Usar foreignObject también para vacantes para consistencia (aunque el texto suele ser corto)
+    OrgChart.templates.vacanteFichaTemplate.field_0 =
+      '<foreignObject x="85" y="35" width="155" height="25">' +
+      '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-weight: bold; font-style: italic; color: #999999; text-align: left;">' +
+      "{val}" +
+      "</div>" +
+      "</foreignObject>";
+    OrgChart.templates.vacanteFichaTemplate.field_1 =
+      '<foreignObject x="85" y="55" width="155" height="30">' +
+      '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 11px; color: #999999; word-wrap: break-word; white-space: normal; text-align: left;">' +
+      "{val}" +
+      "</div>" +
+      "</foreignObject>";
+    OrgChart.templates.vacanteFichaTemplate.field_2 = ""; // Sin botón
+    // 6. Configuración de Tags (Tu configuración)
+    const tagsConfig = {
+      // Mapeo de tags de JS a la propiedad 'subLevels'
+      "sub-level-0": { subLevels: 0 },
+      "sub-level-1": { subLevels: 1 }, //Se el puede asignas mas cosas, como template: "ana", etc.
+      "sub-level-2": { subLevels: 2 },
+      "sub-level-3": { subLevels: 3 },
+
+      // Tag para la plantilla vacante
+      vacante: {
+        template: "vacanteTemplate",
+        nodeBinding: { field_0: "puesto" },
+      },
+
+      // Tags vacíos solo para que el CSS los pueda seleccionar
+      "level-0": {},
+      "level-1": {},
+      "level-2": {},
+      "level-3": {},
+      "level-4": {},
+      "level-5": {},
+      "level-6": {},
+      "level-7": {},
+      "level-99": {},
+      "sublevel-node": {},
+    };
+
+    // 7. Inicializar Gráfico (Tu configuración)
+    const chartConfig = {
+      //Configuraciones generales
+      mouseScrool: OrgChart.action.ctrlZoom,
+      enableSearch: false,
+      template: "fichaTemplate", // Plantilla base fichaTemplate, olivia, ana, etc
+      // mode: 'dark',
+      layout: OrgChart.normal,
+      scaleInitial: OrgChart.match.boundary, // Ajuste automático al contenedor, se visualiza todo
+      scaleInitial: 1,
+      enableAI: true,
+
+      nodes: sanitizedNodes,
+      tags: tagsConfig,
+      nodeBinding: {
+        field_0: "nombre",
+        field_1: "puesto",
+        img_0: "img", //,
+        //field_2: function(sender, node) { return "Ver ficha"; }
+      },
+      enableDragDrop: false, // Habilitar drag and drop
+      // Ordenar subniveles por 'nivelJerarquico'
+      sortSubLevelsSeparately: true,
+      compareSubLevels: {
+        order: (a, b) => a.order - b.order,
+      },
+      nodeMenu: { details: { text: "Detalles" } },
+      nodeExtent: { width: 250, height: 110 },
+      editForm: {
+        photoBinding: "img", // the photo property name
+        readOnly: true,
+        readOnly: "false", // the drefault value
+        titleBinding: "nombre", // a property name
+        focusBinding: "puesto",
+        buttons: {
+          edit: {
+            icon: OrgChart.icon.edit(24, 24, "#fff"),
+            text: "Edit",
+            hideIfEditMode: true,
+            hideIfDetailsMode: false,
+          },
+          share: {
+            icon: OrgChart.icon.share(24, 24, "#fff"),
+            text: "Share",
+            hideIfDetailsMode: true,
+          },
+          pdf: {
+            icon: OrgChart.icon.pdf(24, 24, "#fff"),
+            text: "Save as PDF",
+            hideIfDetailsMode: true,
+          },
+          remove: {
+            icon: OrgChart.icon.remove(24, 24, "#fff"),
+            text: "Remove",
+            hideIfDetailsMode: true,
+          },
+        },
+        /* elements: [
+                            { type: 'textbox', label: 'Full Name', binding: 'Name' },
+                            { type: 'textbox', label: 'Phone number', binding: 'phone' }        
+                        ] */
+
+        /* ... (tu configuración del editForm) ... */
+      },
+      //nodeClick: OrgChart.action,
+      nodeSeparation: 65,
+      levelSeparation: 20, // Espacio entre niveles
+      siblingSeparation: 100, // Espacio entre nodos hermanos
+    };
+
+    /////////////////////////
+    currentChart = new OrgChart(treeDiv, chartConfig);
+
+    // Barra de zoom
+    /* currentChart.onInit(function(){
+                    rangeScaleElement.min = this.config.scaleMin * sensitivity;
+                    rangeScaleElement.max = this.config.scaleMax * sensitivity;    
+                    rangeScaleElement.value = this.getScale() * sensitivity;
+                });
+
+                rangeScaleElement.addEventListener('input', function(){
+                    currentChart.setScale(this.value / sensitivity);
+                    txtScaleElement.innerHTML = rangeScaleElement.value / sensitivity;
+                }); */
+
+    //////// NODO con height Dinámico
+    /* 
+                currentChart.on('field', function (sender, args) {
+                    console.log("Field event:", args);
+                    if (args.name == 'img') {
+                        let text1 = args.data["nombre"];
+                        let text2 = args.data["puesto"];
+                        let img = args.data["img"];
+
+                        args.value = `<foreignobject x="10" y="10" width="200" height="200">
+                                            <div class="fields" xmlns="http://www.w3.org/1999/xhtml" >
+                                                ${text1 ? '<p>' + text1 + '</p>' : ''}
+                                                ${text2 ? '<p>' + text2 + '</p>' : ''}
+                                                ${img ? '<img src="' + img + '" alt="Imagen" />' : ''}
+                                            </div>
+                                        </foreignobject>`;
+                    }
+                });
+
+                
+
+
+                currentChart.on('node-initialized', function (sender, args) {
+                    let node = args.node;
+                    let data = currentChart._get(node.id);
+                    console.log(data)
+                    if (data.nombre) {
+                        let text1 = data["nombre"];
+                        let text2 = data["puesto"];
+                        let img = data["img"];
+
+                        let sss = `<foreignobject  x="10" y="10" width="200" height="20">
+                                            <div class="fields">
+                                                ${text1 ? '<p>' + text1 + '</p>' : ''}
+                                                ${text2 ? '<p>' + text2 + '</p>' : ''}
+                                                ${img ? '<img src="' + img + '" alt="Imagen" />' : ''}
+                                            </div>
+                                        </foreignobject>`;
+
+                        document.getElementById('test_height').innerHTML = sss;
+
+                        let rect1 = document.querySelector('#test_height .fields').getBoundingClientRect();
+
+                        node.h = rect1.height + 45;
+                    }
+                }); */
+
+    statusDiv.style.display = "none"; // Ocultar "Cargando..."
+  } catch (error) {
+    console.error("ERROR DETALLADO:", error);
+    statusDiv.innerText = "Error.";
+    errorDiv.innerText = `Error: ${error.message}. Revisa la consola (F12).`;
+    errorDiv.style.display = "block";
+  }
+}
+
+// --- Llamada inicial ---
+document.addEventListener("DOMContentLoaded", function () {
+  const apiUrl =
+    "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_persona";
+  loadAndRenderChart(apiUrl);
+});
