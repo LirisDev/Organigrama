@@ -210,10 +210,19 @@
                 OrgChart.templates.fichaTemplate = Object.assign({}, OrgChart.templates.base);
                 OrgChart.templates.fichaTemplate.size = [250, 110]; // Keep the increased height
                 OrgChart.templates.fichaTemplate.editFormHeaderColor = "#F57C00"; // Color del header del editForm
+                // Definimos un gradiente en las definiciones SVG
+                OrgChart.templates.fichaTemplate.defs += `
+                    <linearGradient id="fichaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#FFF3E0;stop-opacity:1" />  
+                        <stop offset="100%" style="stop-color:#FFE0B2;stop-opacity:1" /> 
+                    </linearGradient>`;
+                // Usamos el gradiente en el nodo
                 OrgChart.templates.fichaTemplate.node =
-                    '<rect x="0" y="0" width="250" height="110" fill="#FFEDD5" stroke="#e0e0e0" rx="6" ry="6"></rect>';
-
-                OrgChart.templates.fichaTemplate.img_0 = /* ... (sin cambios) ... */
+                    '<rect x="0" y="0" width="250" height="110" fill="url(#fichaGradient)" stroke="#FDBE86" rx="6" ry="6"></rect>'; // Stroke naranja más suave
+                    // Barra de acento vertical a la izquierda
+                    '<path d="M0 6 L 0 104 Q 0 110 6 110 L 6 110 Q 0 110 0 104 L 0 6 Q 0 0 6 0 L 6 0 Q 0 0 0 6 Z" fill="#F57C00"></path>'; // Naranja principal de Liris?
+                
+                    OrgChart.templates.fichaTemplate.img_0 = /* ... (sin cambios) ... */
                     '<clipPath id="{randId}"><circle cx="40" cy="55" r="30"></circle></clipPath>' +
                     '<image preserveAspectRatio="xMidYMid slice" clip-path="url(#{randId})" xlink:href="{val}" x="10" y="25" width="60" height="60"></image>';
 
@@ -245,35 +254,13 @@
                     rect: { x: 0, y: 0, width: 250, height: 110, rx: 15, ry: 15 }
                 };  // Ripple effect, al dar click en el nodo da un efecto visual
 
-                // --- Plantilla Vacante 'Ficha' (Ajustar tamaño y posición vertical) ---
-                OrgChart.templates.vacanteFichaTemplate = Object.assign({}, OrgChart.templates.fichaTemplate);
-                OrgChart.templates.vacanteFichaTemplate.size = [250, 110]; // Usar nueva altura
-                OrgChart.templates.vacanteFichaTemplate.node =
-                    '<rect x="0" y="0" width="250" height="110" fill="#fafafa" stroke="#dddddd" rx="6" ry="6" stroke-dasharray="3 3"></rect>'; // Usar nueva altura
-                OrgChart.templates.vacanteFichaTemplate.img_0 =
-                    '<circle cx="40" cy="55" r="30" fill="#e0e0e0"></circle>' + // Centrar (cy=55)
-                    '<text fill="#999999" x="40" y="60" text-anchor="middle" style="font-size: 24px;">?</text>'; // Ajustar Y
-                // Usar foreignObject también para vacantes para consistencia (aunque el texto suele ser corto)
-                OrgChart.templates.vacanteFichaTemplate.field_0 =
-                    '<foreignObject x="85" y="35" width="155" height="25">' +
-                    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-weight: bold; font-style: italic; color: #999999; text-align: left;">' +
-                    '{val}' +
-                    '</div>' +
-                    '</foreignObject>';
-                OrgChart.templates.vacanteFichaTemplate.field_1 =
-                    '<foreignObject x="85" y="55" width="155" height="30">' +
-                    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 11px; color: #999999; word-wrap: break-word; white-space: normal; text-align: left;">' +
-                    '{val}' +
-                    '</div>' +
-                    '</foreignObject>';
-                OrgChart.templates.vacanteFichaTemplate.field_2 = ''; // Sin botón
                 
                 // 6. Configuración de Tags (Tu configuración)
                 const tagsConfig = {
                     // Mapeo de tags de JS a la propiedad 'subLevels'
                     "sub-level-0": { subLevels: 0 , levelSeparation: 20},
-                    "sub-level-1": { subLevels: 1 , levelSeparation: 20 }, //Se el puede asignar mas cosas, como template: "ana", etc.
-                    "sub-level-2": { subLevels: 2  },
+                    "sub-level-1": { subLevels: 1 , levelSeparation: 20}, //Se el puede asignar mas cosas, como template: "ana", etc.
+                    "sub-level-2": { subLevels: 2 , levelSeparation: 20},
                     "sub-level-3": { subLevels: 3 },
                     filter: {
                         template: 'dot'
@@ -386,7 +373,7 @@
                     },
                     //nodeClick: OrgChart.action,
                     nodeSeparation: 65,
-                    levelSeparation: 120,    // Espacio entre niveles
+                    //levelSeparation: 120,    // Espacio entre niveles
                     siblingSeparation: 100, // Espacio entre nodos hermanos
 
                     //levelSeparation: 60,
@@ -477,7 +464,7 @@
 
         // --- Llamada inicial ---
         document.addEventListener('DOMContentLoaded', function () {
-            const apiUrl = 'API_URL_AQUI';
+            const apiUrl = 'https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_persona';
             loadAndRenderChart(apiUrl);
         });
     </script>
