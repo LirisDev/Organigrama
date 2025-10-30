@@ -24,8 +24,21 @@
     height
     </button>
 -->
+    <!-- <div style="margin: 10px ;position: absolute;">
+        <label for="department-filter">Filtrar por Departamento:</label>
+        <select id="department-filter">
+            <option value="all">Todos los Departamentos</option>
+        </select>
+    </div> -->
+    
+    <div id="custom-filters" style="padding: 10px; background-color: #f0f0f0; text-align: center; ">
+        <label for="departamento-select" style="font-family: Arial, sans-serif; margin-right: 10px;"><b>Filtrar por Departamento:</b></label>
+        <select id="departamento-select" style="font-size: 16px; padding: 5px;">
+            <option value="todos">-- Mostrar Todos --</option>
+            </select>
+    </div>
     <div id="tree"></div>
-
+    
     
     <!-- Barra para escala -->
 <!--     <input id="range_scale" type="range" min="1" max="100" value="1">
@@ -41,6 +54,7 @@
         let txtScaleElement = document.getElementById('txt_scale');
 
         let chart = null;
+        let allNodes = []; // ¡NUEVO! Aquí guardaremos todos los nodos
         let sensitivity = 100;
         let colors = ["#F57C00", "#039BE5", "#FFCA28"];
 
@@ -99,6 +113,92 @@
             return "sub-level-0"; // Otros
         }
 
+        ///////// * Puebla el <select> con los departamentos únicos de los nodos.        
+        function populateFilterDropdown(nodes) {
+            const selectElement = document.getElementById('departamento-select');
+            if (!selectElement) return;
+
+            // 1. Obtener departamentos únicos
+            const departments = new Set();
+            nodes.forEach(node => {
+                if (node.departamento && node.departamento !== 'N/A') {
+                    departments.add(node.departamento);
+                }
+            });
+
+            // 2. Ordenar alfabéticamente
+            const sortedDepartments = Array.from(departments).sort();
+
+            // 3. Crear y añadir <option>
+            sortedDepartments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                selectElement.appendChild(option);
+            });
+
+            // 4. Añadir el Event Listener
+            selectElement.addEventListener('change', handleFilterChange);
+        }
+
+        ///////// * Se ejecuta cuando el usuario cambia el valor del <select>.
+        function handleFilterChange() {
+            if (!chart || !allNodes.length) return; // No hacer nada si el gráfico no está listo
+
+            const selectedDept = document.getElementById('departamento-select').value;
+            statusDiv.style.display = "block";
+            statusDiv.innerText = "Filtrando...";
+
+            if (selectedDept === "todos") {
+                // Si selecciona "Todos", cargar la lista completa
+                chart.load(allNodes);
+                statusDiv.style.display = "none";
+                return;
+            }
+
+            // --- Lógica de Filtro con Jerarquía (Inclusión) ---
+            
+            // 1. Un mapa para buscar nodos por ID rápidamente
+            const nodeMap = new Map(allNodes.map(node => [node.id, node]));
+            
+            // 2. Un mapa para guardar los nodos que SÍ queremos mostrar (evita duplicados)
+            const nodesToShow = new Map();
+
+            // 3. Encontrar todos los nodos que coinciden con el filtro
+            for (const node of allNodes) {
+                if (node.departamento === selectedDept) {
+                    // 4. Para cada nodo que coincide, añadirlo A ÉL Y A TODOS SUS PADRES
+                    let currentNode = node;
+                    while (currentNode) {
+                        if (nodesToShow.has(currentNode.id)) {
+                            break; // Si ya añadimos esta rama, paramos
+                        }
+                        nodesToShow.set(currentNode.id, currentNode);
+                        
+                        // Subir al padre
+                        if (currentNode.pid) {
+                            currentNode = nodeMap.get(currentNode.pid);
+                        } else {
+                            currentNode = null; // Llegamos a la raíz
+                        }
+                    }
+                }
+            }
+
+            // 5. Convertir el mapa de nodos a mostrar en un array y cargarlo
+            const filteredNodes = Array.from(nodesToShow.values());
+            
+            if (filteredNodes.length > 0) {
+                chart.load(filteredNodes);
+            } else {
+                // Si el filtro no devuelve nada, mostrar un gráfico vacío
+                chart.load([]); 
+                alert(`No se encontraron empleados para el departamento "${selectedDept}".`);
+            }
+            
+            statusDiv.style.display = "none";
+        }
+        
         // --- Función Principal: Cargar, Mapear y Renderizar ---
         async function loadAndRenderChart(apiUrl) {
             statusDiv.innerText = "Llamando a la API...";
@@ -191,13 +291,14 @@
                         // Crear el objeto del nodo
                         if (isVacant) {
                             tags.push('vacante');
-                            return { id, pid, tags, puesto: emp.puesto || "Puesto Vacante", order };
+                        return { id, pid, tags, puesto: emp.puesto || "Puesto Vacante", departamento: emp.nombreDepartamento || 'N/A', order};
                         } else {
                             return {
                                 id, pid, tags,
                                 nombre: `${emp.nombre || 'N/A'} ${emp.apellido || ''}`.trim(),
                                 puesto: emp.puesto || "Puesto no definido",
                                 img: emp.foto || 'https://via.placeholder.com/60/cccccc/ffffff?text=N/A',
+                                departamento: emp.nombreDepartamento || 'N/A', // ¡AÑADIR ESTO!
                                 order
                             };
                         }
@@ -208,6 +309,8 @@
                 
                 // 4. Sanitización
                 const sanitizedNodes = sanitizeCircularReferences(balkanNodes);
+                allNodes = sanitizedNodes; // Guarda todos los nodos globalmente
+                populateFilterDropdown(allNodes); // Llama a la nueva función (ver Paso 3)
                 statusDiv.innerText = `Datos sanitizados. Renderizando...`;
                 if (sanitizedNodes.length === 0) throw new Error("No hay nodos válidos después de sanitizar.");
                 console.log("Nodos sanitizados:", sanitizedNodes);
@@ -288,7 +391,7 @@
                 // 7. Inicializar Gráfico (Tu configuración)
                 const chartConfig =  {
                     //Configuraciones generales
-                    mouseScrool: OrgChart.action.Zoom,
+                    mouseScrool: OrgChart.action.zoom,
                     enableSearch: true,
                     template: "fichaTemplate", // Plantilla base fichaTemplate, olivia, ana, etc
                     // mode: 'dark',
@@ -444,10 +547,8 @@
                 //PERSONALIZAR IA
                 // Aquí se le pueden dar instrucciones al sistema de IA para que entienda el contexto de la empresa
                 OrgChart.AI_SYSTEM_MESSAGES = ["Trabajas para una empresa llamada LIRIS que se dedica desde el balanceado, criadero de pollos hasta su venta y distribución a demás de contar con supermercados retail llamado DelPortal en Guayaquil, Ecuador. El organigrama se trata del equipo de trabajo de esta empresa. La oficina de LIRIS queda en Samborondon, Ecuador."];
-
                 OrgChart.SEARCH_PLACEHOLDER = "Buscar por nombre o puesto...";
-
-
+                OrgChart.aiUI.title = "AI for LIRIS S.A."; //
                 
                 /////////////////////////
                 chart = new OrgChart(treeDiv, chartConfig);
@@ -462,11 +563,13 @@
                     return false; 
                 });  
 
+
                 chart.onInit(function(){
                     //this.aiUI.show(true)
                     //this.aiUI.inputElement.value = '¿Qué puedes hacer?'
                     chart.config.scaleInitial = OrgChart.match.boundary;
                     chart._draw(true, OrgChart.action.init, { method: 'fit' });
+                    
                 })
 
                 /* 

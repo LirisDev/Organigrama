@@ -257,3 +257,58 @@ div.boc-node.level-6[data-n-id] {
 .boc-edit-form > .boc-edit-form-toolbar {
   display: none;
 }
+
+
+/* --- CAMBIOS EN EL FORMULARIO DE IA --- */
+/* * 1. Apunta al input DENTRO del formulario AI 
+ * cuando está enfocado (:focus)
+*/
+[data-boc-ai-form] .boc-input input:focus {
+    border-color: #F57C00 !important; /* <-- Tu color naranja Liris */
+    
+    /* Opcional: sombra naranja sutil al hacer clic */
+    box-shadow: 0 0 3px 1px rgba(245, 124, 0, 0.3) !important;
+}
+
+/* * 2. Asegura que el texto del label también sea naranja al hacer clic
+*/
+[data-boc-ai-form] .boc-input label.focused::after {
+     color: #F57C00 !important; /* Mismo color naranja Liris */
+}
+
+/* * 3. Define el texto del label en estado normal
+*/
+[data-boc-ai-form] .boc-input label {
+    font-size: 0 !important;
+    color: transparent !important;
+}
+[data-boc-ai-form] .boc-input label::after {
+    content: "Pregúntale a LIRIS AI" !important;
+    font-size: 16px !important;
+    color: #acacac !important; 
+}
+
+/* Apunta a la imagen del logo de Balkan en el panel de IA */
+/* 1. Convierte el contenedor del título de la IA en un flexbox */
+[data-boc-ai-messages] {
+    display: flex !important;
+    align-items: center !important;     /* ¡Esta es la clave para la alineación vertical! */
+    justify-content: center !important;  /* Mantiene todo centrado horizontalmente */
+    width: 100% !important;
+}
+
+/* 2. Regla para tu imagen de logo (de la respuesta anterior) */
+[data-boc-ai-messages] img {
+    content: url('Logo-Liris.png') !important; /* Reemplaza esto */
+    width: 40px !important;
+    height: 40px !important;
+    object-fit: contain;
+    margin-right: 8px; /* Añade un espacio entre el logo y el texto */
+}
+
+/* 3. Asegúrate de que el span se comporte bien (opcional) */
+[data-boc-ai-messages] span {
+    display: inline-block; /* Asegura que el span sea un bloque para alinear */
+}
+
+/* ---------------------------------------- */
