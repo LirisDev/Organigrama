@@ -65,6 +65,26 @@
 
 
     <script>
+        // 1. Variable para guardar el usuario
+        let usuarioId = null;
+
+        // 2. Escucha los mensajes ("postMessage") de la ventana padre
+        window.addEventListener("message", (event) => {
+            // 3. Comprueba si el mensaje tiene la estructura esperada
+            if (event.data && event.data.userId) {
+                
+                // 4. Guarda el userId y muéstralo en consola
+                usuarioId = event.data.userId;
+                console.log("✅ Usuario ID recibido desde ASP.NET:", usuarioId);
+                
+                // 5. (Opcional) Llama a tu función de filtrado
+                // Una vez que tengas el 'usuarioId', puedes usarlo
+                // para filtrar automáticamente.
+                
+                // filtrarOrganigramaPorUsuario(usuarioId);
+            }
+        });
+        
         // --- Referencias a divs de estado ---
         const statusDiv = document.getElementById("status-message");
         const errorDiv = document.getElementById("error-message");
