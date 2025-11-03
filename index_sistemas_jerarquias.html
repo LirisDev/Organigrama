@@ -66,7 +66,7 @@
 
     <script>
         // 1. Variable para guardar el usuario
-        let usuarioId = null;
+        //let usuarioId = null;
         let receivedUserId = null;     // Guardará el 'userId' formateado (ej. "interno\drendon")
         let isDataReady = false;      // Una "bandera" para saber si 'allNodes' está cargado
         let empleadoLogueado = null; // Guardará el objeto del empleado una vez encontrado
@@ -78,7 +78,7 @@
                 console.log("✅ Usuario ID recibido:", userIdLimpio);
                 
                 // 1. Formatear y Guardar
-                receivedUserId = "interno\\\\" + userIdLimpio;
+                receivedUserId = "interno\\" + userIdLimpio;
 
                 // 2. Intentar procesar (en caso de que la data ya esté lista)
                 procesarLoginDeUsuario();
@@ -122,9 +122,14 @@
             console.log("ℹ️ Datos y UserId listos. Buscando:", receivedUserId);
             console.log("ℹ️ Datos AllNodes:", allNodes);
 
+            
             // (Asumo que 'allNodes' está disponible en este scope)
             empleadoLogueado = allNodes.find(
-                nodo => nodo.userId && nodo.userId.toLowerCase() === receivedUserId
+                nodo => {
+                            console.log("Verificando nodo:", nodo.userid);
+                            console.log("Resultado:", nodo.userid && nodo.userid.toLowerCase() === receivedUserId);
+                            return nodo.userid && nodo.userid.toLowerCase() === receivedUserId; //TODO: consultar el nodo del usuario logueado
+                        }
             );
 
             if (empleadoLogueado) {
@@ -733,6 +738,26 @@
                     console.log("Funcionando...", this);
                     // chart.config.scaleInitial = OrgChart.match.boundary;
                     // chart._draw(true, OrgChart.action.init, { method: 'fit' });
+                    let receivedUserId2 = 'interno\\dromero';
+                    console.log("Buscando userId:", receivedUserId2);
+                    console.log("Todos los nodos:", allNodes);
+                    empleadoLogueado = allNodes.find(
+                        nodo => {
+                            console.log("Verificando nodo:", nodo.userid);
+                            console.log("Resultado:", nodo.userid && nodo.userid.toLowerCase() === receivedUserId2);
+                            return nodo.userid && nodo.userid.toLowerCase() === receivedUserId2; //TODO: consultar el nodo del usuario logueado
+                        }
+                    );
+
+                    if (empleadoLogueado) {
+                        console.log("🎉 ¡Encontrado! Información completa:", empleadoLogueado);
+                        
+                        // --- PRÓXIMO PASO (cuando quieras) ---
+                        // Aquí es donde puedes auto-filtrar el organigrama:
+                        // autoFiltrar(empleadoLogueado);
+                        // ---
+
+                    }
                     
                 })
 
