@@ -40,22 +40,17 @@
 
     <div id="custom-filters">
     <div>
-        <select id="select-linea-negocio" class="control-select">
-            <option value="todos">Línea Negocio</option>
-        </select>
+        <select id="linea-negocio-select" class="control-select">
+            <option value="todos">Toda Línea Negocio</option>
+            </select>
 
-        <select id="select-centro-costos" class="control-select">
-            <option value="todos">Centro Costos</option>
-        </select>
-        
-        <select id="select-departamento" class="control-select">
-            <option value="todos">Departamento</option>
-        </select>
+        <select id="centro-costos-select" class="control-select">
+            <option value="todos">Todo Centro Costos</option>
+            </select>
 
-            <select id="select-persona-cargo" class="control-select">
-            <option value="persona">Ver por Persona</option>
-            <option value="cargo">Ver por Cargo</option>
-        </select>
+        <select id="departamento-select" class="control-select">
+            <option value="todos">Todos los Deptos.</option>
+            </select>
     </div>
 </div>
 
@@ -148,61 +143,85 @@
             return "sub-level-0"; // Otros
         }
 
-        ///////// * Puebla el <select> con los departamentos únicos de los nodos.        
-        function populateFilterDropdown(nodes) {
-            const selectElement = document.getElementById('departamento-select');
-            if (!selectElement) return;
+        ///////// * Puebla el <select> con los filtros únicos de los nodos.        
+        function populateSelect(selectId, dataField, nodes) {
+            const selectElement = document.getElementById(selectId);
+            if (!selectElement) {
+                console.error(`No se encontró el select con ID: ${selectId}`);
+                return;
+            }
 
-            // 1. Obtener departamentos únicos
-            const departments = new Set();
+            // 1. Obtener valores únicos
+            const valueSet = new Set();
             nodes.forEach(node => {
-                if (node.departamento && node.departamento !== 'N/A') {
-                    departments.add(node.departamento);
+                // Usamos [dataField] para acceder a la propiedad dinámicamente
+                if (node[dataField] && node[dataField] !== 'N/A') {
+                    valueSet.add(node[dataField]);
                 }
             });
 
             // 2. Ordenar alfabéticamente
-            const sortedDepartments = Array.from(departments).sort();
+            const sortedValues = Array.from(valueSet).sort();
 
             // 3. Crear y añadir <option>
-            sortedDepartments.forEach(dept => {
+            sortedValues.forEach(value => {
                 const option = document.createElement('option');
-                option.value = dept;
-                option.textContent = dept;
+                option.value = value;
+                option.textContent = value;
                 selectElement.appendChild(option);
             });
 
             // 4. Añadir el Event Listener
-            selectElement.addEventListener('change', handleFilterChange);
+            selectElement.addEventListener('change', aplicarFiltrosJerarquicos);
         }
 
-        ///////// * Se ejecuta cuando el usuario cambia el valor del <select>.
-        function handleFilterChange() {
-            if (!chart || !allNodes.length) return; // No hacer nada si el gráfico no está listo
+        ///////// * Se ejecuta cuando el usuario cambia el valor de CUALQUIER valor de los 3 selects.
 
+
+        ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
+        function aplicarFiltrosJerarquicos() {
+            // 1. Validar que el chart esté listo
+            // (Asumo que 'chart', 'allNodes' y 'statusDiv' son variables globales en tu script)
+            if (!chart || !allNodes.length) return; 
+
+            // 2. Leer los 3 valores
+            const selectedLinea = document.getElementById('linea-negocio-select').value;
+            const selectedCostos = document.getElementById('centro-costos-select').value;
             const selectedDept = document.getElementById('departamento-select').value;
+            
             statusDiv.style.display = "block";
             statusDiv.innerText = "Filtrando...";
 
-            if (selectedDept === "todos") {
-                // Si selecciona "Todos", cargar la lista completa
-                chart.load(allNodes);
+            // 3. Si todos están en "todos", recargar el árbol completo
+            if (selectedLinea === "todos" && selectedCostos === "todos" && selectedDept === "todos") {
+                chart.load(allNodes); // (O 'sanitizedNodes' si es tu fuente de verdad)
                 statusDiv.style.display = "none";
                 return;
             }
 
-            // --- Lógica de Filtro con Jerarquía (Inclusión) ---
-            
-            // 1. Un mapa para buscar nodos por ID rápidamente
+            // --- Tu Lógica de Filtro con Jerarquía (Adaptada) ---
+
+            // 4. Un mapa para buscar nodos por ID (tu código)
             const nodeMap = new Map(allNodes.map(node => [node.id, node]));
             
-            // 2. Un mapa para guardar los nodos que SÍ queremos mostrar (evita duplicados)
+            // 5. Un mapa para guardar los nodos que SÍ queremos mostrar (tu código)
             const nodesToShow = new Map();
 
-            // 3. Encontrar todos los nodos que coinciden con el filtro
+            // 6. Recorrer TODOS los nodos
             for (const node of allNodes) {
-                if (node.departamento === selectedDept) {
-                    // 4. Para cada nodo que coincide, añadirlo A ÉL Y A TODOS SUS PADRES
+                
+                // 7. --- ¡LA MAGIA ESTÁ AQUÍ! ---
+                // Comprobar si el nodo cumple con LOS TRES filtros (o si el filtro es "todos")
+                
+                const lineaMatch = (selectedLinea === 'todos') || (node.lineaNegocio === selectedLinea);
+                const costosMatch = (selectedCostos === 'todos') || (node.centroCostos === selectedCostos);
+                const deptMatch = (selectedDept === 'todos') || (node.departamento === selectedDept);
+
+                // 8. Si el nodo coincide con todos los filtros activos
+                if (lineaMatch && costosMatch && deptMatch) {
+                    
+                    // 9. Para cada nodo que coincide, añadirlo A ÉL Y A TODOS SUS PADRES
+                    // (Esta es tu lógica original, que está perfecta)
                     let currentNode = node;
                     while (currentNode) {
                         if (nodesToShow.has(currentNode.id)) {
@@ -211,16 +230,16 @@
                         nodesToShow.set(currentNode.id, currentNode);
                         
                         // Subir al padre
-                        if (currentNode.pid) {
+                        if (currentNode.pid && nodeMap.has(currentNode.pid)) {
                             currentNode = nodeMap.get(currentNode.pid);
                         } else {
-                            currentNode = null; // Llegamos a la raíz
+                            currentNode = null; // Llegamos a la raíz o a un nodo sin padre en el mapa
                         }
                     }
                 }
             }
 
-            // 5. Convertir el mapa de nodos a mostrar en un array y cargarlo
+            // 10. Convertir el mapa de nodos a mostrar en un array y cargarlo
             const filteredNodes = Array.from(nodesToShow.values());
             
             if (filteredNodes.length > 0) {
@@ -228,12 +247,13 @@
             } else {
                 // Si el filtro no devuelve nada, mostrar un gráfico vacío
                 chart.load([]); 
-                alert(`No se encontraron empleados para el departamento "${selectedDept}".`);
+                alert(`No se encontraron resultados para esta combinación de filtros.`);
             }
             
             statusDiv.style.display = "none";
         }
-        
+
+
         // --- Función Principal: Cargar, Mapear y Renderizar ---
         async function loadAndRenderChart(apiUrl) {
             statusDiv.innerText = "Llamando a la API...";
@@ -326,14 +346,25 @@
                         // Crear el objeto del nodo
                         if (isVacant) {
                             tags.push('vacante');
-                        return { id, pid, tags, puesto: emp.puesto || "Puesto Vacante", departamento: emp.nombreDepartamento || 'N/A', order};
+                        return { id, pid, tags, 
+                            puesto: emp.puesto || "Puesto Vacante", 
+                            codPosicion: emp.codigoPosicion || "Código de posición no definido",
+                            codPosicion_R: emp.codigoPosicionReporta || "Código de posición que reporta no definido",
+                            departamento: emp.nombreDepartamento || 'N/A', 
+                            order};
                         } else {
                             return {
                                 id, pid, tags,
                                 nombre: `${emp.nombre || 'N/A'} ${emp.apellido || ''}`.trim(),
-                                puesto: emp.puesto || "Puesto no definido",
+                                userid: emp.userid || "UserId no definido",
+                                codPosicion: emp.codigoPosicion || "Código de posición no definido",
+                                codPosicion_R: emp.codigoPosicionReporta || "Código de posición que reporta no definido",
+                                lineaNegocio: emp.nombreLineaNegocio || "Línea de negocio no definida",
+                                centroCosto: emp.nombreCentroCosto || "Nombre de centro de costo no definido",
+                                departamento: emp.nombreDepartamento || 'N/A', // 
                                 img: emp.foto || 'https://via.placeholder.com/60/cccccc/ffffff?text=N/A',
-                                departamento: emp.nombreDepartamento || 'N/A', // ¡AÑADIR ESTO!
+                                email: emp.emailCorporativo || 'Sin correo electrónico',
+                                rutaManual: emp.rutaManual || 'Sin manual asignado',
                                 order
                             };
                         }
@@ -345,10 +376,14 @@
                 // 4. Sanitización
                 const sanitizedNodes = sanitizeCircularReferences(balkanNodes);
                 allNodes = sanitizedNodes; // Guarda todos los nodos globalmente
-                populateFilterDropdown(allNodes); // Llama a la nueva función (ver Paso 3)
                 statusDiv.innerText = `Datos sanitizados. Renderizando...`;
                 if (sanitizedNodes.length === 0) throw new Error("No hay nodos válidos después de sanitizar.");
                 console.log("Nodos sanitizados:", sanitizedNodes);
+
+                // Poblamos los selects para filtrar por Línea de Negocio, Centro de Costos y Departamento
+                populateSelect('linea-negocio-select', 'lineaNegocio', sanitizedNodes);
+                populateSelect('centro-costos-select', 'centroCosto', sanitizedNodes);
+                populateSelect('departamento-select', 'departamento', sanitizedNodes); // Tu select existente
 
                 // 5. Definir Plantillas (Tu definición)
                 // Plantilla base 'Ficha'
@@ -432,7 +467,7 @@
                     // mode: 'dark',
                     layout: OrgChart.normal,
                     scaleInitial: OrgChart.match.boundary, // Ajuste automático al contenedor, se visualiza todo
-                    //: 1,
+                    //scaleInitial: 1,
                     enableAI: true,
 
 
@@ -460,7 +495,7 @@
                         allChildren: true
                     },
                     expand: {
-                        nodes: [4281], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos
+                        nodes: [4281], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos, TODO: cambiar posteriormente 
                         allChildren: true // Expande todos los hijos del nodo 4281
                     },
                     controls: {
@@ -513,7 +548,6 @@
                             }
                         },
                     },
-
 
                     enableDragDrop: false, // Habilitar drag and drop
                     // Ordenar subniveles por 'nivelJerarquico'
@@ -613,7 +647,7 @@
                     siblingSeparation: 100, // Espacio entre nodos hermanos
                     partnerNodeSeparation: 15,
                 };
-
+                
                 //PERSONALIZAR IA
                 // Aquí se le pueden dar instrucciones al sistema de IA para que entienda el contexto de la empresa
                 OrgChart.AI_SYSTEM_MESSAGES = ["Trabajas para una empresa llamada LIRIS que se dedica desde el balanceado, criadero de pollos hasta su venta y distribución a demás de contar con supermercados retail llamado DelPortal en Guayaquil, Ecuador. El organigrama se trata del equipo de trabajo de esta empresa. La oficina de LIRIS queda en Samborondon, Ecuador."];
@@ -637,8 +671,9 @@
                 chart.onInit(function(){
                     //this.aiUI.show(true)
                     //this.aiUI.inputElement.value = '¿Qué puedes hacer?'
-                    chart.config.scaleInitial = OrgChart.match.boundary;
-                    chart._draw(true, OrgChart.action.init, { method: 'fit' });
+                    console.log("Funcionando...", this);
+                    // chart.config.scaleInitial = OrgChart.match.boundary;
+                    // chart._draw(true, OrgChart.action.init, { method: 'fit' });
                     
                 })
 
@@ -651,51 +686,6 @@
                         iterate(c, c.getNode(n.childrenIds[i]), collapseIds, id)
                     }
                 }
-
-                // --- LÓGICA DE BOTONES DE ACCIÓN ---
-
-                // Botones de Layout (Horizontal/Vertical)
-                // document.getElementById('btn-layout-vertical').addEventListener('click', () => {
-                //     // 'normal' es el layout vertical estándar
-                //     chart.layout(OrgChart.layout.normal);
-                // });
-                
-                // document.getElementById('btn-layout-horizontal').addEventListener('click', () => {
-                //     // 'linear' es un layout horizontal. Puedes probar otros
-                //     // como OrgChart.layout.treeLeftOffset
-                //     chart.layout(OrgChart.layout.linear); 
-                // });
-
-                // // Botones de Expandir/Contraer
-                // document.getElementById('btn-expand-all').addEventListener('click', () => {
-                //     chart.expandAll();
-                // });
-
-                // document.getElementById('btn-collapse-all').addEventListener('click', () => {
-                //     // BALKAN colapsa basado en el ID de un nodo.
-                //     // Para "contraer todo", colapsamos los hijos del nodo raíz.
-                //     // Asumiendo que tu nodo raíz (Gerencia) tiene id: 1
-                //     chart.collapse(1); 
-                // });
-                /* 
-                document.querySelector('#width').addEventListener('click', function () {
-                    console.log("width clicked")
-                    chart.config.scaleInitial = OrgChart.match.width;
-                    chart._draw(true, OrgChart.action.init, { method: 'fit' });
-                });
-
-                document.querySelector('#height').addEventListener('click', function () {
-                    console.log("height clicked")
-                    chart.config.scaleInitial = OrgChart.match.height;
-                    chart._draw(true, OrgChart.action.init, { method: 'fit' });
-                });
-
-                document.querySelector('#boundary').addEventListener('click', function () {
-                    console.log("boundary clicked")
-                    chart.config.scaleInitial = OrgChart.match.boundary;
-                    chart._draw(true, OrgChart.action.init, { method: 'fit' });
-                }); */
-
 
 
                 // Barra de zoom

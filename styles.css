@@ -1,3 +1,26 @@
+/* --- 1. PALETA DE VARIABLES GLOBALES (CON TU COLOR) --- */
+:root {
+    /* Tu color primario */
+    --color-primario: #f57c00;
+    --color-primario-hover: #e07000; /* Un naranja más oscuro para hover */
+    --color-primario-foco: rgba(245, 124, 0, 0.25); /* Sombra de foco */
+
+    /* Neutros para combinar */
+    --color-fondo: #f8f8f8;     /* Un gris muy claro y cálido */
+    --color-superficie: #ffffff;  /* Blanco para headers y controles */
+    --color-texto: #333333;      /* Texto principal */
+    --color-texto-secundario: #555555;
+    --color-borde: #dcdcdc;      /* Un gris claro para bordes */
+    
+    /* Variables de UI */
+    --radio-borde: 5px;
+    --espacio-s: 8px;
+    --espacio-m: 12px;
+}
+
+/* background-color: var(--color-fondo); <-- Usando variable */
+
+
 html,
 body {
   margin: 0;
@@ -311,3 +334,45 @@ div.boc-node.level-6[data-n-id] {
     display: inline-block; /* Asegura que el span sea un bloque para alinear */
 }
 /* ---------------------------------------- */
+
+/* --- ESTILOS DE LA BARRA DE CONTROLES --- */
+
+#controles {
+    background-color: var(--color-superficie);
+    padding: var(--espacio-m) 20px; 
+    display: flex;
+    flex-wrap: wrap; 
+    align-items: center;
+    gap: var(--espacio-m); 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border-bottom: 1px solid #eee;
+}
+
+/* Estilos para Selects */
+.control-select {
+    /*font-family: inherit;  Hereda la fuente del body */
+    font-size: 14px;
+    padding: var(--espacio-s) var(--espacio-m);
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-borde);
+    background-color: #fff;
+    color: var(--color-texto-secundario);
+    min-width: 180px; /* Un buen tamaño base */
+    
+    /* Transición suave para el foco */
+    transition: border-color 0.2s, box-shadow 0.2s;
+    
+    /* Apariencia (para un mejor look & feel) */
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23555' viewBox='0 0 16 16'%3E%3Cpath d='M8 10.75a.5.5 0 0 1-.354-.146l-3-3a.5.5 0 0 1 .708-.708L8 9.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3A.5.5 0 0 1 8 10.75z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--espacio-m) center;
+    padding-right: 35px; /* Espacio extra para la flecha */
+}
+
+/* Efecto :focus (CON TU NARANJA) */
+.control-select:focus {
+    outline: none; 
+    border-color: var(--color-primario); /* Borde naranja al seleccionar */
+    box-shadow: 0 0 0 3px var(--color-primario-foco); /* Sombra naranja */
+}
