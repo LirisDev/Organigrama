@@ -68,46 +68,6 @@
         // 1. Variable para guardar el usuario
         let usuarioId = null;
 
-        // 2. Escucha los mensajes ("postMessage") de la ventana padre
-        window.addEventListener("message", (event) => {
-            // 3. Comprueba si el mensaje tiene la estructura esperada
-            if (event.data && event.data.userId) {
-                
-                // 4. Guarda el userId y muéstralo en consola
-                usuarioId = event.data.userId;
-                console.log("✅ Usuario ID recibido desde ASP.NET:", usuarioId);
-                
-                // 5. (Opcional) Llama a tu función de filtrado
-                // Una vez que tengas el 'usuarioId', puedes usarlo
-                // para filtrar automáticamente.
-                
-                // filtrarOrganigramaPorUsuario(usuarioId);
-                const usuarioABuscar = "interno\\" + usuarioId;
-                console.log("ℹ️ Buscando en 'allNodes' con el string formateado:", usuarioABuscar);
-                // 4. Verifica que tu array 'allNodes' exista
-                if (typeof allNodes !== 'undefined' && allNodes.length > 0) {
-                    
-                    // 5. Busca al empleado
-                    //    (Comparamos en minúsculas por seguridad, aunque 'usuarioABuscar'
-                    //    ya debería estar en minúsculas gracias al .vb)
-                    const empleadoLogueado = allNodes.find(
-                        nodo => nodo.usuario && nodo.usuario.toLowerCase() === usuarioABuscar
-                    );
-
-                    // 6. Muestra el resultado en la consola
-                    if (empleadoLogueado) {
-                        console.log("🎉 ¡Encontrado! Información completa del empleado:", empleadoLogueado);
-                    } else {
-                        console.warn(`⚠️ No se pudo encontrar al usuario con el string '${usuarioABuscar}' en 'allNodes'.`);
-                        // Ayuda de depuración:
-                        // console.log("Revisa si el formato 'usuario' en 'allNodes' es correcto:", allNodes[0].usuario);
-                    }
-
-                } else {
-                    console.error("❌ La variable 'allNodes' no está definida o está vacía.");
-                }
-            }
-        });
         
         // --- Referencias a divs de estado ---
         const statusDiv = document.getElementById("status-message");
@@ -720,6 +680,47 @@
                     // chart._draw(true, OrgChart.action.init, { method: 'fit' });
                     
                 })
+
+                // Escucha los mensajes ("postMessage") de la ventana padre
+                window.addEventListener("message", (event) => {
+                    // 3. Comprueba si el mensaje tiene la estructura esperada
+                    if (event.data && event.data.userId) {
+                        
+                        // 4. Guarda el userId y muéstralo en consola
+                        usuarioId = event.data.userId;
+                        console.log("✅ Usuario ID recibido desde ASP.NET:", usuarioId);
+                        
+                        // 5. (Opcional) Llama a tu función de filtrado
+                        // Una vez que tengas el 'usuarioId', puedes usarlo
+                        // para filtrar automáticamente.
+                        
+                        // filtrarOrganigramaPorUsuario(usuarioId);
+                        const usuarioABuscar = "interno\\" + usuarioId;
+                        console.log("ℹ️ Buscando en 'allNodes' con el string formateado:", usuarioABuscar);
+                        // 4. Verifica que tu array 'allNodes' exista
+                        if (typeof allNodes !== 'undefined' && allNodes.length > 0) {
+                            
+                            // 5. Busca al empleado
+                            //    (Comparamos en minúsculas por seguridad, aunque 'usuarioABuscar'
+                            //    ya debería estar en minúsculas gracias al .vb)
+                            const empleadoLogueado = allNodes.find(
+                                nodo => nodo.usuario && nodo.usuario.toLowerCase() === usuarioABuscar
+                            );
+
+                            // 6. Muestra el resultado en la consola
+                            if (empleadoLogueado) {
+                                console.log("🎉 ¡Encontrado! Información completa del empleado:", empleadoLogueado);
+                            } else {
+                                console.warn(`⚠️ No se pudo encontrar al usuario con el string '${usuarioABuscar}' en 'allNodes'.`);
+                                // Ayuda de depuración:
+                                // console.log("Revisa si el formato 'usuario' en 'allNodes' es correcto:", allNodes[0].usuario);
+                            }
+
+                        } else {
+                            console.error("❌ La variable 'allNodes' no está definida o está vacía.");
+                        }
+                    }
+                });
 
                 function iterate(c, n, collapseIds, id) {
                     if (id != n.id) {
