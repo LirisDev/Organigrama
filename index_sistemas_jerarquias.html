@@ -123,7 +123,7 @@
 
             // (Asumo que 'allNodes' está disponible en este scope)
             empleadoLogueado = allNodes.find(
-                nodo => nodo.usuario && nodo.usuario.toLowerCase() === receivedUserId
+                nodo => nodo.userId && nodo.userId.toLowerCase() === receivedUserId
             );
 
             if (empleadoLogueado) {
