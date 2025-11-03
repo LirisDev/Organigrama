@@ -67,7 +67,23 @@
     <script>
         // 1. Variable para guardar el usuario
         let usuarioId = null;
+        let receivedUserId = null;     // Guardará el 'userId' formateado (ej. "interno\drendon")
+        let isDataReady = false;      // Una "bandera" para saber si 'allNodes' está cargado
+        let empleadoLogueado = null; // Guardará el objeto del empleado una vez encontrado
+        // 2. Escucha los mensajes ("postMessage") de la ventana padre
+        window.addEventListener("message", (event) => {
+            // 3. Comprueba si el mensaje tiene la estructura esperada
+            if (event.data && event.data.userId) {
+                const userIdLimpio = event.data.userId.toLowerCase();
+                console.log("✅ Usuario ID recibido:", userIdLimpio);
+                
+                // 1. Formatear y Guardar
+                receivedUserId = "interno\\" + userIdLimpio;
 
+                // 2. Intentar procesar (en caso de que la data ya esté lista)
+                procesarLoginDeUsuario();
+            }
+        });
         
         // --- Referencias a divs de estado ---
         const statusDiv = document.getElementById("status-message");
@@ -92,6 +108,40 @@
         let sensitivity = 100;
         let colors = ["#F57C00", "#039BE5", "#FFCA28"];
 
+        /**
+         * Intenta buscar al empleado. Solo se ejecutará
+         * si 'receivedUserId' Y 'allNodes' están listos.
+         */
+        function procesarLoginDeUsuario() {
+            
+            // Si aún no tenemos el ID o los datos, no hacer nada.
+            if (!receivedUserId || !isDataReady) {
+                return; 
+            }
+
+            console.log("ℹ️ Datos y UserId listos. Buscando:", receivedUserId);
+
+            // (Asumo que 'allNodes' está disponible en este scope)
+            empleadoLogueado = allNodes.find(
+                nodo => nodo.usuario && nodo.usuario.toLowerCase() === receivedUserId
+            );
+
+            if (empleadoLogueado) {
+                console.log("🎉 ¡Encontrado! Información completa:", empleadoLogueado);
+                
+                // --- PRÓXIMO PASO (cuando quieras) ---
+                // Aquí es donde puedes auto-filtrar el organigrama:
+                // autoFiltrar(empleadoLogueado);
+                // ---
+
+            } else {
+                console.warn(`⚠️ No se pudo encontrar al usuario '${receivedUserId}' en 'allNodes'.`);
+            }
+            
+            // Evitamos que se ejecute múltiples veces
+            receivedUserId = null; 
+        }
+        
         // --- Función Sanitize (para evitar bucles infinitos) ---
         function sanitizeCircularReferences(nodes) {
             const nodeMap = new Map();
@@ -383,7 +433,11 @@
                 statusDiv.innerText = `Datos sanitizados. Renderizando...`;
                 if (sanitizedNodes.length === 0) throw new Error("No hay nodos válidos después de sanitizar.");
                 console.log("Nodos sanitizados:", sanitizedNodes);
-
+                
+                isDataReady = true;
+                // 4.1 Intentar procesar (en caso de que el 'userId' ya haya llegado)
+                procesarLoginDeUsuario();
+                
                 // Poblamos los selects para filtrar por Línea de Negocio, Centro de Costos y Departamento
                 populateSelect('linea-negocio-select', 'lineaNegocio', sanitizedNodes);
                 populateSelect('centro-costos-select', 'centroCosto', sanitizedNodes);
@@ -680,47 +734,6 @@
                     // chart._draw(true, OrgChart.action.init, { method: 'fit' });
                     
                 })
-
-                // Escucha los mensajes ("postMessage") de la ventana padre
-                window.addEventListener("message", (event) => {
-                    // 3. Comprueba si el mensaje tiene la estructura esperada
-                    if (event.data && event.data.userId) {
-                        
-                        // 4. Guarda el userId y muéstralo en consola
-                        usuarioId = event.data.userId;
-                        console.log("✅ Usuario ID recibido desde ASP.NET:", usuarioId);
-                        
-                        // 5. (Opcional) Llama a tu función de filtrado
-                        // Una vez que tengas el 'usuarioId', puedes usarlo
-                        // para filtrar automáticamente.
-                        
-                        // filtrarOrganigramaPorUsuario(usuarioId);
-                        const usuarioABuscar = "interno\\" + usuarioId;
-                        console.log("ℹ️ Buscando en 'allNodes' con el string formateado:", usuarioABuscar);
-                        // 4. Verifica que tu array 'allNodes' exista
-                        if (typeof allNodes !== 'undefined' && allNodes.length > 0) {
-                            
-                            // 5. Busca al empleado
-                            //    (Comparamos en minúsculas por seguridad, aunque 'usuarioABuscar'
-                            //    ya debería estar en minúsculas gracias al .vb)
-                            const empleadoLogueado = allNodes.find(
-                                nodo => nodo.usuario && nodo.usuario.toLowerCase() === usuarioABuscar
-                            );
-
-                            // 6. Muestra el resultado en la consola
-                            if (empleadoLogueado) {
-                                console.log("🎉 ¡Encontrado! Información completa del empleado:", empleadoLogueado);
-                            } else {
-                                console.warn(`⚠️ No se pudo encontrar al usuario con el string '${usuarioABuscar}' en 'allNodes'.`);
-                                // Ayuda de depuración:
-                                // console.log("Revisa si el formato 'usuario' en 'allNodes' es correcto:", allNodes[0].usuario);
-                            }
-
-                        } else {
-                            console.error("❌ La variable 'allNodes' no está definida o está vacía.");
-                        }
-                    }
-                });
 
                 function iterate(c, n, collapseIds, id) {
                     if (id != n.id) {
