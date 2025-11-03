@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Demo Balkan OrgChart.JS - Jerarquía Liris con Subniveles</title>
+    <title>Organigrama LIRIS S.A.</title>
     <script src="Balkan/orgchart.js"></script>
     <!-- <script src="main.js"></script> -->
     <link rel="stylesheet" href="styles.css">
@@ -31,13 +31,37 @@
         </select>
     </div> -->
     
-    <div id="custom-filters" style="padding: 10px; background-color: #f0f0f0; text-align: center; ">
+    <!-- <div id="custom-filters" style="padding: 10px; background-color: #f0f0f0; text-align: center; ">
         <label for="departamento-select" style="font-family: Arial, sans-serif; margin-right: 10px;"><b>Filtrar por Departamento:</b></label>
         <select id="departamento-select" style="font-size: 16px; padding: 5px;">
             <option value="todos">-- Mostrar Todos --</option>
             </select>
+    </div> -->
+
+    <div id="custom-filters">
+    <div>
+        <select id="select-linea-negocio" class="control-select">
+            <option value="todos">Línea Negocio</option>
+        </select>
+
+        <select id="select-centro-costos" class="control-select">
+            <option value="todos">Centro Costos</option>
+        </select>
+        
+        <select id="select-departamento" class="control-select">
+            <option value="todos">Departamento</option>
+        </select>
+
+            <select id="select-persona-cargo" class="control-select">
+            <option value="persona">Ver por Persona</option>
+            <option value="cargo">Ver por Cargo</option>
+        </select>
     </div>
-    <div id="tree"></div>
+</div>
+
+    <div id="tree" style="width:100%; height: 700px;"></div>
+
+    <!-- <div id="tree"></div> -->
     
     
     <!-- Barra para escala -->
@@ -52,6 +76,17 @@
         const treeDiv = document.getElementById("tree");
         let rangeScaleElement = document.getElementById('range_scale');
         let txtScaleElement = document.getElementById('txt_scale');
+
+        // El nuevo icono de "Contraer Todo" (flechas hacia adentro)
+        (OrgChart.icon.collapse_all = function (t, e, r, i, n) {
+            return (
+                null == i && (i = 0),
+                null == n && (n = 0),
+                `<svg width="${t}" height="${e}" x="${i}" y="${n}" viewBox="0 0 32 32">
+                    <path fill="${r}" d="M18.184 26.011l7.785-0.046-0.003-7.735-2.59 2.591-3.454-3.454-2.665 2.665 3.453 3.454-2.526 2.525zM19.921 10.65l3.454-3.455 2.59 2.592 0.003-7.799-7.785 0.018 2.526 2.525-3.454 3.453 2.666 2.666zM12.078 21.367l-3.453 3.454-2.59-2.591-0.004 7.735 7.785 0.046-2.526-2.525 3.454-3.454-2.666-2.665zM8.625 5.195l3.453 3.455 2.666-2.666-3.454-3.453 2.526-2.525-7.785-0.018 0.004 7.799 2.59-2.592z"></path>
+                </svg>`
+            );
+        });
 
         let chart = null;
         let allNodes = []; // ¡NUEVO! Aquí guardaremos todos los nodos
@@ -397,7 +432,7 @@
                     // mode: 'dark',
                     layout: OrgChart.normal,
                     scaleInitial: OrgChart.match.boundary, // Ajuste automático al contenedor, se visualiza todo
-                    //scaleInitial: 1,
+                    //: 1,
                     enableAI: true,
 
 
@@ -434,14 +469,49 @@
                         zoom_in: { title: "Zoom In"},
                         zoom_out: { title: "Zoom Out"},
                         fit: { title: "Fit the chart"},
-                        full_screen : { title: "Expand All" },
-                        myControl: { 
-                            title: 'My Control', 
-                            icon: '<svg width="32px" height="32px"><path stroke-width="3" fill="none" stroke="#757575" d="M8,16 L16,8 L24,16"></path<>line x1="16" y1="8" x2="16" y2="24" stroke-width="3" stroke="#757575"></line></svg>',
-                            onClick: function(){
-                                alert('Control personalizado')
-                            } 
-                        }
+                        // full_screen : { title: "Expand All" },
+                        expandAll: {
+                            icon: OrgChart.icon.expand_all(24, 24, "#7A7A7A"),
+                            title: "Expandir todo",
+                            onClick: function() {
+                                this.expand(null, 'all') // Expande todos los nodos
+                                chart.center(15); // Centra el organigrama después de expandir
+                                this.fit();
+                            }
+                        }, 
+                        collapseAll: {
+                            icon: OrgChart.icon.collapse_all(24, 24, '#7A7A7A'),      //TODO: Mejorar el icono para colapsar                      
+                            //icon: OrgChart.icon.happy(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
+                            title: "Colapsar todo",
+                            onClick: function() {
+                                let id = 15
+                                var node = chart.getNode(id);
+                                var collapseIds = [];
+                                iterate(chart, node, collapseIds, id);
+                                chart.expandCollapse(id, [], collapseIds);
+                                chart.center(15);
+                                const fixedCollapseScale = 0.8; 
+                                this.setScale(fixedCollapseScale); // Establece la escala a un valor fijo
+                            }
+                        }, //TODO: Ajustar escala fija al colapsar todo
+                        horizontalLayout: { 
+                            icon: OrgChart.icon.layout_normal(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
+                            title: "Horizontal Layout",
+                            onClick: function() {
+                                this.setOrientation(OrgChart.orientation.top, null)
+                                this.fit(); // Ajusta el organigrama después de cambiar la orientación
+                                
+                            }
+                        },
+                        verticalLayout: { 
+                            icon: OrgChart.icon.layout_left_offset(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
+                            title: "Vertical Layout",
+                            onClick: function() {
+                                this.setOrientation(OrgChart.orientation.left, null)
+                                this.fit(); // Ajusta el organigrama después de cambiar la orientación
+                                
+                            }
+                        },
                     },
 
 
@@ -572,6 +642,41 @@
                     
                 })
 
+                function iterate(c, n, collapseIds, id) {
+                    if (id != n.id) {
+                        collapseIds.push(n.id);
+                    }
+
+                    for (var i = 0; i < n.childrenIds.length; i++) {
+                        iterate(c, c.getNode(n.childrenIds[i]), collapseIds, id)
+                    }
+                }
+
+                // --- LÓGICA DE BOTONES DE ACCIÓN ---
+
+                // Botones de Layout (Horizontal/Vertical)
+                // document.getElementById('btn-layout-vertical').addEventListener('click', () => {
+                //     // 'normal' es el layout vertical estándar
+                //     chart.layout(OrgChart.layout.normal);
+                // });
+                
+                // document.getElementById('btn-layout-horizontal').addEventListener('click', () => {
+                //     // 'linear' es un layout horizontal. Puedes probar otros
+                //     // como OrgChart.layout.treeLeftOffset
+                //     chart.layout(OrgChart.layout.linear); 
+                // });
+
+                // // Botones de Expandir/Contraer
+                // document.getElementById('btn-expand-all').addEventListener('click', () => {
+                //     chart.expandAll();
+                // });
+
+                // document.getElementById('btn-collapse-all').addEventListener('click', () => {
+                //     // BALKAN colapsa basado en el ID de un nodo.
+                //     // Para "contraer todo", colapsamos los hijos del nodo raíz.
+                //     // Asumiendo que tu nodo raíz (Gerencia) tiene id: 1
+                //     chart.collapse(1); 
+                // });
                 /* 
                 document.querySelector('#width').addEventListener('click', function () {
                     console.log("width clicked")
