@@ -12,24 +12,6 @@
 <body>
     <div id="status-message">Cargando...</div>
     <div id="error-message"></div>
-    <!-- <button class="btn" id="boundary">
-    boundary
-    </button>
-
-    <button class="btn" id="width">
-    width
-    </button>
-
-    <button class="btn" id="height">
-    height
-    </button>
--->
-    <!-- <div style="margin: 10px ;position: absolute;">
-        <label for="department-filter">Filtrar por Departamento:</label>
-        <select id="department-filter">
-            <option value="all">Todos los Departamentos</option>
-        </select>
-    </div> -->
     
     <!-- <div id="custom-filters" style="padding: 10px; background-color: #f0f0f0; text-align: center; ">
         <label for="departamento-select" style="font-family: Arial, sans-serif; margin-right: 10px;"><b>Filtrar por Departamento:</b></label>
@@ -50,6 +32,10 @@
 
         <select id="departamento-select" class="control-select">
             <option value="todos">Todos los Deptos.</option>
+            </select>
+        <select id="modo-select" class="control-select">
+            <option value="Persona">Vista por Persona</option>
+            <option value="Cargo">Vista por Cargo</option>
             </select>
     </div>
 </div>
@@ -123,10 +109,10 @@
             
             // 1.1 Harcodeado para pruebas
             //receivedUserId = "interno\\padanaque"; // //
-            if (!receivedUserId || !isDataReady) {
+            /* if (!receivedUserId || !isDataReady) {
                 receivedUserId = "interno\\dromero"; 
                 console.log('Usuario interno\\dromero para pruebas' );
-            }
+            } */
             //receivedUserId = "interno\\dromero"; // //
 
             empleadoLogueado = allNodes.find(
@@ -624,7 +610,7 @@
                         nodes: [4281], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos, TODO: cambiar posteriormente 
                         allChildren: true // Expande todos los hijos del nodo 4281
                     }, */
-                    
+                    //TODO: poner numeros en las burbujas min plus para saber cuantos nodos hijos tiene
                     controls: {
                         pdf_export: { title: 'Export to PDF' },
                         //png_preview: { title: 'Preview PNG' },
