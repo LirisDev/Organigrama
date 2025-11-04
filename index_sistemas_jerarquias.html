@@ -107,7 +107,7 @@
         let allNodes = []; // ¡NUEVO! Aquí guardaremos todos los nodos
         let sensitivity = 100;
         let colors = ["#F57C00", "#039BE5", "#FFCA28"];
-
+        let filteredNodes = [];
         /**
          * Intenta buscar al empleado. Solo se ejecutará
          * si 'receivedUserId' Y 'allNodes' están listos.
@@ -115,35 +115,57 @@
         function procesarLoginDeUsuario() {
             
             // Si aún no tenemos el ID o los datos, no hacer nada.
+            /* 
             if (!receivedUserId || !isDataReady) {
                 return; 
-            }
-
-            console.log("ℹ️ Datos y UserId listos. Buscando:", receivedUserId);
-            console.log("ℹ️ Datos AllNodes:", allNodes);
-
+            } 
+            */
             
-            // (Asumo que 'allNodes' está disponible en este scope)
+            // 1.1 Harcodeado para pruebas
+            //receivedUserId = "interno\\padanaque"; // //
+            if (!receivedUserId || !isDataReady) {
+                receivedUserId = "interno\\dromero"; 
+                console.log('Usuario interno\\dromero para pruebas' );
+            }
+            //receivedUserId = "interno\\dromero"; // //
+
             empleadoLogueado = allNodes.find(
-                nodo => {
-                            console.log("Verificando nodo:", nodo.userid);
-                            console.log("Resultado:", nodo.userid && nodo.userid.toLowerCase() === receivedUserId);
-                            return nodo.userid && nodo.userid.toLowerCase() === receivedUserId; //TODO: consultar el nodo del usuario logueado
-                        }
+                nodo => { return nodo.userid && nodo.userid.toLowerCase() === receivedUserId; }
             );
 
             if (empleadoLogueado) {
                 console.log("🎉 ¡Encontrado! Información completa:", empleadoLogueado);
-                
-                // --- PRÓXIMO PASO (cuando quieras) ---
                 // Aquí es donde puedes auto-filtrar el organigrama:
                 // autoFiltrar(empleadoLogueado);
                 // ---
+                // 1. Obtener los elementos <select>
+                const selectLinea = document.getElementById('linea-negocio-select');
+                const selectCostos = document.getElementById('centro-costos-select');
+                const selectDept = document.getElementById('departamento-select');
+
+                // 2. Asignar los valores a los selects
+                //    (Comprobamos que el empleado tenga el dato y que el select exista)
+                if (selectLinea && empleadoLogueado.lineaNegocio) {
+                    selectLinea.value = empleadoLogueado.lineaNegocio;
+                    console.log(`Asignando Linea Negocio: ${empleadoLogueado.lineaNegocio}`);
+                }
+                if (selectCostos && empleadoLogueado.centroCosto) {
+                    selectCostos.value = empleadoLogueado.centroCosto;
+                    console.log(`Asignando Centro Costos: ${empleadoLogueado.centroCosto}`);
+                }
+                if (selectDept && empleadoLogueado.departamento) {
+                    selectDept.value = empleadoLogueado.departamento;
+                    console.log(`Asignando Departamento: ${empleadoLogueado.departamento}`);
+                }
+                
+                // 3. ¡IMPORTANTE! Disparar el filtro
+                console.log("ℹ️ Auto-filtrando el organigrama para el usuario...");
+                aplicarFiltrosJerarquicos();
+                
 
             } else {
                 console.warn(`⚠️ No se pudo encontrar al usuario '${receivedUserId}' en 'allNodes'.`);
             }
-            
             // Evitamos que se ejecute múltiples veces
             receivedUserId = null; 
         }
@@ -246,42 +268,37 @@
 
             // 2. Leer los 3 valores
             const selectedLinea = document.getElementById('linea-negocio-select').value;
-            const selectedCostos = document.getElementById('centro-costos-select').value;
+            const selectedCosto = document.getElementById('centro-costos-select').value;
             const selectedDept = document.getElementById('departamento-select').value;
             
             statusDiv.style.display = "block";
             statusDiv.innerText = "Filtrando...";
 
             // 3. Si todos están en "todos", recargar el árbol completo
-            if (selectedLinea === "todos" && selectedCostos === "todos" && selectedDept === "todos") {
+            if (selectedLinea === "todos" && selectedCosto === "todos" && selectedDept === "todos") {
                 chart.load(allNodes); // (O 'sanitizedNodes' si es tu fuente de verdad)
                 statusDiv.style.display = "none";
                 return;
             }
 
             // --- Tu Lógica de Filtro con Jerarquía (Adaptada) ---
-
             // 4. Un mapa para buscar nodos por ID (tu código)
             const nodeMap = new Map(allNodes.map(node => [node.id, node]));
-            
+            console.log("4. Mapa de nodos creado para filtrado jerárquico.", nodeMap);
             // 5. Un mapa para guardar los nodos que SÍ queremos mostrar (tu código)
             const nodesToShow = new Map();
 
             // 6. Recorrer TODOS los nodos
             for (const node of allNodes) {
-                
                 // 7. --- ¡LA MAGIA ESTÁ AQUÍ! ---
                 // Comprobar si el nodo cumple con LOS TRES filtros (o si el filtro es "todos")
-                
                 const lineaMatch = (selectedLinea === 'todos') || (node.lineaNegocio === selectedLinea);
-                const costosMatch = (selectedCostos === 'todos') || (node.centroCostos === selectedCostos);
+                const costosMatch = (selectedCosto === 'todos') || (node.centroCosto === selectedCosto);
                 const deptMatch = (selectedDept === 'todos') || (node.departamento === selectedDept);
-
+                
                 // 8. Si el nodo coincide con todos los filtros activos
                 if (lineaMatch && costosMatch && deptMatch) {
-                    
                     // 9. Para cada nodo que coincide, añadirlo A ÉL Y A TODOS SUS PADRES
-                    // (Esta es tu lógica original, que está perfecta)
                     let currentNode = node;
                     while (currentNode) {
                         if (nodesToShow.has(currentNode.id)) {
@@ -300,8 +317,8 @@
             }
 
             // 10. Convertir el mapa de nodos a mostrar en un array y cargarlo
-            const filteredNodes = Array.from(nodesToShow.values());
-            
+            filteredNodes = Array.from(nodesToShow.values());
+            console.log("Filtrado completo. Nodos a mostrar:", filteredNodes);            
             if (filteredNodes.length > 0) {
                 chart.load(filteredNodes);
             } else {
@@ -355,12 +372,15 @@
                     .filter(emp => 
                         emp && 
                         emp.codigoPosicion != null &&
+                        emp.codigoPosicion != '00006' /*&&
                         String(emp.codigoPosicion).trim() !== "00006" &&
                         // Filtramos solo el departamento de Sistemas y Directorio
-                        (emp.nombreDepartamento === "SISTEMAS" || emp.nombreDepartamento === "DIRECTORIO" 
+                         (emp.nombreDepartamento === "SISTEMAS" || emp.nombreDepartamento === "DIRECTORIO" 
                             || emp.nombreDepartamento === "IMPORTACIONES" || emp.nombreDepartamento === "LEGAL" 
                             || emp.nombreDepartamento === "PROCESOS Y PROYECTOS" 
+                            //|| emp.nombreDepartamento === null
                             || (emp.nombreDepartamento === "FINANZAS" && emp.nombreCentroCosto === "DERIVADOS"))
+                        */
                     )
                     .map(emp => {
                         
@@ -406,21 +426,38 @@
                         // Crear el objeto del nodo
                         if (isVacant) {
                             tags.push('vacante');
-                        return { id, pid, tags, 
-                            puesto: emp.puesto || "Puesto Vacante", 
-                            codPosicion: emp.codigoPosicion || "Código de posición no definido",
-                            codPosicion_R: emp.codigoPosicionReporta || "Código de posición que reporta no definido",
+                        return { id, pid, tags, order,
+                            // Esto pondrá "PUESTO VACANTE" en la línea principal
+                            nombre: "PUESTO VACANTE", 
+                            
+                            // Esto pondrá el nombre del puesto (ej. "DIRECTOR...") en la segunda línea
+                            puesto: emp.puesto || "Puesto N/A", // Usamos 'N/A' como default
+                            
+                            // --- Rellenar el resto de campos para filtros y consistencia ---
+                            codPosicion: emp.codigoPosicion || "N/A",
+                            codPosicion_R: emp.codigoPosicionReporta || "N/A",
+                            
+                            // Importante para que los filtros jerárquicos no fallen
                             departamento: emp.nombreDepartamento || 'N/A', 
-                            order};
+                            lineaNegocio: emp.nombreLineaNegocio || "N/A",
+                            centroCosto: emp.nombreCentroCosto || "N/A", 
+                            
+                            // Campos de empleado que deben estar nulos
+                            userid: null,
+                            img: null, 
+                            email: null,
+                            rutaManual: null
+                            };
                         } else {
                             return {
                                 id, pid, tags,
                                 nombre: `${emp.nombre || 'N/A'} ${emp.apellido || ''}`.trim(),
                                 userid: emp.userid || "UserId no definido",
+                                puesto: emp.puesto || "Puesto N/A", // Usamos 'N/A' como default
                                 codPosicion: emp.codigoPosicion || "Código de posición no definido",
                                 codPosicion_R: emp.codigoPosicionReporta || "Código de posición que reporta no definido",
-                                lineaNegocio: emp.nombreLineaNegocio || "Línea de negocio no definida",
-                                centroCosto: emp.nombreCentroCosto || "Nombre de centro de costo no definido",
+                                lineaNegocio: emp.nombreLineaNegocio || "N/A",
+                                centroCosto: emp.nombreCentroCosto || "N/A",
                                 departamento: emp.nombreDepartamento || 'N/A', // 
                                 img: emp.foto || 'https://via.placeholder.com/60/cccccc/ffffff?text=N/A',
                                 email: emp.emailCorporativo || 'Sin correo electrónico',
@@ -441,13 +478,14 @@
                 console.log("Nodos sanitizados:", sanitizedNodes);
                 
                 isDataReady = true;
-                // 4.1 Intentar procesar (en caso de que el 'userId' ya haya llegado)
-                procesarLoginDeUsuario();
                 
                 // Poblamos los selects para filtrar por Línea de Negocio, Centro de Costos y Departamento
                 populateSelect('linea-negocio-select', 'lineaNegocio', sanitizedNodes);
                 populateSelect('centro-costos-select', 'centroCosto', sanitizedNodes);
                 populateSelect('departamento-select', 'departamento', sanitizedNodes); // Tu select existente
+
+                // 4.1 Intentar procesar (en caso de que el 'userId' ya haya llegado)
+                procesarLoginDeUsuario();
 
                 // 5. Definir Plantillas (Tu definición)
                 // Plantilla base 'Ficha'
@@ -499,6 +537,30 @@
                 };  // Ripple effect, al dar click en el nodo da un efecto visual           
 
 
+                // En main.js, ANTES de 'const chartConfig'
+
+                // 1. Clonamos tu plantilla 'fichaTemplate' para heredar su tamaño y forma
+                OrgChart.templates.vacanteTemplate = Object.assign({}, OrgChart.templates.fichaTemplate);
+
+                // 2. Definimos el fondo oscuro (SVG)
+                // Este es un gris oscuro. Puedes cambiar '#4a4a4a' por el que gustes.
+                OrgChart.templates.vacanteTemplate.node = 
+                    '<rect x="0" y="0" height="{h}" width="{w}" fill="#4a4a4a" rx="5" ry="5"></rect>';
+
+                // 3. Definimos los campos con texto blanco
+                // (Asegúrate que coincidan con los campos de 'fichaTemplate')
+
+                // Campo 'nombre' (field_0)
+                OrgChart.templates.vacanteTemplate.field_0 = 
+                    '<text style="font-size: 16px; font-weight: bold;" fill="#ffffff" x="125" y="60" text-anchor="middle">{val}</text>';
+                    
+                // Campo 'puesto' (field_1)
+                OrgChart.templates.vacanteTemplate.field_1 = 
+                    '<text style="font-size: 14px; font-style: italic;" fill="#e0e0e0" x="125" y="85" text-anchor="middle">{val}</text>';
+
+                // 4. Nos aseguramos de que no muestre imagen
+                OrgChart.templates.vacanteTemplate.img_0 = "";
+
                 // 6. Configuración de Tags (Tu configuración)
                 const tagsConfig = {
                     // Mapeo de tags de JS a la propiedad 'subLevels'
@@ -545,7 +607,7 @@
                         departamento: {},
                         nombre: {},
                     }, */
-                    nodes: sanitizedNodes,
+                    nodes: filteredNodes,
                     tags: tagsConfig,
                     nodeBinding: {
                         field_0: "nombre",
@@ -553,7 +615,7 @@
                         img_0: "img"//,
                         //field_2: function(sender, node) { return "Ver ficha"; }
                     },
-                    
+                    /* 
                     collapse:{
                         level: 2,
                         allChildren: true
@@ -561,7 +623,8 @@
                     expand: {
                         nodes: [4281], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos, TODO: cambiar posteriormente 
                         allChildren: true // Expande todos los hijos del nodo 4281
-                    },
+                    }, */
+                    
                     controls: {
                         pdf_export: { title: 'Export to PDF' },
                         //png_preview: { title: 'Preview PNG' },
@@ -738,27 +801,7 @@
                     console.log("Funcionando...", this);
                     // chart.config.scaleInitial = OrgChart.match.boundary;
                     // chart._draw(true, OrgChart.action.init, { method: 'fit' });
-                    let receivedUserId2 = 'interno\\dromero';
-                    console.log("Buscando userId:", receivedUserId2);
-                    console.log("Todos los nodos:", allNodes);
-                    empleadoLogueado = allNodes.find(
-                        nodo => {
-                            console.log("Verificando nodo:", nodo.userid);
-                            console.log("Resultado:", nodo.userid && nodo.userid.toLowerCase() === receivedUserId2);
-                            return nodo.userid && nodo.userid.toLowerCase() === receivedUserId2; //TODO: consultar el nodo del usuario logueado
-                        }
-                    );
-
-                    if (empleadoLogueado) {
-                        console.log("🎉 ¡Encontrado! Información completa:", empleadoLogueado);
-                        
-                        // --- PRÓXIMO PASO (cuando quieras) ---
-                        // Aquí es donde puedes auto-filtrar el organigrama:
-                        // autoFiltrar(empleadoLogueado);
-                        // ---
-
-                    }
-                    
+                    procesarLoginDeUsuario();
                 })
 
                 function iterate(c, n, collapseIds, id) {
