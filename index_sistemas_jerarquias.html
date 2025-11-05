@@ -67,7 +67,7 @@
                 receivedUserId = "interno\\" + userIdLimpio;
 
                 // 2. Intentar procesar (en caso de que la data ya esté lista)
-                procesarLoginDeUsuario();
+                //procesarLoginDeUsuario();
             }
         });
         
@@ -101,18 +101,20 @@
         function procesarLoginDeUsuario() {
             
             // Si aún no tenemos el ID o los datos, no hacer nada.
-            /* 
+            ///* 
             if (!receivedUserId || !isDataReady) {
                 return; 
             } 
-            */
+            //*/
             
             // 1.1 Harcodeado para pruebas
             //receivedUserId = "interno\\padanaque"; // //
-            /* if (!receivedUserId || !isDataReady) {
-                receivedUserId = "interno\\dromero"; 
-                console.log('Usuario interno\\dromero para pruebas' );
-            } */
+            /* 
+            if (!receivedUserId || !isDataReady) {
+                receivedUserId = "interno\\dromero";
+                console.log('Usuario interno\\dromero para pruebas');
+            }
+            */
             //receivedUserId = "interno\\dromero"; // //
 
             empleadoLogueado = allNodes.find(
@@ -471,7 +473,7 @@
                 populateSelect('departamento-select', 'departamento', sanitizedNodes); // Tu select existente
 
                 // 4.1 Intentar procesar (en caso de que el 'userId' ya haya llegado)
-                procesarLoginDeUsuario();
+                //procesarLoginDeUsuario();
 
                 // 5. Definir Plantillas (Tu definición)
                 // Plantilla base 'Ficha'
