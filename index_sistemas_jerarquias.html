@@ -1,894 +1,1471 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Organigrama LIRIS S.A.</title>
     <script src="Balkan/orgchart.js"></script>
     <!-- <script src="main.js"></script> -->
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css" />
 
-</head>
-<body>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+      rel="stylesheet"
+    />
+
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  </head>
+  <body>
     <div id="status-message">Cargando...</div>
     <div id="error-message"></div>
-    
+
     <!-- <div id="custom-filters" style="padding: 10px; background-color: #f0f0f0; text-align: center; ">
         <label for="departamento-select" style="font-family: Arial, sans-serif; margin-right: 10px;"><b>Filtrar por Departamento:</b></label>
         <select id="departamento-select" style="font-size: 16px; padding: 5px;">
             <option value="todos">-- Mostrar Todos --</option>
             </select>
     </div> -->
+    <div id="details-overlay">
+      <div id="custom-details-form">
+        <img id="details-img" src="" alt="Foto de perfil" />
 
-    <div id="custom-filters">
-    <div>
-        <select id="linea-negocio-select" class="control-select">
-            <option value="todos">Toda Línea Negocio</option>
-            </select>
+        <h2 id="details-name" data-field="nombre">[Nombre Completo]</h2>
+        <p id="details-puesto" data-field="puesto">[Puesto de Trabajo]</p>
 
-        <select id="centro-costos-select" class="control-select">
-            <option value="todos">Todo Centro Costos</option>
-            </select>
+        <div class="details-info-block">
+          <div class="details-info-line">
+            <span class="details-info-label">Email:</span>
+            <span class="details-info-value" data-field="email">[email]</span>
+          </div>
+          <div class="details-info-line">
+            <span class="details-info-label">Línea Negocio:</span>
+            <span class="details-info-value" data-field="lineaNegocio"
+              >[lineaNegocio]</span
+            >
+          </div>
+          <div class="details-info-line">
+            <span class="details-info-label">Centro Costo:</span>
+            <span class="details-info-value" data-field="centroCosto"
+              >[centroCosto]</span
+            >
+          </div>
+          <div class="details-info-line">
+            <span class="details-info-label">Departamento:</span>
+            <span class="details-info-value" data-field="departamento"
+              >[departamento]</span
+            >
+          </div>
+        </div>
 
-        <select id="departamento-select" class="control-select">
-            <option value="todos">Todos los Deptos.</option>
-            </select>
-        <select id="modo-select" class="control-select">
-            <option value="Persona">Vista por Persona</option>
-            <option value="Cargo">Vista por Cargo</option>
-            </select>
+        <div class="details-buttons">
+          <button id="btn-manual-funciones" class="details-btn btn-morado">
+            Manual de Funciones
+          </button>
+          <button id="btn-manual-procedimientos" class="details-btn btn-azul">
+            Manual de Procedimientos
+          </button>
+          <button id="btn-manual-usuario" class="details-btn btn-verde">
+            Manual de Usuario
+          </button>
+        </div>
+
+        <button id="btn-cerrar-detalles" class="details-btn btn-rojo">
+          Cerrar
+        </button>
+      </div>
     </div>
-</div>
 
-    <div id="tree" style="width:100%; height: 700px;"></div>
+    <div class="org-container">
+      <header id="custom-filters">
+        <div>
+          <select id="linea-negocio-select" class="control-select">
+            <option value="todos">TODA LÍNEA DE NEGOCIOS</option>
+          </select>
 
-    <!-- <div id="tree"></div> -->
-    
-    
+          <select id="centro-costos-select" class="control-select">
+            <option value="todos">TODO CENTRO COSTOS</option>
+          </select>
+
+          <select id="departamento-select" class="control-select">
+            <option value="todos">TODOS LOS DEPARTAMENTOS</option>
+          </select>
+          <select id="modo-select" class="control-select">
+            <option value="Persona">VISTA POR PERSONA</option>
+            <option value="Cargo">VISTA POR CARGO</option>
+          </select>
+        </div>
+      </header>
+
+      <main id="tree-container">
+        <div id="tree"></div>
+      </main>
+    </div>
+
     <!-- Barra para escala -->
-<!--     <input id="range_scale" type="range" min="1" max="100" value="1">
+    <!--     <input id="range_scale" type="range" min="1" max="100" value="1">
     <div id="txt_scale">1</div> -->
 
-
     <script>
-        // 1. Variable para guardar el usuario
-        //let usuarioId = null;
-        let receivedUserId = null;     // Guardará el 'userId' formateado (ej. "interno\drendon")
-        let isDataReady = false;      // Una "bandera" para saber si 'allNodes' está cargado
-        let empleadoLogueado = null; // Guardará el objeto del empleado una vez encontrado
-        // 2. Escucha los mensajes ("postMessage") de la ventana padre
-        window.addEventListener("message", (event) => {
-            // 3. Comprueba si el mensaje tiene la estructura esperada
-            if (event.data && event.data.userId) {
-                const userIdLimpio = event.data.userId.toLowerCase();
-                console.log("✅ Usuario ID recibido:", userIdLimpio);
-                
-                // 1. Formatear y Guardar
-                receivedUserId = "interno\\" + userIdLimpio;
+      // 1. Variable para guardar el usuario
+      let receivedUserId = null; // Guardará el 'userId' formateado (ej. "interno\drendon")
+      let isDataReady = false; // Una "bandera" para saber si 'allNodes' está cargado
+      let empleadoLogueado = null; // Guardará el objeto del empleado una vez encontrado
+    
+      let chart = null;
+      let allNodes = []; // ¡NUEVO! Aquí guardaremos todos los nodos (Estos son los nodos de "Persona")
+      let allCargoNodes = []; // ¡NUEVO! Aquí guardaremos los nodos de "Cargo"
+      let isCargoDataReady = false; // ¡NUEVO! Bandera para saber si ya cargamos la data de cargo
+      let filteredNodes = [];
 
-                // 2. Intentar procesar (en caso de que la data ya esté lista)
-                //procesarLoginDeUsuario();
-            }
+      // --- Referencias a divs de estado ---
+      const statusDiv = document.getElementById("status-message");
+      const errorDiv = document.getElementById("error-message");
+      const treeDiv = document.getElementById("tree");
+      let rangeScaleElement = document.getElementById("range_scale");
+      let txtScaleElement = document.getElementById("txt_scale");
+
+      const apiCargoUrl =
+        "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_cargo";
+
+      // 2. Escucha los mensajes ("postMessage") de la ventana padre
+      window.addEventListener("message", (event) => {
+        // 3. Comprueba si el mensaje tiene la estructura esperada
+        if (event.data && event.data.userId) {
+          const userIdLimpio = event.data.userId.toLowerCase();
+          console.log("✅ Usuario ID recibido:", userIdLimpio);
+
+          // 1. Formatear y Guardar
+          receivedUserId = "interno\\" + userIdLimpio;
+
+          // 2. Intentar procesar (en caso de que la data ya esté lista)
+          procesarLoginDeUsuario();
+        }
+      });
+      //TODO: Hacer mejoras en el organigrama de cargos
+
+      /* DetailsForm Personalizado */
+      let CustomDetailsForm = function () {
+        this.instance = null;
+        this.overlay = null;
+        this.form = null;
+        this.data = null;
+      };
+
+      /**
+       * Método INIT: Se llama cuando el gráfico se inicializa.
+       * Aquí "descubrimos" los elementos del DOM y asignamos los listeners.
+       */
+      CustomDetailsForm.prototype.init = function (balkanInstance) {
+        this.instance = balkanInstance; // Guardamos la instancia del gráfico
+
+        // --- 1. Encontrar los elementos del DOM ---
+        this.overlay = document.getElementById("details-overlay");
+        this.form = document.getElementById("custom-details-form");
+
+        // Elementos de datos (los guardamos para no buscarlos cada vez)
+        this.imgEl = this.form.querySelector("#details-img");
+        this.nameEl = this.form.querySelector("#details-name");
+        this.puestoEl = this.form.querySelector("#details-puesto");
+        this.emailEl = this.form.querySelector('[data-field="email"]');
+        this.lineaEl = this.form.querySelector('[data-field="lineaNegocio"]');
+        this.costoEl = this.form.querySelector('[data-field="centroCosto"]');
+        this.deptoEl = this.form.querySelector('[data-field="departamento"]');
+
+        // Botones
+        this.btnFunciones = this.form.querySelector("#btn-manual-funciones");
+        this.btnProcedimientos = this.form.querySelector(
+          "#btn-manual-procedimientos"
+        );
+        this.btnUsuario = this.form.querySelector("#btn-manual-usuario");
+        this.btnCerrar = this.form.querySelector("#btn-cerrar-detalles");
+
+        // --- 2. Asignar Event Listeners (¡Solo se hace una vez!) ---
+        // Cerrar al hacer clic en el botón "Cerrar"
+        this.btnCerrar.addEventListener("click", () => {
+          this.hide();
         });
-        
-        // --- Referencias a divs de estado ---
-        const statusDiv = document.getElementById("status-message");
-        const errorDiv = document.getElementById("error-message");
-        const treeDiv = document.getElementById("tree");
-        let rangeScaleElement = document.getElementById('range_scale');
-        let txtScaleElement = document.getElementById('txt_scale');
 
-        // El nuevo icono de "Contraer Todo" (flechas hacia adentro) //TODO: por mejorar
-        // Reemplazar el SVG para que coincida con la función (Expandir)
-        OrgChart.icon.collapse_all = function (t, e, r, i, n) {
+        // Cerrar al hacer clic FUERA del modal (en el overlay)
+        this.overlay.addEventListener("click", (e) => {
+          if (e.target === this.overlay) {
+            this.hide();
+          }
+        });
+
+        // --- Lógica de los botones de Manuales ---
+        this.btnFunciones.addEventListener("click", () => {
+          const url = getManualUrl(this.data, "funciones");
+          if (url) {
+            window.open(url, "_blank");
+          } else {
+            alert(
+              "No hay un Manual de Funciones configurado para este usuario."
+            );
+          }
+        });
+
+        this.btnProcedimientos.addEventListener("click", () => {
+          const url = getManualUrl(this.data, "procedimientos");
+          if (url) {
+            window.open(url, "_blank");
+          } else {
+            alert(
+              "No hay un Manual de Procedimientos configurado para este usuario."
+            );
+          }
+        });
+
+        this.btnUsuario.addEventListener("click", () => {
+          const url = getManualUrl(this.data, "usuario");
+          if (url) {
+            window.open(url, "_blank");
+          } else {
+            alert("No hay un Manual de Usuario configurado para este usuario.");
+          }
+        });
+      };
+
+      /**
+       * Método SHOW: Se llama CADA VEZ que se abre el modal.
+       * Aquí cargamos los datos del nodo en el HTML.
+       */
+      CustomDetailsForm.prototype.show = function (nodeId) {
+        // 1. Obtener la data más reciente del nodo
+        this.data = this.instance.get(nodeId);
+        if (!this.data) return;
+
+        // 2. Comprobar si es vacante
+        const isVacant = this.data.tags.includes("vacante");
+
+        // 3. Llenar los campos de texto
+        this.nameEl.textContent = this.data.nombre;
+        this.puestoEl.textContent = this.data.puesto;
+
+        this.emailEl.textContent = this.data.email || "N/A";
+        this.lineaEl.textContent = this.data.lineaNegocio || "N/A";
+        this.costoEl.textContent = this.data.centroCosto || "N/A";
+        this.deptoEl.textContent = this.data.departamento || "N/A";
+
+        // 4. Llenar la imagen
+        if (isVacant || !this.data.img) {
+          this.imgEl.src =
+            "https://via.placeholder.com/110/cccccc/ffffff?text=N/A"; // Imagen genérica
+        } else {
+          this.imgEl.src = this.data.img;
+        }
+
+        // 5. Lógica para mostrar/ocultar botones
+        // Comprobamos si tenemos la data MÍNIMA para construir los links
+        const canShowManuals = this.data.id && this.data.codDepAx && !isVacant;
+
+        if (canShowManuals) {
+          // Mostramos los 3 botones
+          this.btnFunciones.style.display = "inline-block";
+          this.btnProcedimientos.style.display = "inline-block";
+          this.btnUsuario.style.display = "inline-block";
+        } else {
+          // Ocultamos los 3 botones si es vacante o le falta data
+          this.btnFunciones.style.display = "none";
+          this.btnProcedimientos.style.display = "none";
+          this.btnUsuario.style.display = "none";
+        }
+
+        // 6. Mostrar el modal
+        this.overlay.classList.add("visible");
+      };
+
+      /**
+       * Método HIDE: Se llama para cerrar el modal.
+       */
+      CustomDetailsForm.prototype.hide = function () {
+        this.overlay.classList.remove("visible");
+        this.data = null; // Limpiar la data
+      };
+
+      /* FUNCION PARA GENERAR URL DE LOS MANUALES */
+      function getManualUrl(nodeData, tipo) {
+        let carpeta = "";
+        if (tipo === "usuario") carpeta = "Manual de usuario";
+        if (tipo === "procedimientos") carpeta = "Manual de procedimientos";
+        if (tipo === "funciones") carpeta = "Manual de funciones";
+
+        // Recreamos la lógica del depParam
+        const codEmp = nodeData.id;
+        const codDepAx = nodeData.codDepAx;
+        const codDepartamento = nodeData.codDepartamento; // Asumiendo que mapeaste este campo
+
+        const depParam =
+          codDepAx && codDepartamento
+            ? `${codDepAx}|${codDepartamento}`
+            : codDepAx || ""; // Usa codDepAx si codDepartamento falta
+
+        // Comprobar si tenemos los datos mínimos
+        // if (!codEmp || !depParam) {
+        //     console.warn(`Faltan datos para generar el manual de ${tipo}.`, nodeData);
+        //     return null; // No podemos construir la URL
+        // }
+
+        // Construir y devolver la URL
+        return `https://soporte.liris.com.ec/rhh/UserDocsF.aspx?Carpeta=${encodeURIComponent(
+          carpeta
+        )}&CodEmp=${codEmp || ""}&DepartMyProcessId=${depParam}`;
+      }
+
+      /* FUNCION PARA ITERAR AL MOMENTO DE COLAPSAR NODOS */
+      function iterate(c, n, collapseIds, excludeId) {
+        if (excludeId != n.id) {
+          collapseIds.push(n.id);
+        }
+        if (n.childrenIds) {
+          for (var i = 0; i < n.childrenIds.length; i++) {
+            iterate(c, c.getNode(n.childrenIds[i]), collapseIds, excludeId);
+          }
+        }
+      }
+
+      // El nuevo icono de "Contraer Todo" (flechas hacia adentro) //TODO: por mejorar
+      // Reemplazar el SVG para que coincida con la función (Expandir)
+      OrgChart.icon.collapse_all = function (t, e, r, i, n) {
         return (
-            null == i && (i = 0),
-            null == n && (n = 0),
-            `<svg width="${t}" height="${e}" x="${i}" y="${n}" viewBox="0 0 32 32">
+          null == i && (i = 0),
+          null == n && (n = 0),
+          `<svg width="${t}" height="${e}" x="${i}" y="${n}" viewBox="0 0 32 32">
             <path fill="${r}" d="M9.001 9.001l3.453 3.454-2.526 2.525 7.785 0.018-0.004-7.799-2.59 2.592-3.454-3.454-2.664 2.664zM18.184 26.011l7.785-0.046-0.004-7.735-2.589 2.591-3.454-3.454-2.666 2.665 3.454 3.454-2.526 2.525zM19.921 14.65l3.454-3.455 2.59 2.592 0.004-7.799-7.785 0.018 2.526 2.525-3.454 3.453 2.665 2.666zM12.078 17.367l-3.454 3.454-2.59-2.591-0.004 7.735 7.785 0.046-2.526-2.525 3.454-3.454-2.665-2.665z"></path>
             </svg>`
         );
-        };
+      };
 
-
-        let chart = null;
-        let allNodes = []; // ¡NUEVO! Aquí guardaremos todos los nodos (Estos son tus nodos de "Persona")
-        let allCargoNodes = []; // ¡NUEVO! Aquí guardaremos los nodos de "Cargo"
-        let isCargoDataReady = false; // ¡NUEVO! Bandera para saber si ya cargamos la data de cargo
-        let sensitivity = 100;
-        let colors = ["#F57C00", "#039BE5", "#FFCA28"];
-        let filteredNodes = [];
-        
-        const apiCargoUrl = 'https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_cargo'; 
         /**
-         * Intenta buscar al empleado. Solo se ejecutará
-         * si 'receivedUserId' Y 'allNodes' están listos.
-         */
-        function procesarLoginDeUsuario() {
-            
-            // Si aún no tenemos el ID o los datos, no hacer nada.
-            ///* 
-            if (!receivedUserId || !isDataReady) {
-                return; 
-            } 
-            //*/
-            
-            // 1.1 Harcodeado para pruebas
-            //receivedUserId = "interno\\padanaque"; // //
-            /* 
-            if (!receivedUserId || !isDataReady) {
-                receivedUserId = "interno\\dromero";
-                console.log('Usuario interno\\dromero para pruebas');
-            }
-            //*/
-            //receivedUserId = "interno\\dromero"; // //
+       * Intenta buscar al empleado. Solo se ejecutará
+       * si 'receivedUserId' Y 'allNodes' están listos.
+       */
+      function procesarLoginDeUsuario() {
+        // Si aún no tenemos los datos, no hacer nada.
+        if (!isDataReady) {
+          return;
+        }
 
-            empleadoLogueado = allNodes.find(
-                nodo => { return nodo.userid && nodo.userid.toLowerCase() === receivedUserId; }
+        // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
+        if (!receivedUserId) {
+          receivedUserId = "interno\\dromero";
+          console.log("Usando usuario interno\\dromero para pruebas");
+        }
+
+        // Asegurarnos de usar la fuente de datos correcta según el modo
+        const currentMode = document.getElementById("modo-select").value;
+        const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
+        if (!isDataReady || (currentMode === "Cargo" && !isCargoDataReady)) {
+          // Si la data de personas o la data de cargo (según la vista) no está lista, salimos.
+          return;
+        }
+
+        // Buscar al empleado. NOTA: Ajustado para buscar en la vista de Cargo también.
+        empleadoLogueado = sourceNodes.find((nodo) => {
+          return nodo.userid && nodo.userid.toLowerCase() === receivedUserId;
+        });
+
+        // Evitamos que se ejecute múltiples veces
+        receivedUserId = null;
+
+        if (empleadoLogueado) {
+          console.log(
+            "🎉 ¡Encontrado! Información completa:",
+            empleadoLogueado
+          );
+
+          // --- ¡LÓGICA DE CASCADA INICIAL! ---
+          // 1. OBTENER LOS SELECTS
+          const selectLinea = document.getElementById("linea-negocio-select");
+          const selectCostos = document.getElementById("centro-costos-select");
+          const selectDept = document.getElementById("departamento-select");
+
+          // 2. APLICAR LÍNEA
+          if (selectLinea && empleadoLogueado.lineaNegocio) {
+            selectLinea.value = empleadoLogueado.lineaNegocio;
+          }
+
+          // 3. REPOBLAR COSTO (basado en la línea)
+          const nodosParaCostos =
+            empleadoLogueado.lineaNegocio === "N/A" ||
+            !empleadoLogueado.lineaNegocio
+              ? sourceNodes
+              : sourceNodes.filter(
+                  (n) => n.lineaNegocio === empleadoLogueado.lineaNegocio
+                );
+          populateSelect(
+            "centro-costos-select",
+            "centroCosto",
+            nodosParaCostos
+          );
+
+          // 4. APLICAR COSTO
+          if (selectCostos && empleadoLogueado.centroCosto) {
+            selectCostos.value = empleadoLogueado.centroCosto;
+          }
+
+          // 5. REPOBLAR DEPARTAMENTO (basado en línea Y costo)
+          let nodosParaDeptos = nodosParaCostos; // Empezar con los nodos ya filtrados por línea
+          if (
+            empleadoLogueado.centroCosto &&
+            empleadoLogueado.centroCosto !== "N/A"
+          ) {
+            nodosParaDeptos = nodosParaCostos.filter(
+              (n) => n.centroCosto === empleadoLogueado.centroCosto
             );
+          }
+          populateSelect(
+            "departamento-select",
+            "departamento",
+            nodosParaDeptos
+          );
 
-            if (empleadoLogueado) {
-                console.log("🎉 ¡Encontrado! Información completa:", empleadoLogueado);
+          // 6. APLICAR DEPARTAMENTO
+          if (selectDept && empleadoLogueado.departamento) {
+            selectDept.value = empleadoLogueado.departamento;
+          }
 
-                // 1. Obtener los elementos <select>
-                const selectLinea = document.getElementById('linea-negocio-select');
-                const selectCostos = document.getElementById('centro-costos-select');
-                const selectDept = document.getElementById('departamento-select');
+          // 7. NOTIFICAR A SELECT2 DE TODOS LOS CAMBIOS (NO DISPARA EVENTO 'change')
+          $(selectLinea).trigger("change.select2");
+          $(selectCostos).trigger("change.select2");
+          $(selectDept).trigger("change.select2");
 
-                // 2. Asignar los valores a los selects
-                //    (Comprobamos que el empleado tenga el dato y que el select exista)
-                if (selectLinea && empleadoLogueado.lineaNegocio) {
-                    selectLinea.value = empleadoLogueado.lineaNegocio;
-                }
-                if (selectCostos && empleadoLogueado.centroCosto) {
-                    selectCostos.value = empleadoLogueado.centroCosto;
-                }
-                if (selectDept && empleadoLogueado.departamento) {
-                    selectDept.value = empleadoLogueado.departamento;
-                }
-                
-                // 3. ¡IMPORTANTE! Disparar el filtro
-                console.log("ℹ️ Auto-filtrando el organigrama para el usuario... ", empleadoLogueado.userid);
-                console.log(`Asignando Linea Negocio: ${empleadoLogueado.lineaNegocio} Centro Costos: ${empleadoLogueado.centroCosto} Departamento: ${empleadoLogueado.departamento}`);
+          // 8. DISPARAR FILTRO FINAL
+          // (Solo si el chart ya existe)
+          if (chart) {
+            console.log(
+              "ℹ️ Auto-filtrando el organigrama para el usuario... ",
+              empleadoLogueado.userid
+            );
+            aplicarFiltrosJerarquicos();
+          }
+        } else {
+          console.warn(
+            `⚠️ No se pudo encontrar al usuario '${receivedUserId}' en 'allNodes'.`
+          );
+          // Si no se encuentra, filtramos por "todos"
+          if (chart) {
+            aplicarFiltrosJerarquicos();
+          }
+        }
+        // Evitamos que se ejecute múltiples veces
+        receivedUserId = null;
+      }
 
-                aplicarFiltrosJerarquicos();
-            } else {
-                console.warn(`⚠️ No se pudo encontrar al usuario '${receivedUserId}' en 'allNodes'.`);
+      // --- Función Sanitize (para evitar bucles infinitos) ---
+      function sanitizeCircularReferences(nodes) {
+        const nodeMap = new Map();
+        nodes.forEach((node) => {
+          if (node && node.id != null) nodeMap.set(node.id, node);
+          else {
+            console.warn(
+              "Sanitizing: Omitiendo nodo inválido durante creación de mapa:",
+              node
+            );
+          }
+        });
+
+        let loopsBroken = 0;
+        console.log("Sanitizing: Iniciando sanitización de bucles...");
+        const nodeIds = Array.from(nodeMap.keys());
+        for (const nodeId of nodeIds) {
+          const startNode = nodeMap.get(nodeId);
+          if (!startNode || startNode.pid == null) continue;
+          const pathVisited = new Set();
+          let currentNode = startNode;
+          while (currentNode && currentNode.pid != null) {
+            const currentId = currentNode.id;
+            const parentId = currentNode.pid;
+
+            // 1. Detectar bucle en esta traza
+            if (pathVisited.has(currentId)) {
+              console.warn(
+                `¡Bucle detectado! Traza desde ${startNode.id} encontró un ciclo al volver a ${currentId}. Rompiendo enlace ${currentId} -> ${parentId}`
+              );
+              currentNode.pid = undefined; // Romper
+              loopsBroken++;
+              break;
             }
-            // Evitamos que se ejecute múltiples veces
-            receivedUserId = null; 
-        }
-        
-        // --- Función Sanitize (para evitar bucles infinitos) ---
-        function sanitizeCircularReferences(nodes) {
-            const nodeMap = new Map();
-            nodes.forEach((node) => { if (node && node.id != null) nodeMap.set(node.id, node); else { console.warn("Sanitizing: Omitiendo nodo inválido durante creación de mapa:", node); } });
-            
-            let loopsBroken = 0;
-            console.log("Sanitizing: Iniciando sanitización de bucles...");
-            const nodeIds = Array.from(nodeMap.keys());
-            for (const nodeId of nodeIds) {
-                const startNode = nodeMap.get(nodeId); 
-                if (!startNode || startNode.pid == null) continue;
-                const pathVisited = new Set(); 
-                let currentNode = startNode; 
-                while (currentNode && currentNode.pid != null) {
-                    const currentId = currentNode.id;
-                    const parentId = currentNode.pid; 
-                    
-                    // 1. Detectar bucle en esta traza
-                    if (pathVisited.has(currentId)) {
-                        console.warn(
-                            `¡Bucle detectado! Traza desde ${startNode.id} encontró un ciclo al volver a ${currentId}. Rompiendo enlace ${currentId} -> ${parentId}`
-                        );
-                        currentNode.pid = undefined; // Romper
-                        loopsBroken++;
-                        break; 
-                    }
-                    pathVisited.add(currentId); 
-                    
-                    // 2. Verificar si el padre existe en el mapa
-                    if (!nodeMap.has(parentId)) {
-                        // console.warn(`Sanitizing: Nodo ${currentId} tiene un pid inválido o faltante: ${parentId}. Tratando nodo como raíz.`);
-                        currentNode.pid = undefined; // Convertir en raíz
-                        break;
-                    }
+            pathVisited.add(currentId);
 
-                    currentNode = nodeMap.get(parentId); 
-                    if (!currentNode) {
-                        console.error("Sanitizing: Error inesperado al obtener el padre", parentId);
-                        break;
-                    }
-                }
-            }
-            console.log(`Sanitizing: Sanitización completa...`);
-            return Array.from(nodeMap.values());
-        }
-
-        // --- Mapeo de nivelJerarquico a Tag de Subnivel (Tu función) ---
-        function getSubLevelTag(nivelJerarquico) {
-            const nivel = parseInt(nivelJerarquico) -1; // Ajuste para que 1 sea nivel 0
-            if (nivel === 5) return "sub-level-1"; // Senior
-            if (nivel === 6) return "sub-level-2"; // Junior
-            if (nivel === 7) return "sub-level-3"; // Asistente
-            return "sub-level-0"; // Otros
-        }
-
-        ///////// * Puebla el <select> con los filtros únicos de los nodos.        
-        function populateSelect(selectId, dataField, nodes) {
-            const selectElement = document.getElementById(selectId);
-            if (!selectElement) {
-                console.error(`No se encontró el select con ID: ${selectId}`);
-                return;
+            // 2. Verificar si el padre existe en el mapa
+            if (!nodeMap.has(parentId)) {
+              // console.warn(`Sanitizing: Nodo ${currentId} tiene un pid inválido o faltante: ${parentId}. Tratando nodo como raíz.`);
+              currentNode.pid = undefined; // Convertir en raíz
+              break;
             }
 
-            // 1. Obtener valores únicos
-            const valueSet = new Set();
-            nodes.forEach(node => {
-                // Usamos [dataField] para acceder a la propiedad dinámicamente
-                if (node[dataField] && node[dataField] !== 'N/A') {
-                    valueSet.add(node[dataField]);
-                }
+            currentNode = nodeMap.get(parentId);
+            if (!currentNode) {
+              console.error(
+                "Sanitizing: Error inesperado al obtener el padre",
+                parentId
+              );
+              break;
+            }
+          }
+        }
+        console.log(`Sanitizing: Sanitización completa...`);
+        return Array.from(nodeMap.values());
+      }
+
+      // --- Mapeo de nivelJerarquico a Tag de Subnivel ---
+      function getSubLevelTag(nivelJerarquico) {
+        const nivel = parseInt(nivelJerarquico) - 1; // Ajuste para que 1 sea nivel 0
+        if (nivel === 5) return "sub-level-1"; // Senior
+        if (nivel === 6) return "sub-level-2"; // Junior
+        if (nivel === 7) return "sub-level-3"; // Asistente
+        return "sub-level-0"; // Otros
+      }
+
+      ///////// * Puebla el <select> con los filtros únicos de los nodos.
+      function populateSelect(selectId, dataField, nodes) {
+        const selectElement = document.getElementById(selectId);
+        if (!selectElement) {
+          console.error(`No se encontró el select con ID: ${selectId}`);
+          return;
+        }
+
+        // 1. Obtener valores únicos
+        const valueSet = new Set();
+        nodes.forEach((node) => {
+          // Usamos [dataField] para acceder a la propiedad dinámicamente
+          if (node[dataField] && node[dataField] !== "N/A") {
+            valueSet.add(node[dataField]);
+          }
+        });
+
+        // 2. Ordenar alfabéticamente
+        const sortedValues = Array.from(valueSet).sort();
+
+        // 3. Limpiar opciones antiguas (excepto la primera "todos")
+        const firstOption = selectElement.options[0];
+        selectElement.innerHTML = ""; // Limpiar todo
+        if (firstOption) {
+          // Volver a añadir la opción "todos"
+          selectElement.appendChild(firstOption);
+        }
+
+        // 4. Crear y añadir <option>
+        sortedValues.forEach((value) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = value;
+          selectElement.appendChild(option);
+        });
+      }
+
+      ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
+      function aplicarFiltrosJerarquicos() {
+        // 1. Validar que el chart esté listo
+        if (!chart) return;
+
+        const currentMode = document.getElementById("modo-select").value;
+        const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
+        console.log(
+          `Aplicando filtros jerárquicos en modo '${currentMode}' con ${sourceNodes.length} nodos fuente.`
+        );
+        if (!sourceNodes.length) return; // No hay datos que filtrar
+
+        // 2. Leer los 3 valores
+        const selectedLinea = document.getElementById(
+          "linea-negocio-select"
+        ).value;
+        const selectedCosto = document.getElementById(
+          "centro-costos-select"
+        ).value;
+        const selectedDept = document.getElementById(
+          "departamento-select"
+        ).value;
+
+        statusDiv.style.display = "block";
+        statusDiv.innerText = "Filtrando...";
+
+        // 3. Si todos están en "todos", recargar el árbol completo
+        if (
+          selectedLinea === "todos" &&
+          selectedCosto === "todos" &&
+          selectedDept === "todos"
+        ) {
+          chart.load(sourceNodes); // (O 'sanitizedNodes' si es tu fuente de verdad)
+          statusDiv.style.display = "none";
+          return;
+        }
+
+        // --- Lógica de Filtro con Jerarquía (Adaptada) ---
+        // 4. Un mapa para buscar nodos por ID
+        const nodeMap = new Map(sourceNodes.map((node) => [node.id, node]));
+        console.log(
+          "4. Mapa de nodos creado para filtrado jerárquico.",
+          nodeMap
+        );
+        // 5. Un mapa para guardar los nodos que SÍ queremos mostrar 
+        const nodesToShow = new Map();
+
+        // 6. Recorrer TODOS los nodos
+        for (const node of sourceNodes) {
+          // 7. --- ¡LA MAGIA ESTÁ AQUÍ! ---
+          // Comprobar si el nodo cumple con LOS TRES filtros (o si el filtro es "todos")
+          const lineaMatch =
+            selectedLinea === "todos" || node.lineaNegocio === selectedLinea;
+          const costosMatch =
+            selectedCosto === "todos" || node.centroCosto === selectedCosto;
+          const deptMatch =
+            selectedDept === "todos" || node.departamento === selectedDept;
+
+          // 8. Si el nodo coincide con todos los filtros activos
+          if (lineaMatch && costosMatch && deptMatch) {
+            // 9. Para cada nodo que coincide, añadirlo A ÉL Y A TODOS SUS PADRES
+            let currentNode = node;
+            while (currentNode) {
+              if (nodesToShow.has(currentNode.id)) {
+                break; // Si ya añadimos esta rama, paramos
+              }
+              nodesToShow.set(currentNode.id, currentNode);
+
+              // Subir al padre
+              if (currentNode.pid && nodeMap.has(currentNode.pid)) {
+                currentNode = nodeMap.get(currentNode.pid);
+              } else {
+                currentNode = null; // Llegamos a la raíz o a un nodo sin padre en el mapa
+              }
+            }
+          }
+        }
+
+        // 10. Convertir el mapa de nodos a mostrar en un array y cargarlo
+        filteredNodes = Array.from(nodesToShow.values());
+        console.log("10. Filtrado completo. Nodos a mostrar:", filteredNodes);
+        if (filteredNodes.length > 0) {
+          chart.load(filteredNodes);
+        } else {
+          // Si el filtro no devuelve nada, mostrar un gráfico vacío
+          chart.load([]);
+          alert(
+            `No se encontraron resultados para esta combinación de filtros.`
+          );
+        }
+
+        statusDiv.style.display = "none";
+      }
+
+      // --- Función Principal: Cargar, Mapear y Renderizar ---
+      async function loadAndRenderChart(apiUrl) {
+        statusDiv.innerText = "Llamando a la API...";
+        errorDiv.style.display = "none";
+        treeDiv.innerHTML = "";
+
+        try {
+          // 1. Fetch API
+          console.log("Iniciando fetch a:", apiUrl);
+          const response = await fetch(apiUrl);
+          statusDiv.innerText = `API respondió (${response.status}). Procesando...`;
+          if (!response.ok)
+            throw new Error(
+              `Error HTTP ${response.status}: ${response.statusText}`
+            );
+          const apiResponse = await response.json();
+          const flatApiData = Array.isArray(apiResponse?.Persona)
+            ? apiResponse.Persona
+            : null;
+          if (!Array.isArray(flatApiData))
+            throw new Error(
+              "Formato inválido. No se encontró array en 'Persona'."
+            );
+          if (flatApiData.length === 0) {
+            statusDiv.innerText = "API OK, pero no hay datos.";
+            return;
+          }
+          statusDiv.innerText = `Datos recibidos (${flatApiData.length}). Procesando...`;
+
+          // 2. Pre-cálculo Mapa Posición -> Empleado (Lógica clave de la jerarquía de personas)
+          const positionToEmployeeMap = new Map();
+          flatApiData
+            .filter(
+              (emp) =>
+                emp &&
+                emp.codigoPosicion != null &&
+                emp.vacante !== "1" &&
+                emp.codigoEmpleado
+            )
+            .forEach((emp) => {
+              const positionId = String(emp.codigoPosicion).trim();
+              const employeeId = String(emp.codigoEmpleado).trim();
+              if (!positionToEmployeeMap.has(positionId)) {
+                positionToEmployeeMap.set(positionId, employeeId);
+              } else {
+                //console.warn(`Advertencia: Posición ${positionId} asignada a múltiples empleados. Usando ${positionToEmployeeMap.get(positionId)}.`);
+              }
             });
+          console.log(
+            `Mapa Posición->Empleado creado con ${positionToEmployeeMap.size} entradas.`
+          );
 
-            // 2. Ordenar alfabéticamente
-            const sortedValues = Array.from(valueSet).sort();
-
-            // 3. Crear y añadir <option>
-            sortedValues.forEach(value => {
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = value;
-                selectElement.appendChild(option);
-            });
-
-            // 4. Añadir el Event Listener
-            selectElement.addEventListener('change', aplicarFiltrosJerarquicos);
-        }
-
-        ///////// * Se ejecuta cuando el usuario cambia el valor de CUALQUIER valor de los 3 selects.
-
-
-        ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
-        function aplicarFiltrosJerarquicos() {
-            // 1. Validar que el chart esté listo
-            // (Asumo que 'chart', 'allNodes' y 'statusDiv' son variables globales en tu script)
-            if (!chart) return; 
-
-            const currentMode = document.getElementById('modo-select').value;
-            const sourceNodes = (currentMode === 'Cargo') ? allCargoNodes : allNodes;
-
-            if (!sourceNodes.length) return; // No hay datos que filtrar
-
-            // 2. Leer los 3 valores
-            const selectedLinea = document.getElementById('linea-negocio-select').value;
-            const selectedCosto = document.getElementById('centro-costos-select').value;
-            const selectedDept = document.getElementById('departamento-select').value;
-            
-            statusDiv.style.display = "block";
-            statusDiv.innerText = "Filtrando...";
-
-            // 3. Si todos están en "todos", recargar el árbol completo
-            if (selectedLinea === "todos" && selectedCosto === "todos" && selectedDept === "todos") {
-                chart.load(sourceNodes); // (O 'sanitizedNodes' si es tu fuente de verdad)
-                statusDiv.style.display = "none";
-                return;
-            }
-
-            // --- Tu Lógica de Filtro con Jerarquía (Adaptada) ---
-            // 4. Un mapa para buscar nodos por ID (tu código)
-            const nodeMap = new Map(sourceNodes.map(node => [node.id, node]));
-            console.log("4. Mapa de nodos creado para filtrado jerárquico.", nodeMap);
-            // 5. Un mapa para guardar los nodos que SÍ queremos mostrar (tu código)
-            const nodesToShow = new Map();
-
-            // 6. Recorrer TODOS los nodos
-            for (const node of sourceNodes) {
-                // 7. --- ¡LA MAGIA ESTÁ AQUÍ! ---
-                // Comprobar si el nodo cumple con LOS TRES filtros (o si el filtro es "todos")
-                const lineaMatch = (selectedLinea === 'todos') || (node.lineaNegocio === selectedLinea);
-                const costosMatch = (selectedCosto === 'todos') || (node.centroCosto === selectedCosto);
-                const deptMatch = (selectedDept === 'todos') || (node.departamento === selectedDept);
-                
-                // 8. Si el nodo coincide con todos los filtros activos
-                if (lineaMatch && costosMatch && deptMatch) {
-                    // 9. Para cada nodo que coincide, añadirlo A ÉL Y A TODOS SUS PADRES
-                    let currentNode = node;
-                    while (currentNode) {
-                        if (nodesToShow.has(currentNode.id)) {
-                            break; // Si ya añadimos esta rama, paramos
-                        }
-                        nodesToShow.set(currentNode.id, currentNode);
-                        
-                        // Subir al padre
-                        if (currentNode.pid && nodeMap.has(currentNode.pid)) {
-                            currentNode = nodeMap.get(currentNode.pid);
-                        } else {
-                            currentNode = null; // Llegamos a la raíz o a un nodo sin padre en el mapa
-                        }
-                    }
-                }
-            }
-
-            // 10. Convertir el mapa de nodos a mostrar en un array y cargarlo
-            filteredNodes = Array.from(nodesToShow.values());
-            //console.log("10. Filtrado completo. Nodos a mostrar:", filteredNodes);            
-            if (filteredNodes.length > 0) {
-                chart.load(filteredNodes);
-            } else {
-                // Si el filtro no devuelve nada, mostrar un gráfico vacío
-                chart.load([]); 
-                alert(`No se encontraron resultados para esta combinación de filtros.`);
-            }
-            
-            statusDiv.style.display = "none";
-        }
-
-
-        // --- Función Principal: Cargar, Mapear y Renderizar ---
-        async function loadAndRenderChart(apiUrl) {
-            statusDiv.innerText = "Llamando a la API...";
-            errorDiv.style.display = "none";
-            treeDiv.innerHTML = "";
-
-            try {
-                // 1. Fetch API
-                console.log("Iniciando fetch a:", apiUrl);
-                const response = await fetch(apiUrl);
-                statusDiv.innerText = `API respondió (${response.status}). Procesando...`;
-                if (!response.ok) throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
-                const apiResponse = await response.json();
-                const flatApiData = Array.isArray(apiResponse?.Persona) ? apiResponse.Persona : null;
-                if (!Array.isArray(flatApiData)) throw new Error("Formato inválido. No se encontró array en 'Persona'.");
-                if (flatApiData.length === 0) {
-                    statusDiv.innerText = "API OK, pero no hay datos.";
-                    return;
-                }
-                statusDiv.innerText = `Datos recibidos (${flatApiData.length}). Procesando...`;
-
-                // 2. Pre-cálculo Mapa Posición -> Empleado (Lógica clave de la jerarquía de personas)
-                const positionToEmployeeMap = new Map();
-                flatApiData
-                    .filter(emp => emp && emp.codigoPosicion != null && emp.vacante !== "1" && emp.codigoEmpleado)
-                    .forEach((emp) => {
-                        const positionId = String(emp.codigoPosicion).trim();
-                        const employeeId = String(emp.codigoEmpleado).trim();
-                        if (!positionToEmployeeMap.has(positionId)) {
-                            positionToEmployeeMap.set(positionId, employeeId);
-                        } else {
-                            //console.warn(`Advertencia: Posición ${positionId} asignada a múltiples empleados. Usando ${positionToEmployeeMap.get(positionId)}.`);
-                        }
-                    });
-                console.log(`Mapa Posición->Empleado creado con ${positionToEmployeeMap.size} entradas.`);
-
-                // 3. Transformación (Lógica Híbrida: IDs de Empleado + IDs de Posición para vacantes)
-                const balkanNodes = flatApiData
-                    .filter(emp => 
-                        emp && 
-                        //emp.codigoPosicion != null &&
-                        emp.codigoPosicion != '00006' /*&&
+          // 3. Transformación (Lógica Híbrida: IDs de Empleado + IDs de Posición para vacantes)
+          const balkanNodes = flatApiData
+            .filter(
+              (emp) =>
+                emp &&
+                //emp.codigoPosicion != null &&
+                emp.codigoPosicion != "00006" /*&&
                         String(emp.codigoPosicion).trim() !== "00006" &&
                         // Filtramos solo el departamento de Sistemas y Directorio
-                         (emp.nombreDepartamento === "SISTEMAS" || emp.nombreDepartamento === "DIRECTORIO" 
+                        (emp.nombreDepartamento === "SISTEMAS" || emp.nombreDepartamento === "DIRECTORIO" 
                             || emp.nombreDepartamento === "IMPORTACIONES" || emp.nombreDepartamento === "LEGAL" 
                             || emp.nombreDepartamento === "PROCESOS Y PROYECTOS" 
                             //|| emp.nombreDepartamento === null
                             || (emp.nombreDepartamento === "FINANZAS" && emp.nombreCentroCosto === "DERIVADOS"))
                         */
-                    )
-                    .map(emp => {
-                        
-                        const isVacant = emp.vacante === "1";
-                        
-                        // ID HÍBRIDO: Usamos codigoEmpleado si existe, si no, codigoPosicion
-                        const id = isVacant 
-                            ? String(emp.codigoPosicion).trim() 
-                            : String(emp.codigoEmpleado).trim();
-                        
-                        let pid = emp.codigoPosicionReporta ? String(emp.codigoPosicionReporta).trim() : null;
+            )
+            .map((emp) => {
+              const isVacant = emp.vacante === "1";
 
-                        if (pid && pid !== "0") {
-                            // El 'pid' SIEMPRE es una POSICIÓN.
-                            // Buscamos a qué 'id' (empleado o posición) corresponde.
-                            const managerEmployeeId = positionToEmployeeMap.get(pid);
-                            
-                            if (managerEmployeeId) {
-                                // Encontrado: El jefe (empleado) es el pid.
-                                pid = managerEmployeeId;
-                            } else {
-                                // No encontrado: El jefe está vacante, el 'pid' es la POSICIÓN del jefe.
-                                pid = pid; // Se mantiene como codigoPosicion
-                            }
-                            
-                            if (pid === id) pid = undefined; // Evitar auto-referencia
-                        } else {
-                            pid = undefined; // Es raíz
-                        }
+              // ID HÍBRIDO: Usamos codigoEmpleado si existe, si no, codigoPosicion
+              const id = isVacant
+                ? String(emp.codigoPosicion).trim()
+                : String(emp.codigoEmpleado).trim();
 
-                        // Lógica de Tags (Tu lógica de estilo)
-                        const subLevelTag = getSubLevelTag(emp.nivelJerarquico);
-                        const levelTag = `level-${emp.nivelJerarquico || '99'}`; // Tag para CSS
-                        let tags = [levelTag];
-                        
-                        if (subLevelTag !== "sub-level-0") {
-                            tags.push(subLevelTag); // Tag para JS (subLevels)
-                            tags.push("sublevel-node"); // Tag para CSS (línea punteada)
-                        }
-                        
-                        const order = parseInt(emp.nivelJerarquico || 99);
+              let pid = emp.codigoPosicionReporta
+                ? String(emp.codigoPosicionReporta).trim()
+                : null;
 
-                        // Crear el objeto del nodo
-                        if (isVacant) {
-                            tags.push('vacante');
-                        return { id, pid, tags, order,
-                            // Esto pondrá "PUESTO VACANTE" en la línea principal
-                            nombre: "PUESTO VACANTE", 
-                            
-                            // Esto pondrá el nombre del puesto (ej. "DIRECTOR...") en la segunda línea
-                            puesto: emp.puesto || "Puesto N/A", // Usamos 'N/A' como default
-                            
-                            // --- Rellenar el resto de campos para filtros y consistencia ---
-                            codPosicion: emp.codigoPosicion || "N/A",
-                            codPosicion_R: emp.codigoPosicionReporta || "N/A",
-                            
-                            // Importante para que los filtros jerárquicos no fallen
-                            departamento: emp.nombreDepartamento || 'N/A', 
-                            lineaNegocio: emp.nombreLineaNegocio || "N/A",
-                            centroCosto: emp.nombreCentroCosto || "N/A", 
-                            
-                            // Campos de empleado que deben estar nulos
-                            userid: null,
-                            img: null, 
-                            email: null,
-                            rutaManual: null
-                            };
-                        } else {
-                            return {
-                                id, pid, tags,
-                                nombre: `${emp.nombre || 'N/A'} ${emp.apellido || ''}`.trim(),
-                                userid: emp.userid || "UserId no definido",
-                                puesto: emp.puesto || "Puesto N/A", // Usamos 'N/A' como default
-                                codPosicion: emp.codigoPosicion || "Código de posición no definido",
-                                codPosicion_R: emp.codigoPosicionReporta || "Código de posición que reporta no definido",
-                                lineaNegocio: emp.nombreLineaNegocio || "N/A",
-                                centroCosto: emp.nombreCentroCosto || "N/A",
-                                departamento: emp.nombreDepartamento || 'N/A', // 
-                                img: emp.foto || 'https://via.placeholder.com/60/cccccc/ffffff?text=N/A',
-                                email: emp.emailCorporativo || 'Sin correo electrónico',
-                                rutaManual: emp.rutaManual || 'Sin manual asignado',
-                                order
-                            };
-                        }
-                    })
-                    .filter(Boolean); // Filtrar nulos si los hubiera
+              if (pid && pid !== "0") {
+                // El 'pid' SIEMPRE es una POSICIÓN.
+                // Buscamos a qué 'id' (empleado o posición) corresponde.
+                const managerEmployeeId = positionToEmployeeMap.get(pid);
 
-                console.log(`Transformación completa (${balkanNodes.length} nodos).`);
-                
-                // 4. Sanitización
-                const sanitizedNodes = sanitizeCircularReferences(balkanNodes);
-                allNodes = sanitizedNodes; // Guarda todos los nodos globalmente
-                statusDiv.innerText = `Datos sanitizados. Renderizando...`;
-                if (sanitizedNodes.length === 0) throw new Error("No hay nodos válidos después de sanitizar.");
-                console.log("Nodos sanitizados:", sanitizedNodes);
-                
-                isDataReady = true;
-                
-                // Poblamos los selects para filtrar por Línea de Negocio, Centro de Costos y Departamento
-                populateSelect('linea-negocio-select', 'lineaNegocio', sanitizedNodes);
-                populateSelect('centro-costos-select', 'centroCosto', sanitizedNodes);
-                populateSelect('departamento-select', 'departamento', sanitizedNodes); // Tu select existente
-
-                // 4.1 Intentar procesar (en caso de que el 'userId' ya haya llegado)
-                //procesarLoginDeUsuario();
-
-                // 5. Definir Plantillas (Tu definición)
-                // Plantilla base 'Ficha'
-                OrgChart.templates.fichaTemplate = Object.assign({}, OrgChart.templates.base);
-                OrgChart.templates.fichaTemplate.size = [250, 110]; // Keep the increased height
-                OrgChart.templates.fichaTemplate.editFormHeaderColor = "#F57C00"; // Color del header del editForm
-                // Definimos un gradiente en las definiciones SVG
-                OrgChart.templates.fichaTemplate.defs += `
-                    <linearGradient id="fichaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#FFF3E0;stop-opacity:1" />  
-                        <stop offset="100%" style="stop-color:#FFE0B2;stop-opacity:1" /> 
-                    </linearGradient>`;
-                // Usamos el gradiente en el nodo
-                OrgChart.templates.fichaTemplate.node =
-                    '<rect x="0" y="0" width="250" height="110" fill="url(#fichaGradient)" stroke="#FDBE86" rx="6" ry="6"></rect>'; // Stroke naranja más suave
-                    // Barra de acento vertical a la izquierda
-                    '<path d="M0 6 L 0 104 Q 0 110 6 110 L 6 110 Q 0 110 0 104 L 0 6 Q 0 0 6 0 L 6 0 Q 0 0 0 6 Z" fill="#F57C00"></path>'; // Naranja principal de Liris?
-                
-                    OrgChart.templates.fichaTemplate.img_0 = /* ... (sin cambios) ... */
-                    '<clipPath id="{randId}"><circle cx="40" cy="55" r="30"></circle></clipPath>' +
-                    '<image preserveAspectRatio="xMidYMid slice" clip-path="url(#{randId})" xlink:href="{val}" x="10" y="25" width="60" height="60"></image>';
-
-                // --- CAMBIO: Ajustar foreignObject y añadir ellipsis ---
-                OrgChart.templates.fichaTemplate.field_0 = // Nombre
-                    '<foreignObject x="85" y="25" width="155" height="40">' + // Contenedor
-                    // Div interno: auto height, max-height for 2 lines approx, ellipsis
-                    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-weight: bold; color: #D35400; line-height: 1.2; height: auto; max-height: 34px; /* Approx 2 lines */ overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
-                    '{val}' +
-                    '</div>' +
-                    '</foreignObject>';
-
-                OrgChart.templates.fichaTemplate.field_1 = // Puesto
-                    '<foreignObject x="85" y="60" width="155" height="30">' + // Contenedor
-                    // Div interno: similar adjustments for ellipsis
-                    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 11px; color: #797D7F; line-height: 1.2; height: auto; max-height: 27px; /* Approx 2 lines */ overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
-                    '{val}' +
-                    '</div>' +
-                    '</foreignObject>';
-                // --- FIN CAMBIO ---
-
-                OrgChart.templates.fichaTemplate.field_2 = /* ... (botón sin cambios) ... */
-                    '<rect x="85" y="88" width="70" height="18" fill="#4285F4" rx="4" ry="4"></rect>' +
-                    '<text style="font-size: 10px; cursor: pointer;" fill="#ffffff" x="120" y="100" text-anchor="middle">{val}</text>';
-                    
-                OrgChart.templates.fichaTemplate.plus = 
-                    `<circle cx="15" cy="15" r="15" fill="#ffffff" stroke="#aeaeae" stroke-width="1"></circle>
-                    <text text-anchor="middle" style="font-size: 18px;cursor:pointer;" fill="#757575" x="15" y="22">{children-count}</text>`;
-                OrgChart.templates.fichaTemplate.minus = 
-                    `<circle cx="15" cy="15" r="15" fill="#ffffff" stroke="#aeaeae" stroke-width="1"></circle>
-                    <text text-anchor="middle" style="font-size: 18px;cursor:pointer;" fill="#757575" x="15" y="22">{children-count}</text>`;
-                
-                OrgChart.templates.fichaTemplate.ripple = {
-                    radius: 15,
-                    color: "#F57C00",
-                    rect: { x: 0, y: 0, width: 250, height: 110, rx: 15, ry: 15 }
-                };  // Ripple effect, al dar click en el nodo da un efecto visual           
-
-
-                // En main.js, ANTES de 'const chartConfig'
-
-                // 1. Clonamos tu plantilla 'fichaTemplate' para heredar su tamaño y forma
-                OrgChart.templates.vacanteTemplate = Object.assign({}, OrgChart.templates.fichaTemplate);
-
-                // 2. Definimos el fondo oscuro (SVG)
-                // Este es un gris oscuro. Puedes cambiar '#4a4a4a' por el que gustes.
-                OrgChart.templates.vacanteTemplate.node = 
-                    '<rect x="0" y="0" height="{h}" width="{w}" fill="#4a4a4a" rx="5" ry="5"></rect>';
-
-                // 3. Definimos los campos con texto blanco
-                // (Asegúrate que coincidan con los campos de 'fichaTemplate')
-
-                // Campo 'nombre' (field_0)
-                OrgChart.templates.vacanteTemplate.field_0 = 
-                    '<text style="font-size: 16px; font-weight: bold;" fill="#ffffff" x="125" y="60" text-anchor="middle">{val}</text>';
-                    
-                // Campo 'puesto' (field_1)
-                OrgChart.templates.vacanteTemplate.field_1 = 
-                    '<text style="font-size: 14px; font-style: italic;" fill="#e0e0e0" x="125" y="85" text-anchor="middle">{val}</text>';
-
-                // 4. Nos aseguramos de que no muestre imagen
-                OrgChart.templates.vacanteTemplate.img_0 = "";
-
-                // --- 2.1 DEFINIR BINDINGS (MAPEOS) ---
-                // (Mueve tu binding de persona aquí para tener ambos)
-                const personaBinding = {
-                    field_0: "nombre",
-                    field_1: "puesto",
-                    img_0: "img"
-                };
-
-                // ¡NUEVO! Binding para la vista de Cargo
-                // Mapea los campos que crearemos en el .map() de cargo
-                const cargoBinding = {
-                    field_0: "cargoPuesto",     // Puesto (ej. "GERENTE GENERAL")
-                    field_1: "cargoPersona",    // Persona (ej. "SANTIAGO SAAB")
-                    field_2: "cargoDepto"       // Depto (ej. "DIRECTORIO")
-                };
-
-
-                // --- 2.2 DEFINIR TEMPLATE DE CARGO ---
-                // (Clonamos 'fichaTemplate' para heredar el tamaño y la barra naranja)
-                OrgChart.templates.cargoTemplate = Object.assign({}, OrgChart.templates.fichaTemplate);
-
-                // Quitamos la imagen
-                OrgChart.templates.cargoTemplate.img_0 = ""; 
-
-                // Ajustamos los campos de texto (sin foto, movemos todo a la izquierda)
-                OrgChart.templates.cargoTemplate.field_0 = // Puesto
-                    '<foreignObject x="15" y="25" width="225" height="40">' + 
-                    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 16px; font-weight: bold; color: #D35400; line-height: 1.2; height: auto; max-height: 34px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
-                    '{val}' +
-                    '</div>' +
-                    '</foreignObject>';
-
-                OrgChart.templates.cargoTemplate.field_1 = // Persona
-                    '<foreignObject x="15" y="60" width="225" height="30">' +
-                    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; color: #333; line-height: 1.2; height: auto; max-height: 27px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
-                    '{val}' +
-                    '</div>' +
-                    '</foreignObject>';
-
-                OrgChart.templates.cargoTemplate.field_2 = // Departamento
-                    '<foreignObject x="15" y="85" width="225" height="20">' +
-                    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 12px; font-style: italic; color: #797D7F; line-height: 1.2; text-align: left;">' +
-                    '{val}' +
-                    '</div>' +
-                    '</foreignObject>';
-
-
-                // 6. Configuración de Tags (Tu configuración)
-                const tagsConfig = {
-                    // Mapeo de tags de JS a la propiedad 'subLevels'
-                    "sub-level-0": { subLevels: 0 , levelSeparation: 20},
-                    "sub-level-1": { subLevels: 1 , levelSeparation: 20}, //Se el puede asignar mas cosas, como template: "ana", etc.
-                    "sub-level-2": { subLevels: 2 , levelSeparation: 20},
-                    "sub-level-3": { subLevels: 3 },
-                    filter: {
-                        template: 'dot'
-                    },
-                    levelSeparation: 20,
-                    // Tag para la plantilla vacante
-                    "vacante": {
-                        template: "vacanteTemplate",
-                        nodeBinding: { field_0: "puesto" }
-                    },
-                    
-                    // Tags vacíos solo para que el CSS los pueda seleccionar
-                    "level-0": {}, "level-1": {}, "level-2": {}, "level-3": {},
-                    "level-4": {}, "level-5": {}, "level-6": {}, "level-7": {}, "level-99": {},
-                    "sublevel-node": {}
-                };
-
-                // 7. Inicializar Gráfico (Tu configuración)
-                const chartConfig =  {
-                    //Configuraciones generales
-                    mouseScrool: OrgChart.action.zoom,
-                    enableSearch: true,
-                    template: "fichaTemplate", // Plantilla base fichaTemplate, olivia, ana, etc
-                    // mode: 'dark',
-                    layout: OrgChart.normal,
-                    scaleInitial: OrgChart.match.boundary, // Ajuste automático al contenedor, se visualiza todo
-                    //scaleInitial: 1,
-                    enableAI: true,
-
-
-                    //filterBy: ['title', 'city'],
-                    //filterBy: 'all',
-                    /* filterBy: {
-                        puesto: {
-                            // 'GERENTE GENERAL': { checked: true, text: 'Gerente General working'},
-                            // 'ANALISTA DE SOPORTE': { checked: false, text: 'Analista not working'},
-                        },
-                        departamento: {},
-                        nombre: {},
-                    }, */
-                    nodes: filteredNodes,
-                    tags: tagsConfig,
-                    nodeBinding: personaBinding, 
-
-                    /* 
-                    collapse:{
-                        level: 2,
-                        allChildren: true
-                    },
-                    expand: {
-                        nodes: [4281], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos, TODO: cambiar posteriormente 
-                        allChildren: true // Expande todos los hijos del nodo 4281
-                    }, */
-                    controls: {
-                        svg_export: { title: 'Exportar a SVG' },
-                        //png_preview: { title: 'Preview PNG' },
-                        zoom_in: { title: "Zoom In"},
-                        zoom_out: { title: "Zoom Out"},
-                        fit: { title: "Fit the chart"},
-                        // full_screen : { title: "Expand All" },
-                        expandAll: {
-                            icon: OrgChart.icon.expand_all(24, 24, "#7A7A7A"),
-                            title: "Expandir todo",
-                            onClick: function() {
-                                this.expand(null, 'all') // Expande todos los nodos
-                                chart.center(15); // Centra el organigrama después de expandir
-                                this.fit();
-                            }
-                        }, 
-                        collapseAll: {
-                            //icon: OrgChart.icon.collapse_all(24, 24, '#7A7A7A'),                        
-                            icon: OrgChart.icon.happy(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
-                            title: "Colapsar todo",
-                            onClick: function() {
-                                let id = 15
-                                var node = chart.getNode(id);
-                                var collapseIds = [];
-                                iterate(chart, node, collapseIds, id);
-                                chart.expandCollapse(id, [], collapseIds);
-                                chart.center(15);
-                                const fixedCollapseScale = 0.8; 
-                                this.setScale(fixedCollapseScale); // Establece la escala a un valor fijo
-                            }
-                        }, //TODO: Ajustar escala fija al colapsar todo
-                        horizontalLayout: { 
-                            icon: OrgChart.icon.layout_normal(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
-                            title: "Horizontal Layout",
-                            onClick: function() {
-                                this.setOrientation(OrgChart.orientation.top, null)
-                                this.fit(); // Ajusta el organigrama después de cambiar la orientación
-                                
-                            }
-                        },
-                        verticalLayout: { 
-                            icon: OrgChart.icon.layout_left_offset(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
-                            title: "Vertical Layout",
-                            onClick: function() {
-                                this.setOrientation(OrgChart.orientation.left, null)
-                                this.fit(); // Ajusta el organigrama después de cambiar la orientación
-                                
-                            }
-                        },
-                    },
-
-                    enableDragDrop: false, // Habilitar drag and drop
-                    // Ordenar subniveles por 'nivelJerarquico'
-                    sortSubLevelsSeparately: true,
-                    compareSubLevels: {
-                        order: (a, b) => a.order - b.order
-                    },
-                    nodeMenu: { details: { text: "Detalles" } },
-                    nodeExtent: { width: 250, height: 110 },
-                    editForm: { 
-                        photoBinding: "img", // the photo property name
-                        readOnly: true,
-                        titleBinding: "nombre", // a property name
-                        focusBinding: "puesto",
-                        buttons:  {
-                            // Tu botón personalizado para redirigir
-                            goToProfile: {
-                                icon: OrgChart.icon.link(24, 24, '#fff'), // Un icono de enlace, por ejemplo
-                                text: "Ir a Perfil",
-                                onClick: function(nodeId) {
-                                    // Obtener los datos del nodo para construir la URL
-                                    const nodeData = chart.get(nodeId);
-                                    if (nodeData) {
-                                        // Ejemplo: Redirigir a una página de perfil usando el ID del nodo
-                                        // Asegúrate de que tu página de destino pueda manejar el parámetro 'id'
-                                        alert('Hola ',nodeData.nombre)
-                                        window.location.href = `profile.html?id=${nodeData.id}`;
-                                        // O si tienes una URL específica en los datos del nodo:
-                                        // if (nodeData.profileUrl) {
-                                        //     window.location.href = nodeData.profileUrl;
-                                        // } else {
-                                        //     alert('URL de perfil no definida para este usuario.');
-                                        // }
-                                    }
-                                }
-                            },
-                            // Puedes añadir más botones aquí
-                            // myOtherButton: {
-                            //     text: "Otra Acción",
-                            //     onClick: function(nodeId) {
-                            //         alert(`Realizando otra acción para el nodo: ${nodeId}`);
-                            //     }
-                            // }
-
-                            edit: {
-                                icon: OrgChart.icon.edit(24,24,'#fff'),
-                                text: 'Edit',
-                                hideIfEditMode: true,
-                                hideIfDetailsMode: false
-                            },
-                            share: {
-                                icon: OrgChart.icon.share(24,24,'#fff'),
-                                text: 'Share',
-                                hideIfDetailsMode: true
-
-                            },
-                            pdf: {
-                                icon: OrgChart.icon.pdf(24,24,'#fff'),
-                                text: 'Save as PDF',
-                                hideIfDetailsMode: true
-                            },
-                            remove: {
-                                icon: OrgChart.icon.remove(24,24,'#fff'),
-                                text: 'Remove',
-                                hideIfDetailsMode: true
-                            }
-                        },
-                        /* elements: [
-                            { type: 'textbox', label: 'Full Name', binding: 'Name' },
-                            { type: 'textbox', label: 'Phone number', binding: 'phone' }        
-                        ] */
-
-                        /* ... (tu configuración del editForm) ... */ 
-                    },
-                    menu: {
-                        pdf_export: {
-                            text: "Export PDF",
-                            //icon: pdfIcon
-                        },
-                        png_export: {
-                            text: "Export PNG",
-                            //icon: pngIcon
-                        },
-                        svg_export: {
-                            text: "Export SVG",
-                            //icon: svgIcon
-                        },
-                        csv_export: {
-                            text: "Export CSV",
-                            //icon: csvIcon
-                        }
-                    },
-                    
-                    //nodeClick: OrgChart.action,
-                    nodeSeparation: 65,
-                    //levelSeparation: 120,    // Espacio entre niveles
-                    siblingSeparation: 100, // Espacio entre nodos hermanos
-                    // subtreeSeparation: 30
-                };
-                
-                //PERSONALIZAR IA
-                // Aquí se le pueden dar instrucciones al sistema de IA para que entienda el contexto de la empresa
-                OrgChart.AI_SYSTEM_MESSAGES = ["Trabajas para una empresa llamada LIRIS que se dedica desde el balanceado, criadero de pollos hasta su venta y distribución a demás de contar con supermercados retail llamado DelPortal en Guayaquil, Ecuador. El organigrama se trata del equipo de trabajo de esta empresa. La oficina de LIRIS queda en Samborondon, Ecuador."];
-                OrgChart.SEARCH_PLACEHOLDER = "Buscar por nombre o puesto...";
-                OrgChart.aiUI.title = "AI for LIRIS S.A."; //
-                
-                /////////////////////////
-                chart = new OrgChart(treeDiv, chartConfig);
-                
-                //const searchInput = chart
-                //console.log("Search Input Element:", searchInput);
-
-                // --- ¡AÑADE ESTO! ---
-                document.getElementById('modo-select').addEventListener('change', function() {
-                    const vista = this.value;
-                    
-                    if (vista === 'Persona') {
-                        console.log("Cambiando a vista: Persona");
-                        statusDiv.innerText = "Cargando vista de Personas...";
-                        statusDiv.style.display = "block";
-                        
-                        // Cambiar config y cargar data de Persona
-                        chart.config.template = "fichaTemplate";
-                        chart.config.nodeBinding = personaBinding;
-                        chart.load(allNodes); // Cargar data de Personas (ya en memoria)
-                        
-                        aplicarFiltrosJerarquicos(); // Re-aplicar filtros
-                        statusDiv.style.display = "none";
-                        
-                    } else if (vista === 'Cargo') {
-                        console.log("Cambiando a vista: Cargo");
-                        
-                        // Cambiar config
-                        chart.config.template = "cargoTemplate";
-                        chart.config.nodeBinding = cargoBinding;
-                        
-                        // Cargar (o fetchear) data de Cargo
-                        // Esta función es inteligente: solo fetchea la primera vez.
-                        loadAndRenderCargoChart(apiCargoUrl);
-                    }
-                });
-
-                chart.searchUI.on('searchclick', function (sender, args) {
-                    sender.instance.center(args.nodeId, null, function(){
-                        sender.instance.zoom(1.5);
-                    });
-                    return false; 
-                });  
-
-
-                chart.onInit(function(){
-                    //this.aiUI.show(true)
-                    //this.aiUI.inputElement.value = '¿Qué puedes hacer?'
-                    console.log("Funcionando...", this);
-                    // chart.config.scaleInitial = OrgChart.match.boundary;
-                    // chart._draw(true, OrgChart.action.init, { method: 'fit' });
-                    procesarLoginDeUsuario();
-                })
-
-                function iterate(c, n, collapseIds, id) {
-                    if (id != n.id) {
-                        collapseIds.push(n.id);
-                    }
-
-                    for (var i = 0; i < n.childrenIds.length; i++) {
-                        iterate(c, c.getNode(n.childrenIds[i]), collapseIds, id)
-                    }
+                if (managerEmployeeId) {
+                  // Encontrado: El jefe (empleado) es el pid.
+                  pid = managerEmployeeId;
+                } else {
+                  // No encontrado: El jefe está vacante, el 'pid' es la POSICIÓN del jefe.
+                  pid = pid; // Se mantiene como codigoPosicion
                 }
 
-                //////// NODO con height Dinámico
-                /* 
+                if (pid === id) pid = undefined; // Evitar auto-referencia
+              } else {
+                pid = undefined; // Es raíz
+              }
+
+              // Lógica de Tags (Lógica de estilo)
+              const subLevelTag = getSubLevelTag(emp.nivelJerarquico);
+              const levelTag = `level-${emp.nivelJerarquico || "99"}`; // Tag para CSS
+              let tags = [levelTag];
+
+              if (subLevelTag !== "sub-level-0") {
+                tags.push(subLevelTag); // Tag para JS (subLevels)
+                tags.push("sublevel-node"); // Tag para CSS (línea punteada)
+              }
+
+              const order = parseInt(emp.nivelJerarquico || 99);
+
+              // Crear el objeto del nodo
+              if (isVacant) {
+                tags.push("vacante");
+                return {
+                  id,
+                  pid,
+                  tags,
+                  order,
+                  // Esto pondrá "PUESTO VACANTE" en la línea principal
+                  nombre: "PUESTO VACANTE",
+
+                  // Esto pondrá el nombre del puesto (ej. "DIRECTOR...") en la segunda línea
+                  puesto: emp.puesto || "Puesto N/A", // Usamos 'N/A' como default
+
+                  // --- Rellenar el resto de campos para filtros y consistencia ---
+                  codPosicion: emp.codigoPosicion || "N/A",
+                  codPosicion_R: emp.codigoPosicionReporta || "N/A",
+
+                  // Importante para que los filtros jerárquicos no fallen
+                  departamento: emp.nombreDepartamento || "N/A",
+                  lineaNegocio: emp.nombreLineaNegocio || "N/A",
+                  centroCosto: emp.nombreCentroCosto || "N/A",
+
+                  // Campos de empleado que deben estar nulos
+                  userid: null,
+                  img: null,
+                  email: null,
+                  rutaManual: null,
+                };
+              } else {
+                return {
+                  id,
+                  pid,
+                  tags,
+                  nombre: `${emp.nombre || "N/A"} ${emp.apellido || ""}`.trim(),
+                  userid: emp.userid || "UserId no definido",
+                  puesto: emp.puesto || "Puesto N/A", // Usamos 'N/A' como default
+                  codPosicion:
+                    emp.codigoPosicion || "Código de posición no definido",
+                  codPosicion_R:
+                    emp.codigoPosicionReporta ||
+                    "Código de posición que reporta no definido",
+                  lineaNegocio: emp.nombreLineaNegocio || "N/A",
+                  centroCosto: emp.nombreCentroCosto || "N/A",
+                  departamento: emp.nombreDepartamento || "N/A", //
+                  img:
+                    emp.foto ||
+                    "https://via.placeholder.com/60/cccccc/ffffff?text=N/A",
+                  email: emp.emailCorporativo || "Sin correo electrónico",
+                  rutaManual: emp.rutaManual || "Sin manual asignado",
+
+                  codDepAx: emp.codDepAx || null,
+                  codDepartamento: emp.codigoDepartamento || null,
+                  order,
+                };
+              }
+            })
+            .filter(Boolean); // Filtrar nulos si los hubiera
+
+          console.log(`Transformación completa (${balkanNodes.length} nodos).`);
+
+          // 4. Sanitización
+          const sanitizedNodes = sanitizeCircularReferences(balkanNodes);
+          allNodes = sanitizedNodes; // Guarda todos los nodos globalmente
+          statusDiv.innerText = `Datos sanitizados. Renderizando...`;
+          if (sanitizedNodes.length === 0)
+            throw new Error("No hay nodos válidos después de sanitizar.");
+          console.log("Nodos sanitizados:", sanitizedNodes);
+
+          isDataReady = true;
+
+          // Poblamos los selects para filtrar por Línea de Negocio, Centro de Costos y Departamento
+          populateSelect(
+            "linea-negocio-select",
+            "lineaNegocio",
+            sanitizedNodes
+          );
+          populateSelect("centro-costos-select", "centroCosto", sanitizedNodes);
+          populateSelect("departamento-select", "departamento", sanitizedNodes); // Tu select existente
+
+          // 4.1 Intentar procesar (en caso de que el 'userId' ya haya llegado)
+          procesarLoginDeUsuario();
+          console.log(allNodes);
+
+          // 5. Definir Plantillas
+          // Plantilla base 'Ficha'
+          OrgChart.templates.fichaTemplate = Object.assign(
+            {},
+            OrgChart.templates.base
+          );
+          OrgChart.templates.fichaTemplate.size = [250, 110]; // Keep the increased height
+          OrgChart.templates.fichaTemplate.editFormHeaderColor = "#F57C00"; // Color del header del editForm
+          // Definimos un gradiente en las definiciones SVG
+          OrgChart.templates.fichaTemplate.defs += `
+                    <linearGradient id="fichaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />  
+                        <stop offset="100%" style="stop-color:#FFEFFF;stop-opacity:1" /> 
+                    </linearGradient>`;
+          // Usamos el gradiente en el nodo
+          OrgChart.templates.fichaTemplate.node =
+            '<rect x="0" y="0" width="250" height="110" fill="url(#fichaGradient)" stroke="#FDBE86" rx="6" ry="6"></rect>'; // Stroke naranja más suave
+          // Barra de acento vertical a la izquierda
+          ('<path d="M0 6 L 0 104 Q 0 110 6 110 L 6 110 Q 0 110 0 104 L 0 6 Q 0 0 6 0 L 6 0 Q 0 0 0 6 Z" fill="#F57C00"></path>'); // Naranja principal de Liris?
+
+          OrgChart.templates.fichaTemplate.img_0 =
+            /* ... (sin cambios) ... */
+            '<clipPath id="{randId}"><circle cx="40" cy="55" r="30"></circle></clipPath>' +
+            '<image preserveAspectRatio="xMidYMid slice" clip-path="url(#{randId})" xlink:href="{val}" x="10" y="25" width="60" height="60"></image>';
+
+          // --- CAMBIO: Ajustar foreignObject y añadir ellipsis ---
+          OrgChart.templates.fichaTemplate.field_0 = // Nombre
+            '<foreignObject x="85" y="25" width="155" height="40">' + // Contenedor
+            // Div interno: auto height, max-height for 2 lines approx, ellipsis
+            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-weight: bold; color: #D35400; line-height: 1.2; height: auto; max-height: 34px; /* Approx 2 lines */ overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
+            "{val}" +
+            "</div>" +
+            "</foreignObject>";
+
+          OrgChart.templates.fichaTemplate.field_1 = // Puesto
+            '<foreignObject x="85" y="60" width="155" height="30">' + // Contenedor
+            // Div interno: similar adjustments for ellipsis
+            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 11px; color: #797D7F; line-height: 1.2; height: auto; max-height: 27px; /* Approx 2 lines */ overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
+            "{val}" +
+            "</div>" +
+            "</foreignObject>";
+          // --- FIN CAMBIO ---
+
+          OrgChart.templates.fichaTemplate.field_2 =
+            /* ... (botón sin cambios) ... */
+            '<rect x="85" y="88" width="70" height="18" fill="#4285F4" rx="4" ry="4"></rect>' +
+            '<text style="font-size: 10px; cursor: pointer;" fill="#ffffff" x="120" y="100" text-anchor="middle">{val}</text>';
+
+          OrgChart.templates.fichaTemplate.plus = `<circle cx="15" cy="15" r="15" fill="#ffffff" stroke="#aeaeae" stroke-width="1"></circle>
+                    <text text-anchor="middle" style="font-size: 18px;cursor:pointer;" fill="#757575" x="15" y="22">{children-count}</text>`;
+          OrgChart.templates.fichaTemplate.minus = `<circle cx="15" cy="15" r="15" fill="#ffffff" stroke="#aeaeae" stroke-width="1"></circle>
+                    <text text-anchor="middle" style="font-size: 18px;cursor:pointer;" fill="#757575" x="15" y="22">{children-count}</text>`;
+
+          OrgChart.templates.fichaTemplate.ripple = {
+            radius: 15,
+            color: "#F57C00",
+            rect: { x: 0, y: 0, width: 250, height: 110, rx: 15, ry: 15 },
+          }; // Ripple effect, al dar click en el nodo da un efecto visual
+
+          // 1. Clonamos tu plantilla 'fichaTemplate' para heredar su tamaño y forma
+          OrgChart.templates.vacanteTemplate = Object.assign(
+            {},
+            OrgChart.templates.fichaTemplate
+          );
+
+          // 2. Definimos el fondo oscuro (SVG)
+          OrgChart.templates.vacanteTemplate.node =
+            '<rect x="0" y="0" height="{h}" width="{w}" fill="#4a4a4a" rx="5" ry="5"></rect>';
+
+          // 3. Definimos los campos con texto blanco
+          // (Asegúrate que coincidan con los campos de 'fichaTemplate')
+
+          // Campo 'nombre' (field_0)
+          OrgChart.templates.vacanteTemplate.field_0 =
+            '<text style="font-size: 16px; font-weight: bold;" fill="#ffffff" x="125" y="60" text-anchor="middle">{val}</text>';
+
+          // Campo 'puesto' (field_1)
+          OrgChart.templates.vacanteTemplate.field_1 =
+            '<text style="font-size: 14px; font-style: italic;" fill="#e0e0e0" x="125" y="85" text-anchor="middle">{val}</text>';
+
+          // 4. Nos aseguramos de que no muestre imagen
+          OrgChart.templates.vacanteTemplate.img_0 = "";
+
+          // --- 2.1 DEFINIR BINDINGS (MAPEOS) ---
+          // (Mueve tu binding de persona aquí para tener ambos)
+          const personaBinding = {
+            field_0: "nombre",
+            field_1: "puesto",
+            img_0: "img",
+          };
+
+          // Binding para la vista de Cargo
+          // Mapea los campos que crearemos en el .map() de cargo
+          const cargoBinding = {
+            field_0: "cargoPuesto", // Puesto (ej. "GERENTE GENERAL")
+            field_1: "cargoPersona", // Persona (ej. "SANTIAGO SAAB")
+            field_2: "cargoDepto", // Depto (ej. "DIRECTORIO")
+          };
+
+          // --- 2.2 DEFINIR TEMPLATE DE CARGO ---
+          // (Clonamos 'fichaTemplate' para heredar el tamaño y la barra naranja)
+          OrgChart.templates.cargoTemplate = Object.assign(
+            {},
+            OrgChart.templates.fichaTemplate
+          );
+
+          // Quitamos la imagen
+          OrgChart.templates.cargoTemplate.img_0 = "";
+
+          // Ajustamos los campos de texto (sin foto, movemos todo a la izquierda)
+          OrgChart.templates.cargoTemplate.field_0 = // Puesto
+            '<foreignObject x="15" y="25" width="225" height="40">' +
+            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 16px; font-weight: bold; color: #D35400; line-height: 1.2; height: auto; max-height: 34px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
+            "{val}" +
+            "</div>" +
+            "</foreignObject>";
+
+          OrgChart.templates.cargoTemplate.field_1 = // Persona
+            '<foreignObject x="15" y="60" width="225" height="30">' +
+            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; color: #333; line-height: 1.2; height: auto; max-height: 27px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
+            "{val}" +
+            "</div>" +
+            "</foreignObject>";
+
+          OrgChart.templates.cargoTemplate.field_2 = // Departamento
+            '<foreignObject x="15" y="85" width="225" height="20">' +
+            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 12px; font-style: italic; color: #797D7F; line-height: 1.2; text-align: left;">' +
+            "{val}" +
+            "</div>" +
+            "</foreignObject>";
+
+          // 6. Configuración de Tags
+          const tagsConfig = {
+            // Mapeo de tags de JS a la propiedad 'subLevels'
+            "sub-level-0": { subLevels: 0, levelSeparation: 20 },
+            "sub-level-1": { subLevels: 1, levelSeparation: 20 }, //Se el puede asignar mas cosas, como template: "ana", etc.
+            "sub-level-2": { subLevels: 2, levelSeparation: 20 },
+            "sub-level-3": { subLevels: 3 },
+            filter: {
+              template: "dot",
+            },
+            levelSeparation: 20,
+            // Tag para la plantilla vacante
+            vacante: {
+              template: "vacanteTemplate",
+              nodeBinding: { field_0: "puesto" },
+            },
+
+            // Tags vacíos solo para que el CSS los pueda seleccionar
+            "level-0": {},
+            "level-1": {},
+            "level-2": {},
+            "level-3": {},
+            "level-4": {},
+            "level-5": {},
+            "level-6": {},
+            "level-7": {},
+            "level-99": {},
+            "sublevel-node": {},
+          };
+
+          // 7. Inicializar Gráfico 
+          const chartConfig = {
+            //Configuraciones generales
+            mouseScrool: OrgChart.action.zoom,
+            enableSearch: true,
+            searchFields: ["nombre", "puesto"],
+            template: "fichaTemplate", // Plantilla base fichaTemplate, olivia, ana, etc
+            // mode: 'dark',
+            layout: OrgChart.normal,
+            scaleInitial: OrgChart.match.boundary, // Ajuste automático al contenedor, se visualiza todo
+            //scaleInitial: 1,
+            enableAI: true,
+            scaleMax: 1, // Por ejemplo, limita la escala máxima a 2 (200% de zoom)
+            scaleMin: 0.2, // También puedes configurar la escala mínima si lo necesitas
+
+            nodes: filteredNodes,
+            tags: tagsConfig,
+            nodeBinding: personaBinding,
+            searchFieldsWeight: {
+              nombre: 100, //percent
+              puesto: 20, //percent
+            },
+            searchDisplayField: "nombre",
+            /* anim: {
+                func: OrgChart.anim.inCirc, // Prueba con outSin o outBack para una sensación más suave
+                duration: 400 // Aumenta la duración a 400ms (o más, como 500ms)
+            }, */
+            /* 
+            collapse:{
+                level: 2,
+                allChildren: true
+            },
+            expand: {
+                nodes: [4281], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos, TODO: cambiar posteriormente 
+                allChildren: true // Expande todos los hijos del nodo 4281
+            }, */
+            controls: {
+              svg_export: { title: "Exportar a SVG" },
+              //png_preview: { title: 'Preview PNG' },
+              zoom_in: { title: "Zoom In" },
+              zoom_out: { title: "Zoom Out" },
+              fit: { title: "Fit the chart" },
+              // full_screen : { title: "Expand All" },
+              expandAll: {
+                icon: OrgChart.icon.expand_all(24, 24, "#7A7A7A"),
+                title: "Expandir todo",
+                onClick: function () {
+                  this.expand(null, "all"); // Expande todos los nodos
+                  this.fit(); // Ajusta el zoom a la pantalla
+                },
+              },
+              collapseAll: {
+                //icon: OrgChart.icon.collapse_all(24, 24, '#7A7A7A'),
+                icon: OrgChart.icon.happy(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
+                title: "Colapsar todo",
+                onClick: function () {
+                  let id = 15; // ID del nodo raíz (Presidente Servicios Generales)
+                  var node = chart.getNode(id);
+                  var collapseIds = [];
+                  iterate(chart, node, collapseIds, id);
+                  chart.expandCollapse(id, [], collapseIds); // Colapsa todos los nodos excepto el nodo raíz, en el campo de en medio poner los nodos que tambien van a aparecer
+                  chart.setScale(1);
+                  chart.center(id, null, true);
+                },
+              },
+              horizontalLayout: {
+                icon: OrgChart.icon.layout_normal(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
+                title: "Horizontal Layout",
+                onClick: function () {
+                  chart.setOrientation(OrgChart.orientation.top, null, function() {
+                    chart.fit(); // Ajustar después de la animación de orientación
+                  });
+                },
+              },
+              verticalLayout: {
+                icon: OrgChart.icon.layout_left_offset(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
+                title: "Vertical Layout",
+                onClick: function () {
+                  chart.setOrientation(OrgChart.orientation.left, null, function() {
+                    chart.fit(); // Ajustar después de la animación de orientación
+                  });
+                },
+              },
+            },
+
+            enableDragDrop: false, // Habilitar drag and drop
+            // Ordenar subniveles por 'nivelJerarquico'
+            sortSubLevelsSeparately: true,
+            compareSubLevels: {
+              order: (a, b) => a.order - b.order,
+            },
+            nodeExtent: { width: 250, height: 110 },
+            // editForm: {
+            //     photoBinding: "img", // the photo property name
+            //     readOnly: true,
+            //     titleBinding: "nombre", // a property name
+            //     focusBinding: "puesto",
+            //     buttons:  {
+            //         // Tu botón personalizado para redirigir
+            //         manualFunciones: {
+            //             icon: OrgChart.icon.link(24, 24, '#fff'), // Un icono de enlace, por ejemplo
+            //             text: "Ir a Manual de Funciones",
+            //             onClick: function(nodeId) {
+            //                 // Obtener los datos del nodo para construir la URL
+            //                 const nodeData = chart.get(nodeId);
+            //                 console.log("Datos del nodo para perfil:", nodeData);
+            //                 if (nodeData) {
+            //                     // Ejemplo: Redirigir a una página de perfil usando el ID del nodo
+            //                     // Asegúrate de que tu página de destino pueda manejar el parámetro 'id'
+            //                     alert('Manual de Funciones de: ',nodeData.nombre)
+            //                     //window.location.href = `profile.html?id=${nodeData.id}`;
+            //                     // O si tienes una URL específica en los datos del nodo:
+            //                     // if (nodeData.profileUrl) {
+            //                     //     window.location.href = nodeData.profileUrl;
+            //                     // } else {
+            //                     //     alert('URL de perfil no definida para este usuario.');
+            //                     // }
+            //                 }
+            //             }
+            //         },
+            //         manualProcedimientos: {
+            //             icon: OrgChart.icon.link(24, 24, '#fff'), // Un icono de enlace, por ejemplo
+            //             text: "Ir a Manual de Procedimientos",
+            //             onClick: function(nodeId) {
+            //                 // Obtener los datos del nodo para construir la URL
+            //                 const nodeData = chart.get(nodeId);
+            //                 console.log("Datos del nodo para perfil:", nodeData);
+            //                 if (nodeData) {
+            //                     // Ejemplo: Redirigir a una página de perfil usando el ID del nodo
+            //                     // Asegúrate de que tu página de destino pueda manejar el parámetro 'id'
+            //                     alert('Manual de Procedimientos de: ',nodeData.nombre)
+            //                     //window.location.href = `profile.html?id=${nodeData.id}`;
+            //                     // O si tienes una URL específica en los datos del nodo:
+            //                     // if (nodeData.profileUrl) {
+            //                     //     window.location.href = nodeData.profileUrl;
+            //                     // } else {
+            //                     //     alert('URL de perfil no definida para este usuario.');
+            //                     // }
+            //                 }
+            //             }
+            //         },
+            //         manualUsuario: {
+            //             icon: OrgChart.icon.link(24, 24, '#fff'), // Un icono de enlace, por ejemplo
+            //             text: "Ir a Manual de Usuario",
+            //             onClick: function(nodeId) {
+            //                 // Obtener los datos del nodo para construir la URL
+            //                 const nodeData = chart.get(nodeId);
+            //                 console.log("Datos del nodo para perfil:", nodeData);
+            //                 if (nodeData) {
+            //                     // Ejemplo: Redirigir a una página de perfil usando el ID del nodo
+            //                     // Asegúrate de que tu página de destino pueda manejar el parámetro 'id'
+            //                     alert('Manual de Usuario de: ',nodeData.nombre)
+            //                     //window.location.href = `profile.html?id=${nodeData.id}`;
+            //                     // O si tienes una URL específica en los datos del nodo:
+            //                     // if (nodeData.profileUrl) {
+            //                     //     window.location.href = nodeData.profileUrl;
+            //                     // } else {
+            //                     //     alert('URL de perfil no definida para este usuario.');
+            //                     // }
+            //                 }
+            //             }
+            //         },
+
+            //         edit: null,
+            //         share: null,
+            //         pdf: {
+            //             icon: OrgChart.icon.pdf(24,24,'#fff'),
+            //             text: 'Save as PDF',
+            //             hideIfDetailsMode: true
+            //         },
+            //         remove: null
+            //     },
+            //     /* elements: [
+            //         { type: 'textbox', label: 'Full Name', binding: 'Name' },
+            //         { type: 'textbox', label: 'Phone number', binding: 'phone' }
+            //     ] */
+
+            //     /* ... (tu configuración del editForm) ... */
+            // },
+            editUI: new CustomDetailsForm(), // ¡Aquí le decimos que use tu nuevo controlador!
+            // nodeMenu: { details: { text: "Detalles" } },
+            nodeMenu: null, // Deshabilitamos el menú de clic derecho (opcional)
+
+            menu: {
+              pdf_export: {
+                text: "Export PDF",
+                //icon: pdfIcon
+              },
+              png_export: {
+                text: "Export PNG",
+                //icon: pngIcon
+              },
+              svg_export: {
+                text: "Export SVG",
+                //icon: svgIcon
+              },
+              csv_export: {
+                text: "Export CSV",
+                //icon: csvIcon
+              },
+            },
+
+            //nodeClick: OrgChart.action,
+            nodeSeparation: 65,
+            //levelSeparation: 120,    // Espacio entre niveles
+            siblingSeparation: 100, // Espacio entre nodos hermanos
+            // subtreeSeparation: 30
+          };
+
+          //PERSONALIZAR IA
+          // Aquí se le pueden dar instrucciones al sistema de IA para que entienda el contexto de la empresa
+          OrgChart.AI_SYSTEM_MESSAGES = [
+            "Trabajas para una empresa llamada LIRIS que se dedica desde el balanceado, criadero de pollos hasta su venta y distribución a demás de contar con supermercados retail llamado DelPortal en Guayaquil, Ecuador. El organigrama se trata del equipo de trabajo de esta empresa. La oficina de LIRIS queda en Samborondon, Ecuador. Si te piden eliminar, editar o crear un nodo, NO LO HAGAS, este organigrama solo es de visualización.",
+          ];
+          OrgChart.aiUI.title = "AI for LIRIS S.A."; //
+          OrgChart.SEARCH_PLACEHOLDER = "Buscar por nombre o puesto...";
+          OrgChart.SEARCH_RESULT_LIMIT = 5; // Limita la lista a 5 resultados. El valor por defecto es 5. //TODO: consultar si está bien
+
+
+          /////////////////////////
+          chart = new OrgChart(treeDiv, chartConfig);
+
+          //CUANDO SE CIERRA UN NODO SE CIERRAN TODOS LOS NODOS HIJOS Y AL ABRIR VA DE 1 EN 1
+          chart.onExpandCollpaseButtonClick((args) => {
+            // Usamos 'sender' (el gráfico) y 'args' (la info del evento)
+
+            const nodeId = args.id;
+            const node = chart.getNode(nodeId);
+
+            if (args.collapsing) {
+              // --- Lógica de Colapso Profundo ---
+              args.cancel = true; // Cancelar el comportamiento predeterminado de OrgChart.js
+              let collapseIds = [];
+
+              // Usamos tu función 'iterate'
+              iterate(chart, node, collapseIds, nodeId);
+
+              // Colapsa los nodos y, una vez completada la animación, ajusta la vista
+              chart.expandCollapse(nodeId, [], collapseIds, function () {
+                chart.fit(); // Ajusta el organigrama a la pantalla
+              });
+            } else {
+              // --- Lógica de Expansión Superficial ---
+              // Lógica para expandir solo los hijos directos y mantener los nietos colapsados
+              if (node && node.childrenIds && node.childrenIds.length > 0) {
+                args.cancel = true; // Cancelar el comportamiento predeterminado de OrgChart.js
+
+                // Expande el nodo para mostrar solo sus hijos directos
+                chart.expand(nodeId, node.childrenIds, function () {
+                  // Después de expandir los hijos directos, colapsa los hijos de esos hijos (nietos)
+                  node.childrenIds.forEach((childId) => {
+                    const childNode = chart.getNode(childId);
+                    if (
+                      childNode &&
+                      childNode.childrenIds &&
+                      childNode.childrenIds.length > 0
+                    ) {
+                      chart.collapse(childId, "all");
+                    }
+                  });
+                  // Ajusta la vista después de todas las operaciones de expansión/colapso
+                  chart.fit(); // Ajusta el organigrama a la pantalla
+                });
+              } else {
+                // Si el nodo no tiene hijos (es una hoja) o no se aplica la lógica de "solo hijos directos",
+                // permite la expansión predeterminada (que no hará nada visualmente para una hoja)
+                // y luego ajusta la vista.
+                chart.expand(nodeId, "all", function () {
+                  chart.fit(); // Ajusta el organigrama a la pantalla
+                });
+              }
+            }
+
+            // --- LÓGICA DE FIT ---
+            // Lo ejecutamos después de un breve retraso para que la animación termine
+            setTimeout(() => {
+              sender.center(nodeId, null, function() {
+                    sender.fit(); // Ajustar después de la animación de orientación
+                  });
+            }, 100); // 100ms de retraso
+
+            // Prevenimos el comportamiento por defecto (que "recuerda" el estado)
+            return false;
+          });
+
+          // --- ¡LÓGICA PARA CAMBIAR DE VISTA! ---
+          // 1. Inicializar Select2 en todos los selects
+          $(".control-select").select2({
+            width: "240px", // Debe coincidir con tu CSS
+            //theme: 'classic' // Asegura que use el tema 'classic'
+          });
+          console.log("Select2 inicializado por primera vez.");
+          procesarLoginDeUsuario();
+
+          // --- ¡NUEVA LÓGICA DE LISTENERS (CON CASCADA)! ---
+          // 2. Listener para LÍNEA DE NEGOCIO (El principal)
+          $("#linea-negocio-select").on("change", function () {
+            const selectedLinea = $(this).val();
+            const sourceNodes =
+              document.getElementById("modo-select").value === "Cargo"
+                ? allCargoNodes
+                : allNodes;
+
+            // 1. Limpiar Centro de Costo y Departamento
+            $("#centro-costos-select").val("todos");
+            $("#departamento-select").val("todos");
+
+            // 2. Repoblar Centro de Costo (basado en la línea)
+            const nodosParaCostos =
+              selectedLinea === "todos"
+                ? sourceNodes // Todos los nodos
+                : sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
+            populateSelect(
+              "centro-costos-select",
+              "centroCosto",
+              nodosParaCostos
+            );
+
+            // 3. Repoblar Departamento (basado en la línea)
+            // (Si la línea cambia, el depto debe reflejar solo esa línea)
+            const nodosParaDeptos =
+              selectedLinea === "todos"
+                ? sourceNodes
+                : sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
+            populateSelect(
+              "departamento-select",
+              "departamento",
+              nodosParaDeptos
+            );
+
+            // 4. Notificar a Select2 de TODOS los cambios
+            $(".control-select").trigger("change.select2");
+
+            // 5. Aplicar el filtro final
+            aplicarFiltrosJerarquicos();
+          });
+
+          // 3. Listener para CENTRO DE COSTO
+          $("#centro-costos-select").on("change", function () {
+            const selectedLinea = $("#linea-negocio-select").val();
+            const selectedCosto = $(this).val();
+            const sourceNodes =
+              document.getElementById("modo-select").value === "Cargo"
+                ? allCargoNodes
+                : allNodes;
+
+            // 1. Limpiar Departamento
+            $("#departamento-select").val("todos");
+
+            // 2. Repoblar Departamento (basado en línea Y costo)
+            let nodosParaDeptos = sourceNodes;
+            if (selectedLinea !== "todos") {
+              nodosParaDeptos = nodosParaDeptos.filter(
+                (n) => n.lineaNegocio === selectedLinea
+              );
+            }
+            if (selectedCosto !== "todos") {
+              nodosParaDeptos = nodosParaDeptos.filter(
+                (n) => n.centroCosto === selectedCosto
+              );
+            }
+            populateSelect(
+              "departamento-select",
+              "departamento",
+              nodosParaDeptos
+            );
+
+            // 3. Notificar a Select2
+            $("#departamento-select").trigger("change.select2");
+
+            // 4. Aplicar el filtro final
+            aplicarFiltrosJerarquicos();
+          });
+
+          // 4. Listener para DEPARTAMENTO (el más simple)
+          $("#departamento-select").on("change", aplicarFiltrosJerarquicos);
+
+          // 5. Listener para MODO (Persona/Cargo)
+          $("#modo-select").on("change", function () {
+            const vista = $(this).val();
+
+            if (vista === "Persona") {
+              console.log("Cambiando a vista: Persona");
+              statusDiv.innerText = "Cargando vista de Personas...";
+              statusDiv.style.display = "block";
+
+              chart.config.template = "fichaTemplate";
+              chart.config.nodeBinding = personaBinding;
+              chart.load(allNodes);
+
+              // Repoblar selects con data de Persona
+              populateSelect("linea-negocio-select", "lineaNegocio", allNodes);
+              populateSelect("centro-costos-select", "centroCosto", allNodes);
+              populateSelect("departamento-select", "departamento", allNodes);
+
+              // Notificar a Select2 y aplicar filtro (con valores de login si existen)
+              $(".control-select").trigger("change.select2");
+
+              // Re-ejecutamos la lógica de login/prueba
+              // (Mantiene tu lógica de 'dromero' para pruebas)
+              procesarLoginDeUsuario();
+
+              statusDiv.style.display = "none";
+            } else if (vista === "Cargo") {
+              console.log("Cambiando a vista: Cargo");
+
+              chart.config.template = "cargoTemplate";
+              chart.config.nodeBinding = cargoBinding;
+
+              // Esta función ya se encarga de repoblar y filtrar
+              loadAndRenderCargoChart(apiCargoUrl);
+            }
+          });
+
+          chart.searchUI.on("searchclick", function (sender, args) {
+
+            sender.instance.center(args.nodeId, null, function () {
+                // *** Usa setScale para establecer la escala absoluta a 1 ***
+                sender.instance.setScale(1); 
+            });
+            // Opcional: Si quieres ocultar el panel de búsqueda después de hacer clic
+            sender.hide(); 
+            return false;
+          });
+
+          chart.onInit(function () {
+            //this.aiUI.show(true)
+            //this.aiUI.inputElement.value = '¿Qué puedes hacer?'
+            console.log("Funcionando...", this);
+
+            if (chart.searchUI && chart.searchUI.input) {
+                chart.searchUI.input.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault(); // Previene el envío del formulario
+
+                        const searchTable = chart.searchUI.searchTableWrapper;
+                        if (!searchTable) return;
+
+                        // 1. Busca el item SELECCIONADO (el que tiene data-selected="yes")
+                        let elementToClick = searchTable.querySelector('tr[data-selected="yes"]');
+
+                        if (!elementToClick) {
+                            // 2. Si no hay ninguno seleccionado, busca el PRIMER item de la lista
+                            // (el primer tr que tenga el atributo data-search-item-id)
+                            elementToClick = searchTable.querySelector('tr[data-search-item-id]');
+                        }
+
+                        // 3. Simula el clic en el elemento encontrado (esto dispara tu 'searchclick')
+                        if (elementToClick) {
+                            elementToClick.click();
+                        }
+                    }
+                });
+            }      
+            // chart.config.scaleInitial = OrgChart.match.boundary;
+            // chart._draw(true, OrgChart.action.init, { method: 'fit' });
+            //procesarLoginDeUsuario();
+          });
+
+          //////// NODO con height Dinámico
+          /* 
                 chart.on('field', function (sender, args) {
                     console.log("Field event:", args);
                     if (args.name == 'img') {
@@ -934,128 +1511,167 @@
                     }
                 }); */
 
-                statusDiv.style.display = "none"; // Ocultar "Cargando..."
+          statusDiv.style.display = "none"; // Ocultar "Cargando..."
+        } catch (error) {
+          console.error("ERROR DETALLADO:", error);
+          statusDiv.innerText = "Error.";
+          errorDiv.innerText = `Error: ${error.message}. Revisa la consola (F12).`;
+          errorDiv.style.display = "block";
+        }
+      }
 
-            } catch (error) {
-                console.error("ERROR DETALLADO:", error);
-                statusDiv.innerText = "Error.";
-                errorDiv.innerText = `Error: ${error.message}. Revisa la consola (F12).`;
-                errorDiv.style.display = "block";
-            }
+      /** Carga, transforma y renderiza la data de CARGOS.    */
+      async function loadAndRenderCargoChart(apiUrl) {
+        if (isCargoDataReady) {
+          console.log("Datos de Cargos ya cargados. Usando cache.");
+          // Si ya la cargamos, solo mostramos
+
+          aplicarFiltrosJerarquicos(); // Re-aplicar filtros
+          chart.load(allCargoNodes);
+          return;
         }
 
+        statusDiv.innerText = "Cargando vista de Cargos...";
+        statusDiv.style.display = "block";
 
+        try {
+          const response = await fetch(apiUrl);
+          if (!response.ok) throw new Error(`Error HTTP ${response.status}`);
+          const apiResponse = await response.json();
 
+          // Extrae la data de la propiedad "Cargo"
+          const flatApiData = Array.isArray(apiResponse?.Cargo)
+            ? apiResponse.Cargo
+            : null;
+          if (!Array.isArray(flatApiData))
+            throw new Error(
+              "Formato inválido. No se encontró array en 'Cargo'."
+            );
 
-        /**
-         * Carga, transforma y renderiza la data de CARGOS.
-         */
-        async function loadAndRenderCargoChart(apiUrl) {
-            if (isCargoDataReady) {
-                // Si ya la cargamos, solo mostramos
-                chart.load(allCargoNodes);
-                aplicarFiltrosJerarquicos(); // Re-aplicar filtros
-                return;
-            }
+          console.log(
+            `Datos de Cargo recibidos (${flatApiData.length}). Procesando...`
+          );
 
-            statusDiv.innerText = "Cargando vista de Cargos...";
-            statusDiv.style.display = "block";
+          // --- Transformación de "Cargo" ---
+          const balkanCargoNodes = flatApiData
+            .filter((cargo) => cargo && cargo.codigoPosicion != null) // Filtro básico
+            .map((cargo) => {
+              const isVacant = cargo.esVacante === "1";
+              const empleado = cargo.Empleado; // Objeto del empleado
 
-            try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error(`Error HTTP ${response.status}`);
-                const apiResponse = await response.json();
-                
-                // Extrae la data de la propiedad "Cargo"
-                const flatApiData = Array.isArray(apiResponse?.Cargo) ? apiResponse.Cargo : null;
-                if (!Array.isArray(flatApiData)) throw new Error("Formato inválido. No se encontró array en 'Cargo'.");
+              // La jerarquía de Cargo se basa 100% en Posición
+              const id = String(cargo.codigoPosicion).trim();
+              let pid = cargo.codigoPosicionReporta
+                ? String(cargo.codigoPosicionReporta).trim()
+                : null;
 
-                console.log(`Datos de Cargo recibidos (${flatApiData.length}). Procesando...`);
-                
-                // --- Transformación de "Cargo" ---
-                const balkanCargoNodes = flatApiData
-                    .filter(cargo => cargo && cargo.codigoPosicion != null) // Filtro básico
-                    .map(cargo => {
-                        
-                        const isVacant = cargo.esVacante === "1";
-                        const empleado = cargo.Empleado; // Objeto del empleado
-                        
-                        // La jerarquía de Cargo se basa 100% en Posición
-                        const id = String(cargo.codigoPosicion).trim();
-                        let pid = cargo.codigoPosicionReporta ? String(cargo.codigoPosicionReporta).trim() : null;
+              if (pid === "0") pid = undefined;
+              if (pid === id) pid = undefined; // Evitar auto-referencia
 
-                        if (pid === "0") pid = undefined;
-                        if (pid === id) pid = undefined; // Evitar auto-referencia
+              // Tags (reutilizando tu lógica)
+              const subLevelTag = getSubLevelTag(cargo.nivelJerarquico);
+              const levelTag = `level-${cargo.nivelJerarquico || "99"}`;
+              let tags = [levelTag];
+              if (subLevelTag !== "sub-level-0") {
+                tags.push(subLevelTag);
+                tags.push("sublevel-node");
+              }
+              if (isVacant) {
+                tags.push("vacante");
+              }
 
-                        // Tags (reutilizando tu lógica)
-                        const subLevelTag = getSubLevelTag(cargo.nivelJerarquico);
-                        const levelTag = `level-${cargo.nivelJerarquico || '99'}`;
-                        let tags = [levelTag];
-                        if (subLevelTag !== "sub-level-0") {
-                            tags.push(subLevelTag);
-                            tags.push("sublevel-node");
-                        }
-                        if (isVacant) {
-                            tags.push('vacante');
-                        }
-                        
-                        const order = parseInt(cargo.nivelJerarquico || 99);
+              const order = parseInt(cargo.nivelJerarquico || 99);
 
-                        // --- Campos para el template 'cargoTemplate' ---
-                        const cargoPuesto = cargo.puesto || "Puesto N/A";
-                        const cargoPersona = isVacant 
-                            ? "PUESTO VACANTE" 
-                            : (empleado ? `${empleado.nombre || ''} ${empleado.apellido || ''}`.trim() : "Sin Asignar");
-                        const cargoDepto = cargo.nombreDepartamento || "N/A";
+              // --- Campos para el template 'cargoTemplate' ---
+              const cargoPuesto = cargo.puesto || "Puesto N/A";
+              const cargoPersona = isVacant
+                ? "PUESTO VACANTE"
+                : empleado
+                ? `${empleado.nombre || ""} ${empleado.apellido || ""}`.trim()
+                : "Sin Asignar";
+              const cargoDepto = cargo.nombreDepartamento || "N/A";
 
-                        return {
-                            id, pid, tags, order,
-                            
-                            // Campos para el template (mapeados en cargoBinding)
-                            cargoPuesto,
-                            //cargoPersona,
-                            cargoDepto,
-                            
-                            // Campos para los filtros (para que 'aplicarFiltrosJerarquicos' funcione)
-                            lineaNegocio: cargo.nombreLineaNegocio || "N/A",
-                            centroCosto: cargo.nombreCentroCosto || "N/A",
-                            departamento: cargo.nombreDepartamento || "N/A",
+              return {
+                id,
+                pid,
+                tags,
+                order,
 
-                            // (Dejamos los campos de 'persona' nulos)
-                            nombre: null,
-                            puesto: null,
-                            img: null,
-                            userid: (empleado ? empleado.userid : null)
-                        };
-                    });
+                // Campos para el template (mapeados en cargoBinding)
+                cargoPuesto,
+                //cargoPersona,
+                cargoDepto,
 
-                // Sanitizar (muy importante)
-                const sanitizedCargoNodes = sanitizeCircularReferences(balkanCargoNodes);
-                
-                allCargoNodes = sanitizedCargoNodes; // Guardar globalmente
-                isCargoDataReady = true; // Marcar como lista
-                
-                console.log(`Transformación de Cargo completa (${allCargoNodes.length} nodos).`);
-                
-                // Cargar la nueva data en el chart
-                chart.load(allCargoNodes);
-                aplicarFiltrosJerarquicos(); // Aplicar filtros
-                statusDiv.style.display = "none";
-                
-            } catch (error) {
-                console.error("ERROR cargando Cargos:", error);
-                errorDiv.innerText = `Error cargando Cargos: ${error.message}.`;
-                errorDiv.style.display = "block";
-            }
+                // Campos para los filtros (para que 'aplicarFiltrosJerarquicos' funcione)
+                lineaNegocio: cargo.nombreLineaNegocio || "N/A",
+                centroCosto: cargo.nombreCentroCosto || "N/A",
+                departamento: cargo.nombreDepartamento || "N/A",
+
+                // (Dejamos los campos de 'persona' nulos)
+                nombre: null,
+                puesto: null,
+                img: null,
+                userid: empleado ? empleado.userid : null,
+              };
+            });
+
+          // Sanitizar (muy importante)
+          const sanitizedCargoNodes =
+            sanitizeCircularReferences(balkanCargoNodes);
+
+          allCargoNodes = sanitizedCargoNodes; // Guardar globalmente
+          isCargoDataReady = true; // Marcar como lista
+
+          console.log(
+            `Transformación de Cargo completa (${allCargoNodes.length} nodos).`
+          );
+
+          // Cargar la nueva data en el chart
+          // 1. Guardar data (ya no se carga todo)
+          allCargoNodes = sanitizedCargoNodes;
+          isCargoDataReady = true;
+
+          console.log(
+            `Transformación de Cargo completa (${allCargoNodes.length} nodos).`
+          );
+
+          // 2. Repoblar los selects con la nueva data
+          populateSelect("linea-negocio-select", "lineaNegocio", allCargoNodes);
+          populateSelect("centro-costos-select", "centroCosto", allCargoNodes);
+          populateSelect("departamento-select", "departamento", allCargoNodes);
+
+          // 3. Notificar a Select2 que las opciones cambiaron
+          $(".control-select").trigger("change.select2");
+          console.log("Selects repoblados y Select2 actualizado para Cargos.");
+
+          // 4. Workaround para límite de 200 nodos:
+          // Seleccionar el primer departamento por defecto para evitar cargar "Todos"
+          const selectDept = document.getElementById("departamento-select");
+          if (selectDept.options.length > 1) {
+            selectDept.value = selectDept.options[1].value;
+            $(selectDept).trigger("change"); // Disparar el change para que Select2 lo vea
+            console.log(
+              `Workaround: Filtro de Depto. por defecto aplicado: ${selectDept.value}`
+            );
+          } else {
+            // Si no hay depto, aplicar filtros (cargará nada, que es seguro)
+            aplicarFiltrosJerarquicos();
+          }
+
+          statusDiv.style.display = "none";
+        } catch (error) {
+          console.error("ERROR cargando Cargos:", error);
+          errorDiv.innerText = `Error cargando Cargos: ${error.message}.`;
+          errorDiv.style.display = "block";
         }
+      }
 
-
-        // --- Llamada inicial ---
-        document.addEventListener('DOMContentLoaded', function () {
-            const apiUrl = 'https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_persona';
-            loadAndRenderChart(apiUrl);
-        });
+      // --- Llamada inicial ---
+      document.addEventListener("DOMContentLoaded", function () {
+        const apiUrl =
+          "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_persona";
+        loadAndRenderChart(apiUrl);
+      });
     </script>
-
-</body>
+  </body>
 </html>
