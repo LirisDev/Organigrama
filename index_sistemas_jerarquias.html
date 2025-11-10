@@ -124,6 +124,12 @@
       let isCargoDataReady = false; // ¡NUEVO! Bandera para saber si ya cargamos la data de cargo
       let filteredNodes = [];
 
+    //TODO: cuando se cambia de persona a cargo o viceversa que se cambie con los mismos filtros que tenia 
+    //TODO: permitir el buscador en la vista por cargos
+    //TODO: Poner una lupa y que esa lupa despliegue el input search
+    //TODO: Mejorar el diseño de los select
+    //TODO: Revisar los casos en que hay cargos que no reportan a nadie y ver similitudes entre vista cargo y vista empleados
+
       // --- Referencias a divs de estado ---
       // --- Referencias a divs de estado ---
         const loaderOverlay = document.getElementById("chart-loader-overlay");
@@ -418,7 +424,7 @@
         // Construir y devolver la URL
         return `https://soporte.liris.com.ec/rhh/UserDocsF.aspx?Carpeta=${encodeURIComponent(
           carpeta
-        )}&CodEmp=${codEmp || ""}&DepartMyProcessId=${depParam}`;
+        )}&CodEmp=${codEmp || ""}&DepartMyProcessId=`//${depParam}`;
       }
 
       /* FUNCION PARA ITERAR AL MOMENTO DE COLAPSAR NODOS */
@@ -460,7 +466,7 @@
         if (!receivedUserId) {
           receivedUserId = "interno\\dromero";
           console.log("Usando usuario interno\\dromero para pruebas");
-        } */
+        } //*/
 
         // Asegurarnos de usar la fuente de datos correcta según el modo
         const currentMode = document.getElementById("modo-select").value;

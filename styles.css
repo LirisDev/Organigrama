@@ -737,6 +737,10 @@ div.boc-node.level-6[data-n-id] {
     margin-bottom: 10px;
 }
 
+.employee-list-item:hover {
+    background-color: #f0f0f0; /* Un gris claro para el hover */
+}
+
 .employee-list-img {
     width: 40px;
     height: 40px;
