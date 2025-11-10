@@ -229,6 +229,37 @@
           }
         });
 
+        // Listener para la lista de empleados (usando delegación)
+        const infoBlock = this.form.querySelector('.details-info-block');
+        infoBlock.addEventListener('click', (event) => {
+            // 1. Encontrar el '.employee-list-item' más cercano al que se hizo clic
+            const item = event.target.closest('.employee-list-item');
+            if (!item) return; // No se hizo clic en un item, no hacer nada
+
+            // 2. Obtener el ID del empleado del data-attribute
+            const empId = item.dataset.employeeId;
+            if (!empId || !this.data || !this.data.listaEmpleados) return;
+
+            // 3. Encontrar la data completa de ese empleado
+            const empData = this.data.listaEmpleados.find(e => e.codigoEmpleado === empId);
+            if (!empData) return;
+
+            // 4. ¡Llamar a nuestra función helper!
+            // Esto re-poblará el modal con la información de la persona seleccionada
+            this.fillPersonData({
+                id: empData.codigoEmpleado,
+                nombre: `${empData.nombre || ''} ${empData.apellido || ''}`.trim(),
+                puesto: empData.puestoEmpleado || this.data.cargoPuesto,
+                img: empData.foto,
+                email: empData.emailCorporativo,
+                lineaNegocio: this.data.lineaNegocio,
+                centroCosto: this.data.centroCosto,
+                departamento: this.data.departamento,
+                codDepAx: empData.codDepAx,
+                codDepartamento: this.data.codDepartamento
+            });
+        });
+
         // --- Lógica de los botones de Manuales ---
         this.btnFunciones.addEventListener("click", () => {
           const url = getManualUrl(this.data, "funciones");
@@ -263,90 +294,98 @@
       };
 
       /**
-       * Método SHOW: Se llama CADA VEZ que se abre el modal.
-       * Aquí cargamos los datos del nodo en el HTML.
-       */
-      CustomDetailsForm.prototype.show = function (nodeId) {
+     * ¡NUEVA FUNCIÓN HELPER REFACTORIZADA!
+     * La sacamos de 'show' para poder reutilizarla.
+     */
+    CustomDetailsForm.prototype.fillPersonData = function (personData) {
+        const isVacant = personData.tags && personData.tags.includes("vacante");
+
+        this.nameEl.textContent = personData.nombre;
+        this.puestoEl.textContent = personData.puesto;
+        
+        // --- Lógica de la imagen (corregida para el bug del "flash") ---
+        // 1. Configura la 'src' PRIMERO (mientras sigue oculto)
+        if (isVacant || !personData.img) {
+            this.imgEl.src = "https://via.placeholder.com/110/cccccc/ffffff?text=N/A";
+        } else {
+            this.imgEl.src = personData.img;
+        }
+        // 2. Muestra la imagen AHORA que ya tiene la 'src' correcta
+        this.imgEl.style.display = 'block'; // Asegúrate de que sea 'block' para centrar
+        // --- Fin corrección flash ---
+
+        // Re-crear el HTML de info de persona
+        const infoBlock = this.form.querySelector('.details-info-block');
+        infoBlock.innerHTML = `
+            <div class="details-info-line">
+                <span class="details-info-label">Email:</span>
+                <span class="details-info-value">${personData.email || 'N/A'}</span>
+            </div>
+            <div class="details-info-line">
+                <span class="details-info-label">Línea Negocio:</span>
+                <span class="details-info-value">${personData.lineaNegocio || 'N/A'}</span>
+            </div>
+            <div class="details-info-line">
+                <span class="details-info-label">Centro Costo:</span>
+                <span class="details-info-value">${personData.centroCosto || 'N/A'}</span>
+            </div>
+            <div class="details-info-line">
+                <span class="details-info-label">Departamento:</span>
+                <span class="details-info-value">${personData.departamento || 'N/A'}</span>
+            </div>
+        `;
+
+        // Lógica de botones de manuales
+        const canShowManuals = personData.id && personData.codDepAx && !isVacant;
+        this.btnFunciones.style.display = canShowManuals ? "inline-block" : "none";
+        this.btnProcedimientos.style.display = canShowManuals ? "inline-block" : "none";
+        this.btnUsuario.style.display = canShowManuals ? "inline-block" : "none";
+    };
+
+
+    /**
+     * Método SHOW: Se llama CADA VEZ que se abre el modal.
+     * ¡AHORA MANEJA 3 CASOS (Persona, Cargo-Lista, Cargo-Individual)!
+     */
+    CustomDetailsForm.prototype.show = function (nodeId) {
         // 1. Obtener la data más reciente del nodo
         this.data = this.instance.get(nodeId);
         if (!this.data) return;
 
+        // Resetea la imagen ANTES de cualquier lógica.
+        this.imgEl.style.display = 'none'; 
+        this.imgEl.src = ''; 
+
         const currentMode = document.getElementById("modo-select").value;
         const infoBlock = this.form.querySelector('.details-info-block');
-
-        // Limpiar el contenido anterior del bloque de info
-        infoBlock.innerHTML = '';
-
-        const fillPersonData = (personData) => {
-            const isVacant = personData.tags && personData.tags.includes("vacante");
-
-            this.nameEl.textContent = personData.nombre;
-            this.puestoEl.textContent = personData.puesto;
-            
-            // Mostrar y configurar la imagen
-            this.imgEl.style.display = 'block'; // Asegúrate de que sea 'block' para centrar
-            if (isVacant || !personData.img) {
-                this.imgEl.src = "https://via.placeholder.com/110/cccccc/ffffff?text=N/A";
-            } else {
-                this.imgEl.src = personData.img;
-            }
-
-            // Re-crear el HTML de info de persona
-            infoBlock.innerHTML = `
-                <div class="details-info-line">
-                    <span class="details-info-label">Email:</span>
-                    <span class="details-info-value">${personData.email || 'N/A'}</span>
-                </div>
-                <div class="details-info-line">
-                    <span class="details-info-label">Línea Negocio:</span>
-                    <span class="details-info-value">${personData.lineaNegocio || 'N/A'}</span>
-                </div>
-                <div class="details-info-line">
-                    <span class="details-info-label">Centro Costo:</span>
-                    <span class="details-info-value">${personData.centroCosto || 'N/A'}</span>
-                </div>
-                <div class="details-info-line">
-                    <span class="details-info-label">Departamento:</span>
-                    <span class="details-info-value">${personData.departamento || 'N/A'}</span>
-                </div>
-            `;
-
-            // Lógica de botones de manuales
-            const canShowManuals = personData.id && personData.codDepAx && !isVacant;
-            this.btnFunciones.style.display = canShowManuals ? "inline-block" : "none";
-            this.btnProcedimientos.style.display = canShowManuals ? "inline-block" : "none";
-            this.btnUsuario.style.display = canShowManuals ? "inline-block" : "none";
-        };
+        
+        infoBlock.innerHTML = ''; // Limpiar el contenido anterior del bloque de info
+        
         if (currentMode === 'Persona') {
             // ==================================
-            // --- VISTA MODO PERSONA 
+            // --- VISTA MODO PERSONA ---
             // ==================================
-            fillPersonData(this.data);
+            this.fillPersonData(this.data);
+            
         } else {
             // ==================================
-            // --- VISTA MODO CARGO 
+            // --- VISTA MODO CARGO ---
             // ==================================
-
             const isVacant = this.data.tags.includes("vacante");
             const employeeList = this.data.listaEmpleados;
 
-            // Ocultar la imagen principal por defecto (la helper la mostrará si es necesario)
-            this.imgEl.style.display = 'none';
-
             if (employeeList && employeeList.length === 1) {
                 // --- CASO 1: Cargo con 1 sola persona ---
-                // Reutilizamos la lógica de 'fillPersonData'
-                // Pero le pasamos los datos del *único* empleado en la lista
                 const singleEmp = employeeList[0];
-                fillPersonData({
+                this.fillPersonData({
                     id: singleEmp.codigoEmpleado,
                     nombre: `${singleEmp.nombre || ''} ${singleEmp.apellido || ''}`.trim(),
                     puesto: singleEmp.puestoEmpleado || this.data.cargoPuesto,
                     img: singleEmp.foto,
                     email: singleEmp.emailCorporativo,
-                    lineaNegocio: this.data.lineaNegocio, // Tomamos esto del cargo
-                    centroCosto: this.data.centroCosto, // Tomamos esto del cargo
-                    departamento: this.data.departamento, // Tomamos esto del cargo
+                    lineaNegocio: this.data.lineaNegocio,
+                    centroCosto: this.data.centroCosto,
+                    departamento: this.data.departamento,
                     codDepAx: singleEmp.codDepAx,
                     codDepartamento: this.data.codDepartamento
                 });
@@ -354,10 +393,10 @@
             } else {
                 // --- CASO 2: Cargo con >1 persona O vacante/sin asignar ---
                 
-                this.nameEl.textContent = this.data.cargoPuesto;  // "ASISTENTE DE DESARROLLO"
-                this.puestoEl.textContent = this.data.cargoPersona; // "3 PERSONAS ASIGNADAS" o "PUESTO VACANTE"
+                this.nameEl.textContent = this.data.cargoPuesto;
+                this.puestoEl.textContent = this.data.cargoPersona; 
                 
-                // Ocultar botones de manuales (no aplican a un cargo)
+                // Ocultar botones de manuales
                 this.btnFunciones.style.display = "none";
                 this.btnProcedimientos.style.display = "none";
                 this.btnUsuario.style.display = "none";
@@ -365,9 +404,12 @@
                 // Generar lista de empleados
                 if (employeeList && employeeList.length > 1) {
                     let employeeHtml = '<div class="details-employee-list">';
+                    
+                    // --- ¡CAMBIO AQUÍ! ---
+                    // Añadimos 'data-employee-id' a cada item
                     employeeList.forEach(emp => {
                         employeeHtml += `
-                            <div class="employee-list-item">
+                            <div class="employee-list-item" data-employee-id="${emp.codigoEmpleado}">
                                 <img src="${emp.foto || 'https://via.placeholder.com/40/cccccc/ffffff?text=N/A'}" class="employee-list-img" alt="">
                                 <div class="employee-list-info">
                                     <div class="employee-list-name">${emp.nombre || ''} ${emp.apellido || ''}</div>
@@ -376,8 +418,10 @@
                             </div>
                         `;
                     });
+                    // --- FIN DEL CAMBIO ---
+
                     employeeHtml += '</div>';
-                    infoBlock.innerHTML = employeeHtml; // Inyecta la lista
+                    infoBlock.innerHTML = employeeHtml;
                 } else if (isVacant) {
                     infoBlock.innerHTML = '<div class="details-info-line" style="text-align:center; padding-top:10px;">Este puesto está actualmente vacante.</div>';
                 } else {
@@ -386,10 +430,9 @@
             }
         }
 
-        // 6. Mostrar el modal
+        // 6. Mostrar el modal (común para todos)
         this.overlay.classList.add("visible");
-      };
-
+    };
       /**
        * Método HIDE: Se llama para cerrar el modal.
        */
@@ -462,7 +505,7 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        /* 
+        //* 
         if (!receivedUserId) {
           receivedUserId = "interno\\dromero";
           console.log("Usando usuario interno\\dromero para pruebas");
