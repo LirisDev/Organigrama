@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Organigrama LIRIS S.A.</title>
     <script src="Balkan/orgchart.js"></script>
+    <!-- <script src="BalkanPro/orgchart.js"></script> -->
     <!-- <script src="main.js"></script> -->
     <link rel="stylesheet" href="styles.css" />
 
@@ -505,7 +506,7 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        /* 
+        //* 
         if (!receivedUserId) {
           receivedUserId = "interno\\dromero";
           console.log("Usando usuario interno\\dromero para pruebas");
@@ -830,7 +831,7 @@
       // --- Función Principal: Cargar, Mapear y Renderizar ---
       async function loadAndRenderChart(apiUrl) {
         loaderOverlay.classList.add("visible");
-        loaderText.innerText = "Cargdando Organigrama...";
+        loaderText.innerText = "Cargando Organigrama...";
         // Resetea el spinner y el color por si hubo un error antes
         loaderText.style.color = "#555"; 
         loaderOverlay.querySelector(".loader-spinner").style.display = "block";
@@ -888,7 +889,11 @@
               (emp) =>
                 emp &&
                 //emp.codigoPosicion != null &&
-                emp.codigoPosicion != "00006" /*&&
+                emp.codigoPosicion != "00006"  &&
+                emp.codigoPosicionReporta != "00424"  &&
+                emp.puesto != null
+                //!(emp.codigoPosicionReporta === "00003" && emp.vacante === "1")
+                /*&&
                         String(emp.codigoPosicion).trim() !== "00006" &&
                         // Filtramos solo el departamento de Sistemas y Directorio
                         (emp.nombreDepartamento === "SISTEMAS" || emp.nombreDepartamento === "DIRECTORIO" 
@@ -929,15 +934,8 @@
               }
 
               // Lógica de Tags (Lógica de estilo)
-              const subLevelTag = getSubLevelTag(emp.nivelJerarquico);
               const levelTag = `level-${emp.nivelJerarquico || "99"}`; // Tag para CSS
               let tags = [levelTag];
-
-              if (subLevelTag !== "sub-level-0") {
-                tags.push(subLevelTag); // Tag para JS (subLevels)
-                tags.push("sublevel-node"); // Tag para CSS (línea punteada)
-              }
-
               const order = parseInt(emp.nivelJerarquico || 99);
 
               // Crear el objeto del nodo
@@ -1007,6 +1005,60 @@
           if (sanitizedNodes.length === 0)
             throw new Error("No hay nodos válidos después de sanitizar.");
           console.log("Nodos sanitizados:", sanitizedNodes);
+
+          // --- INICIO DEL NUEVO BLOQUE DE CÓDIGO ---
+            console.log("Iniciando post-procesamiento de subniveles relativos...");
+
+            // 1. Agrupar nodos por 'pid' (hermanos)
+            const nodesByParent = new Map();
+            for (const node of sanitizedNodes) {
+                const pid = node.pid || 'root'; // Agrupar nodos raíz bajo 'root'
+                if (!nodesByParent.has(pid)) {
+                    nodesByParent.set(pid, []);
+                }
+                nodesByParent.get(pid).push(node);
+            }
+
+            // 2. Procesar cada grupo de hermanos
+            for (const siblings of nodesByParent.values()) {
+                if (siblings.length <= 1) {
+                    // Si solo hay un hijo (o ninguno), no hay subniveles que aplicar
+                    siblings.forEach(node => {
+                        if (!node.tags) node.tags = []; // Asegurar que 'tags' exista
+                        node.tags.push('sub-level-0');
+                    });
+                    continue;
+                }
+
+                // 3. Obtener los niveles jerárquicos únicos de este grupo de hermanos
+                // Usamos 'order' que ya definiste (ej. 1, 2, 3, 4...)
+                const uniqueLevels = [...new Set(siblings.map(s => s.order))];
+                uniqueLevels.sort((a, b) => a - b); // Ordenar de menor a mayor (ej. [2, 3, 5])
+
+                // 4. Mapear el 'nivel' real (order) a su 'índice' de subnivel (ej. 0, 1, 2)
+                // { 2 => 0, 3 => 1, 5 => 2 }
+                const levelIndexMap = new Map();
+                uniqueLevels.forEach((level, index) => {
+                    levelIndexMap.set(level, index);
+                });
+
+                // 5. Asignar el tag de subnivel correcto a cada nodo hermano
+                for (const node of siblings) {
+                    const subLevelIndex = levelIndexMap.get(node.order);
+                    
+                    if (!node.tags) node.tags = []; // Asegurar que 'tags' exista
+                    
+                    const subLevelTag = `sub-level-${subLevelIndex}`;
+                    node.tags.push(subLevelTag);
+
+                    // Opcional: Añadir el tag para la línea punteada si no es el nivel principal
+                    if (subLevelIndex > 0) {
+                        node.tags.push("sublevel-node"); // Ya usabas este tag
+                    }
+                }
+            }
+            console.log("Post-procesamiento de subniveles completado.");
+            // --- FIN DEL NUEVO BLOQUE DE CÓDIGO ---
 
           isDataReady = true;
 
@@ -1167,9 +1219,16 @@
           const tagsConfig = {
             // Mapeo de tags de JS a la propiedad 'subLevels'
             "sub-level-0": { subLevels: 0, levelSeparation: 20 },
-            "sub-level-1": { subLevels: 1, levelSeparation: 20 }, //Se el puede asignar mas cosas, como template: "ana", etc.
+            "sub-level-1": { subLevels: 1, levelSeparation: 20 },
             "sub-level-2": { subLevels: 2, levelSeparation: 20 },
-            "sub-level-3": { subLevels: 3 },
+            "sub-level-3": { subLevels: 3, levelSeparation: 20 }, // Tuve un 'levelSeparation' extra aquí
+            "sub-level-4": { subLevels: 4, levelSeparation: 20 }, // NUEVO
+            "sub-level-5": { subLevels: 5, levelSeparation: 20 }, // NUEVO
+            "sub-level-6": { subLevels: 6, levelSeparation: 20 }, // NUEVO
+            "sub-level-7": { subLevels: 7, levelSeparation: 20 }, // NUEVO
+            "sub-level-8": { subLevels: 8, levelSeparation: 20 }, // NUEVO
+            "sub-level-9": { subLevels: 9, levelSeparation: 20 }, // NUEVO
+            "sub-level-10": { subLevels: 10, levelSeparation: 20 }, // NUEVO
             filter: {
               template: "dot",
             },
@@ -1189,6 +1248,8 @@
             "level-5": {},
             "level-6": {},
             "level-7": {},
+            "level-8": {},
+            "level-9": {},
             "level-99": {},
             "sublevel-node": {},
           };
