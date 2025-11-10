@@ -2,7 +2,8 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0" /> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Organigrama LIRIS S.A.</title>
     <script src="Balkan/orgchart.js"></script>
     <!-- <script src="main.js"></script> -->
@@ -99,6 +100,10 @@
       </header>
 
       <main id="tree-container">
+        <div id="chart-loader-overlay">
+            <div class="loader-spinner"></div>
+            <div id="loader-text">Cargando...</div>
+        </div>
         <div id="tree"></div>
       </main>
     </div>
@@ -120,6 +125,9 @@
       let filteredNodes = [];
 
       // --- Referencias a divs de estado ---
+      // --- Referencias a divs de estado ---
+        const loaderOverlay = document.getElementById("chart-loader-overlay");
+        const loaderText = document.getElementById("loader-text");
       const statusDiv = document.getElementById("status-message");
       const errorDiv = document.getElementById("error-message");
       const treeDiv = document.getElementById("tree");
@@ -129,7 +137,28 @@
       const apiCargoUrl =
         "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_cargo";
 
-      // 2. Escucha los mensajes ("postMessage") de la ventana padre
+      // --- CÓDIGO PARA BLOQUEAR ZOOM DEL NAVEGADOR (ESCRITORIO) ---
+      // 1. Bloquea el zoom con la rueda del ratón (Ctrl + Rueda)
+      window.addEventListener('wheel', function(event) {
+        // Comprueba si la tecla Ctrl está presionada
+        if (event.ctrlKey) {
+            event.preventDefault(); // Cancela el evento (el zoom)
+        }
+      }, { passive: false }); // 'passive: false' es necesario para permitir el preventDefault
+
+      // 2. Bloquea el zoom con el teclado (Ctrl + '+' y Ctrl + '-')
+      window.addEventListener('keydown', function(event) {
+        // Comprueba si la tecla Ctrl (o Cmd en Mac) está presionada
+        if (event.ctrlKey || event.metaKey) {
+            // Comprueba si la tecla presionada es '+' o '-'
+            if (event.key === '+' || event.key === '-' || event.key === '=' || event.key === '_') {
+              event.preventDefault(); // Cancela el evento (el zoom)
+            }
+        }
+      });
+
+      // --- CÓDIGO PARA TRAER EL USERID ---
+      // 1. Escucha los mensajes ("postMessage") de la ventana padre
       window.addEventListener("message", (event) => {
         // 3. Comprueba si el mensaje tiene la estructura esperada
         if (event.data && event.data.userId) {
@@ -236,41 +265,94 @@
         this.data = this.instance.get(nodeId);
         if (!this.data) return;
 
-        // 2. Comprobar si es vacante
-        const isVacant = this.data.tags.includes("vacante");
+        const currentMode = document.getElementById("modo-select").value;
+        const infoBlock = this.form.querySelector('.details-info-block');
 
-        // 3. Llenar los campos de texto
+        // Limpiar el contenido anterior del bloque de info
+        infoBlock.innerHTML = '';
+
+        if (currentMode === 'Persona') {
+        // ==================================
+        // --- VISTA MODO PERSONA (Como antes)
+        // ==================================
+        const isVacant = this.data.tags.includes("vacante"); // No debería pasar si haces clic en persona
+        
         this.nameEl.textContent = this.data.nombre;
         this.puestoEl.textContent = this.data.puesto;
-
-        this.emailEl.textContent = this.data.email || "N/A";
-        this.lineaEl.textContent = this.data.lineaNegocio || "N/A";
-        this.costoEl.textContent = this.data.centroCosto || "N/A";
-        this.deptoEl.textContent = this.data.departamento || "N/A";
-
-        // 4. Llenar la imagen
+        
+        // Mostrar y configurar la imagen
+        this.imgEl.style.display = 'block';
         if (isVacant || !this.data.img) {
-          this.imgEl.src =
-            "https://via.placeholder.com/110/cccccc/ffffff?text=N/A"; // Imagen genérica
+            this.imgEl.src = "https://via.placeholder.com/110/cccccc/ffffff?text=N/A";
         } else {
-          this.imgEl.src = this.data.img;
+            this.imgEl.src = this.data.img;
         }
 
-        // 5. Lógica para mostrar/ocultar botones
-        // Comprobamos si tenemos la data MÍNIMA para construir los links
+        // Re-crear el HTML de info de persona
+        infoBlock.innerHTML = `
+            <div class="details-info-line">
+                <span class="details-info-label">Email:</span>
+                <span class="details-info-value" data-field="email">${this.data.email || 'N/A'}</span>
+            </div>
+            <div class="details-info-line">
+                <span class="details-info-label">Línea Negocio:</span>
+                <span class="details-info-value" data-field="lineaNegocio">${this.data.lineaNegocio || 'N/A'}</span>
+            </div>
+            <div class="details-info-line">
+                <span class="details-info-label">Centro Costo:</span>
+                <span class="details-info-value" data-field="centroCosto">${this.data.centroCosto || 'N/A'}</span>
+            </div>
+            <div class="details-info-line">
+                <span class="details-info-label">Departamento:</span>
+                <span class="details-info-value" data-field="departamento">${this.data.departamento || 'N/A'}</span>
+            </div>
+        `;
+
+        // Lógica de botones de manuales (como antes)
         const canShowManuals = this.data.id && this.data.codDepAx && !isVacant;
+        this.btnFunciones.style.display = canShowManuals ? "inline-block" : "none";
+        this.btnProcedimientos.style.display = canShowManuals ? "inline-block" : "none";
+        this.btnUsuario.style.display = canShowManuals ? "inline-block" : "none";
+        
+    } else {
+        // ==================================
+        // --- VISTA MODO CARGO (Nueva Lógica)
+        // ==================================
+        const isVacant = this.data.tags.includes("vacante");
+        
+        this.nameEl.textContent = this.data.cargoPuesto;  // "ASISTENTE DE DESARROLLO"
+        this.puestoEl.textContent = this.data.cargoPersona; // "3 PERSONAS ASIGNADAS"
+        
+        // Ocultar la imagen de perfil (no aplica a un cargo)
+        this.imgEl.style.display = 'none'; 
 
-        if (canShowManuals) {
-          // Mostramos los 3 botones
-          this.btnFunciones.style.display = "inline-block";
-          this.btnProcedimientos.style.display = "inline-block";
-          this.btnUsuario.style.display = "inline-block";
+        // Ocultar botones de manuales (no aplican a un cargo)
+        this.btnFunciones.style.display = "none";
+        this.btnProcedimientos.style.display = "none";
+        this.btnUsuario.style.display = "none";
+
+        // Generar lista de empleados
+        if (this.data.listaEmpleados && this.data.listaEmpleados.length > 0) {
+            let employeeHtml = '<div class="details-employee-list">';
+            this.data.listaEmpleados.forEach(emp => {
+                employeeHtml += `
+                    <div class="employee-list-item">
+                        <img src="${emp.foto || 'https://via.placeholder.com/40/cccccc/ffffff?text=N/A'}" class="employee-list-img" alt="">
+                        <div class="employee-list-info">
+                            <div class="employee-list-name">${emp.nombre || ''} ${emp.apellido || ''}</div>
+                            <div class="employee-list-email">${emp.emailCorporativo || 'Sin email'}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            employeeHtml += '</div>';
+            infoBlock.innerHTML = employeeHtml; // Inyecta la lista
+        } else if (isVacant) {
+            infoBlock.innerHTML = '<div class="details-info-line" style="text-align:center; padding-top:10px;">Este puesto está actualmente vacante.</div>';
         } else {
-          // Ocultamos los 3 botones si es vacante o le falta data
-          this.btnFunciones.style.display = "none";
-          this.btnProcedimientos.style.display = "none";
-          this.btnUsuario.style.display = "none";
+            infoBlock.innerHTML = '<div class="details-info-line" style="text-align:center; padding-top:10px;">Este puesto no tiene empleados asignados.</div>';
         }
+    }
 
         // 6. Mostrar el modal
         this.overlay.classList.add("visible");
@@ -351,20 +433,37 @@
         /* if (!receivedUserId) {
           receivedUserId = "interno\\dromero";
           console.log("Usando usuario interno\\dromero para pruebas");
-        }
- */
+        } */
+
         // Asegurarnos de usar la fuente de datos correcta según el modo
         const currentMode = document.getElementById("modo-select").value;
         const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
+
         if (!isDataReady || (currentMode === "Cargo" && !isCargoDataReady)) {
           // Si la data de personas o la data de cargo (según la vista) no está lista, salimos.
           return;
         }
-
-        // Buscar al empleado. NOTA: Ajustado para buscar en la vista de Cargo también.
-        empleadoLogueado = sourceNodes.find((nodo) => {
-          return nodo.userid && nodo.userid.toLowerCase() === receivedUserId;
-        });
+        
+        // Ahora funciona para ambos modos porque 'userid' está en la raíz
+        if (currentMode === 'Persona') {
+            // --- Búsqueda en Vista por Persona (como antes) ---
+            empleadoLogueado = sourceNodes.find((nodo) => {
+                return nodo.userid && nodo.userid.toLowerCase() === receivedUserId;
+            });
+        } else {
+            // --- Búsqueda en Vista por Cargo (NUEVA LÓGICA) ---
+            empleadoLogueado = sourceNodes.find((nodo) => {
+                // nodo.listaEmpleados es el array que creamos en el map
+                if (!nodo.listaEmpleados || nodo.listaEmpleados.length === 0) {
+                    return false; // Cargo vacante o sin empleados
+                }
+                
+                // Usamos .some() para ver si CUALQUIERA de los empleados en la lista coincide
+                return nodo.listaEmpleados.some(
+                    emp => emp.userid && emp.userid.toLowerCase() === receivedUserId
+                );
+            });
+        }
 
         // Evitamos que se ejecute múltiples veces
         receivedUserId = null;
@@ -436,7 +535,7 @@
           if (chart) {
             console.log(
               "ℹ️ Auto-filtrando el organigrama para el usuario... ",
-              empleadoLogueado.userid
+              empleadoLogueado.userid, ' en modo: ', currentMode
             );
             aplicarFiltrosJerarquicos();
           }
@@ -579,8 +678,8 @@
           "departamento-select"
         ).value;
 
-        statusDiv.style.display = "block";
-        statusDiv.innerText = "Filtrando...";
+        // statusDiv.style.display = "block";
+        // statusDiv.innerText = "Filtrando...";
 
         // 3. Si todos están en "todos", recargar el árbol completo
         if (
@@ -589,17 +688,18 @@
           selectedDept === "todos"
         ) {
           chart.load(sourceNodes); // (O 'sanitizedNodes' si es tu fuente de verdad)
-          statusDiv.style.display = "none";
+          //statusDiv.style.display = "none";
+          //loaderOverlay.classList.remove("visible");
           return;
         }
 
         // --- Lógica de Filtro con Jerarquía (Adaptada) ---
         // 4. Un mapa para buscar nodos por ID
         const nodeMap = new Map(sourceNodes.map((node) => [node.id, node]));
-        console.log(
+        /* console.log(
           "4. Mapa de nodos creado para filtrado jerárquico.",
           nodeMap
-        );
+        ); */
         // 5. Un mapa para guardar los nodos que SÍ queremos mostrar 
         const nodesToShow = new Map();
 
@@ -636,7 +736,7 @@
 
         // 10. Convertir el mapa de nodos a mostrar en un array y cargarlo
         filteredNodes = Array.from(nodesToShow.values());
-        console.log("10. Filtrado completo. Nodos a mostrar:", filteredNodes);
+        // console.log("10. Filtrado completo. Nodos a mostrar:", filteredNodes);
         if (filteredNodes.length > 0) {
           chart.load(filteredNodes);
         } else {
@@ -647,24 +747,28 @@
           );
         }
 
-        statusDiv.style.display = "none";
+        //statusDiv.style.display = "none";
+        loaderOverlay.classList.remove("visible");
       }
 
       // --- Función Principal: Cargar, Mapear y Renderizar ---
       async function loadAndRenderChart(apiUrl) {
-        statusDiv.innerText = "Llamando a la API...";
-        errorDiv.style.display = "none";
+        loaderOverlay.classList.add("visible");
+        loaderText.innerText = "Cargdando Organigrama...";
+        // Resetea el spinner y el color por si hubo un error antes
+        loaderText.style.color = "#555"; 
+        loaderOverlay.querySelector(".loader-spinner").style.display = "block";
         treeDiv.innerHTML = "";
 
         try {
           // 1. Fetch API
           console.log("Iniciando fetch a:", apiUrl);
           const response = await fetch(apiUrl);
-          statusDiv.innerText = `API respondió (${response.status}). Procesando...`;
           if (!response.ok)
             throw new Error(
               `Error HTTP ${response.status}: ${response.statusText}`
             );
+          console.log(`API respondió (${response.status}). Procesando...`);
           const apiResponse = await response.json();
           const flatApiData = Array.isArray(apiResponse?.Persona)
             ? apiResponse.Persona
@@ -674,10 +778,10 @@
               "Formato inválido. No se encontró array en 'Persona'."
             );
           if (flatApiData.length === 0) {
-            statusDiv.innerText = "API OK, pero no hay datos.";
+            loaderText.innerText  = "API OK, pero no hay datos.";
             return;
           }
-          statusDiv.innerText = `Datos recibidos (${flatApiData.length}). Procesando...`;
+          //loaderText.innerText = `Datos recibidos (${flatApiData.length}). Procesando...`;
 
           // 2. Pre-cálculo Mapa Posición -> Empleado (Lógica clave de la jerarquía de personas)
           const positionToEmployeeMap = new Map();
@@ -824,7 +928,6 @@
           // 4. Sanitización
           const sanitizedNodes = sanitizeCircularReferences(balkanNodes);
           allNodes = sanitizedNodes; // Guarda todos los nodos globalmente
-          statusDiv.innerText = `Datos sanitizados. Renderizando...`;
           if (sanitizedNodes.length === 0)
             throw new Error("No hay nodos válidos después de sanitizar.");
           console.log("Nodos sanitizados:", sanitizedNodes);
@@ -842,7 +945,7 @@
 
           // 4.1 Intentar procesar (en caso de que el 'userId' ya haya llegado)
           procesarLoginDeUsuario();
-          console.log(allNodes);
+          //console.log(allNodes);
 
           // 5. Definir Plantillas
           // Plantilla base 'Ficha'
@@ -1019,7 +1122,8 @@
             enableAI: true,
             scaleMax: 1, // Por ejemplo, limita la escala máxima a 2 (200% de zoom)
             scaleMin: 0.2, // También puedes configurar la escala mínima si lo necesitas
-
+            //pinch: { enable: true }, // Deshabilita el "pinch-to-zoom" en móviles  
+            
             nodes: filteredNodes,
             tags: tagsConfig,
             nodeBinding: personaBinding,
@@ -1097,93 +1201,6 @@
               order: (a, b) => a.order - b.order,
             },
             nodeExtent: { width: 250, height: 110 },
-            // editForm: {
-            //     photoBinding: "img", // the photo property name
-            //     readOnly: true,
-            //     titleBinding: "nombre", // a property name
-            //     focusBinding: "puesto",
-            //     buttons:  {
-            //         // Tu botón personalizado para redirigir
-            //         manualFunciones: {
-            //             icon: OrgChart.icon.link(24, 24, '#fff'), // Un icono de enlace, por ejemplo
-            //             text: "Ir a Manual de Funciones",
-            //             onClick: function(nodeId) {
-            //                 // Obtener los datos del nodo para construir la URL
-            //                 const nodeData = chart.get(nodeId);
-            //                 console.log("Datos del nodo para perfil:", nodeData);
-            //                 if (nodeData) {
-            //                     // Ejemplo: Redirigir a una página de perfil usando el ID del nodo
-            //                     // Asegúrate de que tu página de destino pueda manejar el parámetro 'id'
-            //                     alert('Manual de Funciones de: ',nodeData.nombre)
-            //                     //window.location.href = `profile.html?id=${nodeData.id}`;
-            //                     // O si tienes una URL específica en los datos del nodo:
-            //                     // if (nodeData.profileUrl) {
-            //                     //     window.location.href = nodeData.profileUrl;
-            //                     // } else {
-            //                     //     alert('URL de perfil no definida para este usuario.');
-            //                     // }
-            //                 }
-            //             }
-            //         },
-            //         manualProcedimientos: {
-            //             icon: OrgChart.icon.link(24, 24, '#fff'), // Un icono de enlace, por ejemplo
-            //             text: "Ir a Manual de Procedimientos",
-            //             onClick: function(nodeId) {
-            //                 // Obtener los datos del nodo para construir la URL
-            //                 const nodeData = chart.get(nodeId);
-            //                 console.log("Datos del nodo para perfil:", nodeData);
-            //                 if (nodeData) {
-            //                     // Ejemplo: Redirigir a una página de perfil usando el ID del nodo
-            //                     // Asegúrate de que tu página de destino pueda manejar el parámetro 'id'
-            //                     alert('Manual de Procedimientos de: ',nodeData.nombre)
-            //                     //window.location.href = `profile.html?id=${nodeData.id}`;
-            //                     // O si tienes una URL específica en los datos del nodo:
-            //                     // if (nodeData.profileUrl) {
-            //                     //     window.location.href = nodeData.profileUrl;
-            //                     // } else {
-            //                     //     alert('URL de perfil no definida para este usuario.');
-            //                     // }
-            //                 }
-            //             }
-            //         },
-            //         manualUsuario: {
-            //             icon: OrgChart.icon.link(24, 24, '#fff'), // Un icono de enlace, por ejemplo
-            //             text: "Ir a Manual de Usuario",
-            //             onClick: function(nodeId) {
-            //                 // Obtener los datos del nodo para construir la URL
-            //                 const nodeData = chart.get(nodeId);
-            //                 console.log("Datos del nodo para perfil:", nodeData);
-            //                 if (nodeData) {
-            //                     // Ejemplo: Redirigir a una página de perfil usando el ID del nodo
-            //                     // Asegúrate de que tu página de destino pueda manejar el parámetro 'id'
-            //                     alert('Manual de Usuario de: ',nodeData.nombre)
-            //                     //window.location.href = `profile.html?id=${nodeData.id}`;
-            //                     // O si tienes una URL específica en los datos del nodo:
-            //                     // if (nodeData.profileUrl) {
-            //                     //     window.location.href = nodeData.profileUrl;
-            //                     // } else {
-            //                     //     alert('URL de perfil no definida para este usuario.');
-            //                     // }
-            //                 }
-            //             }
-            //         },
-
-            //         edit: null,
-            //         share: null,
-            //         pdf: {
-            //             icon: OrgChart.icon.pdf(24,24,'#fff'),
-            //             text: 'Save as PDF',
-            //             hideIfDetailsMode: true
-            //         },
-            //         remove: null
-            //     },
-            //     /* elements: [
-            //         { type: 'textbox', label: 'Full Name', binding: 'Name' },
-            //         { type: 'textbox', label: 'Phone number', binding: 'phone' }
-            //     ] */
-
-            //     /* ... (tu configuración del editForm) ... */
-            // },
             editUI: new CustomDetailsForm(), // ¡Aquí le decimos que use tu nuevo controlador!
             // nodeMenu: { details: { text: "Detalles" } },
             nodeMenu: null, // Deshabilitamos el menú de clic derecho (opcional)
@@ -1290,6 +1307,15 @@
             return false;
           });
 
+          // Se dispara DESPUÉS de que la carga inicial Y
+          // la animación 'scaleInitial: match.boundary' han terminado.
+          chart.on('ready', function() {
+            console.log("✅ Gráfico 100% listo (onReady). Mostrando UI.");
+            
+            // 1. Mostrar los filtros
+            document.getElementById('custom-filters').classList.add('ui-ready');
+          });
+
           // --- ¡LÓGICA PARA CAMBIAR DE VISTA! ---
           // 1. Inicializar Select2 en todos los selects
           $(".control-select").select2({
@@ -1393,7 +1419,6 @@
 
               chart.config.template = "fichaTemplate";
               chart.config.nodeBinding = personaBinding;
-              chart.load(allNodes);
 
               // Repoblar selects con data de Persona
               populateSelect("linea-negocio-select", "lineaNegocio", allNodes);
@@ -1408,6 +1433,7 @@
               procesarLoginDeUsuario();
 
               statusDiv.style.display = "none";
+              //loaderOverlay.classList.remove("visible");
             } else if (vista === "Cargo") {
               console.log("Cambiando a vista: Cargo");
 
@@ -1420,14 +1446,18 @@
           });
 
           chart.searchUI.on("searchclick", function (sender, args) {
+            // Oculta el buscador inmediatamente
+            sender.hide();
 
-            sender.instance.center(args.nodeId, null, function () {
-                // *** Usa setScale para establecer la escala absoluta a 1 ***
-                sender.instance.setScale(1); 
+            sender.instance.center(args.nodeId, {
+                anim: true,
+                duration: 300 // Duración de la animación de centrado
+            }, function () {
+                // Función 'callback': se ejecuta DESPUÉS de centrar
+                sender.instance.setScale(1); // Fija el zoom a 100%
             });
-            // Opcional: Si quieres ocultar el panel de búsqueda después de hacer clic
-            sender.hide(); 
-            return false;
+
+            return false; // Previene otros eventos
           });
 
           chart.onInit(function () {
@@ -1459,6 +1489,7 @@
                     }
                 });
             }      
+            
             // chart.config.scaleInitial = OrgChart.match.boundary;
             // chart._draw(true, OrgChart.action.init, { method: 'fit' });
             //procesarLoginDeUsuario();
@@ -1511,10 +1542,11 @@
                     }
                 }); */
 
-          statusDiv.style.display = "none"; // Ocultar "Cargando..."
+        //   statusDiv.style.display = "none"; // Ocultar "Cargando..."
+          loaderOverlay.classList.remove("visible");
         } catch (error) {
           console.error("ERROR DETALLADO:", error);
-          statusDiv.innerText = "Error.";
+          loaderText.innerText = "Error.";
           errorDiv.innerText = `Error: ${error.message}. Revisa la consola (F12).`;
           errorDiv.style.display = "block";
         }
@@ -1523,12 +1555,17 @@
       /** Carga, transforma y renderiza la data de CARGOS.    */
       async function loadAndRenderCargoChart(apiUrl) {
         if (isCargoDataReady) {
-          console.log("Datos de Cargos ya cargados. Usando cache.");
-          // Si ya la cargamos, solo mostramos
+            console.log("Datos de Cargos ya cargados. Usando cache.");
+            
+            // 1. Repoblar los selects con los datos de Cargo (importante!)
+            populateSelect("linea-negocio-select", "lineaNegocio", allCargoNodes);
+            populateSelect("centro-costos-select", "centroCosto", allCargoNodes);
+            populateSelect("departamento-select", "departamento", allCargoNodes);
+            $(".control-select").trigger("change.select2");
 
-          aplicarFiltrosJerarquicos(); // Re-aplicar filtros
-          chart.load(allCargoNodes);
-          return;
+            // 2. Llamar a la lógica de login, que filtrará y cargará
+            procesarLoginDeUsuario(); 
+            return; // Salimos de la función
         }
 
         statusDiv.innerText = "Cargando vista de Cargos...";
@@ -1557,18 +1594,14 @@
             .filter((cargo) => cargo && cargo.codigoPosicion != null) // Filtro básico
             .map((cargo) => {
               const isVacant = cargo.esVacante === "1";
-              const empleado = cargo.Empleado; // Objeto del empleado
-
-              // La jerarquía de Cargo se basa 100% en Posición
               const id = String(cargo.codigoPosicion).trim();
               let pid = cargo.codigoPosicionReporta
                 ? String(cargo.codigoPosicionReporta).trim()
                 : null;
 
-              if (pid === "0") pid = undefined;
-              if (pid === id) pid = undefined; // Evitar auto-referencia
+              if (pid === "0" || pid === id) pid = undefined;  // Evitar auto-referencia
 
-              // Tags (reutilizando tu lógica)
+              // Lógica de Tags
               const subLevelTag = getSubLevelTag(cargo.nivelJerarquico);
               const levelTag = `level-${cargo.nivelJerarquico || "99"}`;
               let tags = [levelTag];
@@ -1582,14 +1615,27 @@
 
               const order = parseInt(cargo.nivelJerarquico || 99);
 
-              // --- Campos para el template 'cargoTemplate' ---
-              const cargoPuesto = cargo.puesto || "Puesto N/A";
-              const cargoPersona = isVacant
-                ? "PUESTO VACANTE"
-                : empleado
-                ? `${empleado.nombre || ""} ${empleado.apellido || ""}`.trim()
-                : "Sin Asignar";
-              const cargoDepto = cargo.nombreDepartamento || "N/A";
+              // --- LÓGICA PARA MANEJAR 'Empleado' (Objeto o Array) ---
+                let listaEmpleados = []; // Almacenará el array de empleados
+                let primerEmpleado = null; // Para datos de manuales
+                let cargoPersonaDisplay = "PUESTO VACANTE"; // Nombre para el nodo
+
+                if (!isVacant && cargo.Empleado) {
+                    if (Array.isArray(cargo.Empleado) && cargo.Empleado.length > 0) {
+                        // Es un array de empleados
+                        listaEmpleados = cargo.Empleado;
+                        primerEmpleado = cargo.Empleado[0];
+                        cargoPersonaDisplay = `${listaEmpleados.length} PERSONAS ASIGNADAS`;
+                    } else if (typeof cargo.Empleado === 'object' && !Array.isArray(cargo.Empleado)) {
+                        // Es un solo empleado (objeto)
+                        listaEmpleados = [cargo.Empleado];
+                        primerEmpleado = cargo.Empleado;
+                        cargoPersonaDisplay = `${primerEmpleado.nombre || ''} ${primerEmpleado.apellido || ''}`.trim();
+                    } else {
+                        // Es un cargo no vacante pero sin datos de empleado
+                        cargoPersonaDisplay = "Sin Asignar";
+                    }
+                }
 
               return {
                 id,
@@ -1597,43 +1643,44 @@
                 tags,
                 order,
 
-                // Campos para el template (mapeados en cargoBinding)
-                cargoPuesto,
-                //cargoPersona,
-                cargoDepto,
+                // Campos para el template 'cargoTemplate'
+                cargoPuesto: cargo.puesto || "Puesto N/A",
+                cargoPersona: cargoPersonaDisplay, // "3 PERSONAS ASIGNADAS" o "Nombre Apellido"
+                cargoDepto: cargo.nombreDepartamento || "N/A",
 
-                // Campos para los filtros (para que 'aplicarFiltrosJerarquicos' funcione)
+                // Campos para los filtros
                 lineaNegocio: cargo.nombreLineaNegocio || "N/A",
                 centroCosto: cargo.nombreCentroCosto || "N/A",
                 departamento: cargo.nombreDepartamento || "N/A",
 
-                // (Dejamos los campos de 'persona' nulos)
+                // Guardamos el ARRAY de empleados completo para el modal
+                listaEmpleados: listaEmpleados,
+                
+                // Campos de 'persona' que la Vista Cargo no usa (los dejamos null)
                 nombre: null,
                 puesto: null,
                 img: null,
-                userid: empleado ? empleado.userid : null,
-              };
+
+                userid: null, //empleado ? empleado.userid : null,
+                
+                // Guardamos los datos para los manuales
+                codDepAx: (primerEmpleado ? primerEmpleado.codDepAx : null),
+                codDepartamento: cargo.codDepartamento || null, // El 'codDepartamento' viene del cargo
+            };
             });
 
           // Sanitizar (muy importante)
           const sanitizedCargoNodes =
             sanitizeCircularReferences(balkanCargoNodes);
 
-          allCargoNodes = sanitizedCargoNodes; // Guardar globalmente
-          isCargoDataReady = true; // Marcar como lista
-
-          console.log(
-            `Transformación de Cargo completa (${allCargoNodes.length} nodos).`
-          );
-
           // Cargar la nueva data en el chart
           // 1. Guardar data (ya no se carga todo)
           allCargoNodes = sanitizedCargoNodes;
           isCargoDataReady = true;
 
-          console.log(
+          /* console.log(
             `Transformación de Cargo completa (${allCargoNodes.length} nodos).`
-          );
+          ); */
 
           // 2. Repoblar los selects con la nueva data
           populateSelect("linea-negocio-select", "lineaNegocio", allCargoNodes);
@@ -1646,19 +1693,10 @@
 
           // 4. Workaround para límite de 200 nodos:
           // Seleccionar el primer departamento por defecto para evitar cargar "Todos"
-          const selectDept = document.getElementById("departamento-select");
-          if (selectDept.options.length > 1) {
-            selectDept.value = selectDept.options[1].value;
-            $(selectDept).trigger("change"); // Disparar el change para que Select2 lo vea
-            console.log(
-              `Workaround: Filtro de Depto. por defecto aplicado: ${selectDept.value}`
-            );
-          } else {
-            // Si no hay depto, aplicar filtros (cargará nada, que es seguro)
-            aplicarFiltrosJerarquicos();
-          }
+          procesarLoginDeUsuario();
 
           statusDiv.style.display = "none";
+          //loaderOverlay.classList.remove("visible");
         } catch (error) {
           console.error("ERROR cargando Cargos:", error);
           errorDiv.innerText = `Error cargando Cargos: ${error.message}.`;

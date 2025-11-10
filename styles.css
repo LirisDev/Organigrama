@@ -28,11 +28,11 @@ body {
   height: 100%;
   overflow: hidden;
 }
-#tree {
+/* #tree {
   width: 100%;
   height: 100%;
   background-color: #f8f8f8;
-}
+} */
 
 #range_scale {
   width: 300px;
@@ -69,6 +69,21 @@ body {
   background: #fdd;
   color: #a00;
   display: none;
+}
+
+/* --- AÑADE ESTO A TU STYLES.CSS --- */
+
+/* Oculta los filtros y el botón de búsqueda por defecto */
+#custom-filters {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Clase para mostrarlos suavemente */
+.ui-ready {
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* Estilo base del nodo (de tu plantilla 'myTemplate') */
@@ -420,10 +435,75 @@ div.boc-node.level-6[data-n-id] {
 }
 
 /* 3. Contenedor del Gráfico (Flexible) */
-#tree-container {
+/* #tree-container {
   flex-grow: 1;
   position: relative;
   overflow: hidden;
+} */
+
+/* 1. Prepara el contenedor del gráfico */
+#tree-container {
+    /* Necesario para que el overlay se posicione correctamente */
+    flex-grow: 1;
+    position: relative; 
+    /* Dale una altura mínima para que el spinner se vea 
+       incluso si el div #tree está vacío */
+    min-height: 400px; 
+}
+
+/* 2. El overlay de carga */
+#chart-loader-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Usamos un blanco semi-transparente o sólido. 
+       Prueba #ffffff si prefieres que sea opaco. */
+    background: rgba(255, 255, 255, 0.9); 
+    z-index: 10;
+    
+    /* Para centrar el spinner y el texto */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    /* Oculto por defecto */
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s;
+}
+
+/* 3. Clase para mostrar el overlay */
+#chart-loader-overlay.visible {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* 4. El spinner (animación de rotación) */
+.loader-spinner {
+    border: 5px solid #f3f3f3; /* Borde gris claro */
+    border-top: 5px solid #F57C00; /* Tu color Naranja */
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+/* 5. El texto debajo del spinner */
+#loader-text {
+    font-family: Arial, sans-serif;
+    color: #555;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* 6. Animación del spinner */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* 4. Div del Gráfico (100% de su nuevo padre) */
@@ -539,6 +619,10 @@ div.boc-node.level-6[data-n-id] {
 
 /* --- Contenido del Modal --- */
 #details-img {
+  display: block; /* La hacemos un bloque */
+  margin-left: auto; /* Centrado automático */
+  margin-right: auto; /* Centrado automático */
+
   width: 110px;
   height: 110px;
   border-radius: 50%;
@@ -556,7 +640,7 @@ div.boc-node.level-6[data-n-id] {
 }
 
 #details-puesto {
-  font-size: 14px;
+  font-size: 18px;
   text-transform: uppercase;
   color: #555;
   margin-top: 4px;
@@ -606,7 +690,7 @@ div.boc-node.level-6[data-n-id] {
   border-radius: 8px;
   color: white;
   font-weight: bold;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   transition: background-color 0.2s ease, opacity 0.2s;
 }
@@ -634,4 +718,49 @@ div.boc-node.level-6[data-n-id] {
 #btn-manual-procedimientos,
 #btn-manual-usuario {
   /* display: none; */
+}
+
+
+/* Estilos para la lista de empleados en el modal (Modo Cargo) */
+.details-employee-list {
+    text-align: left;
+    max-height: 150px; /* Altura máxima, por si hay muchos empleados */
+    overflow-y: auto;  /* Scroll si es necesario */
+    border-top: 1px solid #eee;
+    margin-top: 10px;
+    padding-top: 10px;
+}
+
+.employee-list-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.employee-list-img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.employee-list-info {
+    font-size: 14px;
+}
+
+.employee-list-name {
+    font-weight: bold;
+    color: #333;
+}
+
+.employee-list-email {
+    font-size: 12px;
+    color: #777;
+}
+
+/* Oculta la imagen principal del modal por defecto */
+#custom-details-form #details-img {
+    display: none;
 }
