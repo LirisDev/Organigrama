@@ -271,88 +271,114 @@
         // Limpiar el contenido anterior del bloque de info
         infoBlock.innerHTML = '';
 
+        const fillPersonData = (personData) => {
+            const isVacant = personData.tags && personData.tags.includes("vacante");
+
+            this.nameEl.textContent = personData.nombre;
+            this.puestoEl.textContent = personData.puesto;
+            
+            // Mostrar y configurar la imagen
+            this.imgEl.style.display = 'block'; // Asegúrate de que sea 'block' para centrar
+            if (isVacant || !personData.img) {
+                this.imgEl.src = "https://via.placeholder.com/110/cccccc/ffffff?text=N/A";
+            } else {
+                this.imgEl.src = personData.img;
+            }
+
+            // Re-crear el HTML de info de persona
+            infoBlock.innerHTML = `
+                <div class="details-info-line">
+                    <span class="details-info-label">Email:</span>
+                    <span class="details-info-value">${personData.email || 'N/A'}</span>
+                </div>
+                <div class="details-info-line">
+                    <span class="details-info-label">Línea Negocio:</span>
+                    <span class="details-info-value">${personData.lineaNegocio || 'N/A'}</span>
+                </div>
+                <div class="details-info-line">
+                    <span class="details-info-label">Centro Costo:</span>
+                    <span class="details-info-value">${personData.centroCosto || 'N/A'}</span>
+                </div>
+                <div class="details-info-line">
+                    <span class="details-info-label">Departamento:</span>
+                    <span class="details-info-value">${personData.departamento || 'N/A'}</span>
+                </div>
+            `;
+
+            // Lógica de botones de manuales
+            const canShowManuals = personData.id && personData.codDepAx && !isVacant;
+            this.btnFunciones.style.display = canShowManuals ? "inline-block" : "none";
+            this.btnProcedimientos.style.display = canShowManuals ? "inline-block" : "none";
+            this.btnUsuario.style.display = canShowManuals ? "inline-block" : "none";
+        };
         if (currentMode === 'Persona') {
-        // ==================================
-        // --- VISTA MODO PERSONA (Como antes)
-        // ==================================
-        const isVacant = this.data.tags.includes("vacante"); // No debería pasar si haces clic en persona
-        
-        this.nameEl.textContent = this.data.nombre;
-        this.puestoEl.textContent = this.data.puesto;
-        
-        // Mostrar y configurar la imagen
-        this.imgEl.style.display = 'block';
-        if (isVacant || !this.data.img) {
-            this.imgEl.src = "https://via.placeholder.com/110/cccccc/ffffff?text=N/A";
+            // ==================================
+            // --- VISTA MODO PERSONA 
+            // ==================================
+            fillPersonData(this.data);
         } else {
-            this.imgEl.src = this.data.img;
+            // ==================================
+            // --- VISTA MODO CARGO 
+            // ==================================
+
+            const isVacant = this.data.tags.includes("vacante");
+            const employeeList = this.data.listaEmpleados;
+
+            // Ocultar la imagen principal por defecto (la helper la mostrará si es necesario)
+            this.imgEl.style.display = 'none';
+
+            if (employeeList && employeeList.length === 1) {
+                // --- CASO 1: Cargo con 1 sola persona ---
+                // Reutilizamos la lógica de 'fillPersonData'
+                // Pero le pasamos los datos del *único* empleado en la lista
+                const singleEmp = employeeList[0];
+                fillPersonData({
+                    id: singleEmp.codigoEmpleado,
+                    nombre: `${singleEmp.nombre || ''} ${singleEmp.apellido || ''}`.trim(),
+                    puesto: singleEmp.puestoEmpleado || this.data.cargoPuesto,
+                    img: singleEmp.foto,
+                    email: singleEmp.emailCorporativo,
+                    lineaNegocio: this.data.lineaNegocio, // Tomamos esto del cargo
+                    centroCosto: this.data.centroCosto, // Tomamos esto del cargo
+                    departamento: this.data.departamento, // Tomamos esto del cargo
+                    codDepAx: singleEmp.codDepAx,
+                    codDepartamento: this.data.codDepartamento
+                });
+
+            } else {
+                // --- CASO 2: Cargo con >1 persona O vacante/sin asignar ---
+                
+                this.nameEl.textContent = this.data.cargoPuesto;  // "ASISTENTE DE DESARROLLO"
+                this.puestoEl.textContent = this.data.cargoPersona; // "3 PERSONAS ASIGNADAS" o "PUESTO VACANTE"
+                
+                // Ocultar botones de manuales (no aplican a un cargo)
+                this.btnFunciones.style.display = "none";
+                this.btnProcedimientos.style.display = "none";
+                this.btnUsuario.style.display = "none";
+
+                // Generar lista de empleados
+                if (employeeList && employeeList.length > 1) {
+                    let employeeHtml = '<div class="details-employee-list">';
+                    employeeList.forEach(emp => {
+                        employeeHtml += `
+                            <div class="employee-list-item">
+                                <img src="${emp.foto || 'https://via.placeholder.com/40/cccccc/ffffff?text=N/A'}" class="employee-list-img" alt="">
+                                <div class="employee-list-info">
+                                    <div class="employee-list-name">${emp.nombre || ''} ${emp.apellido || ''}</div>
+                                    <div class="employee-list-email">${emp.emailCorporativo || 'Sin email'}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    employeeHtml += '</div>';
+                    infoBlock.innerHTML = employeeHtml; // Inyecta la lista
+                } else if (isVacant) {
+                    infoBlock.innerHTML = '<div class="details-info-line" style="text-align:center; padding-top:10px;">Este puesto está actualmente vacante.</div>';
+                } else {
+                    infoBlock.innerHTML = '<div class="details-info-line" style="text-align:center; padding-top:10px;">Este puesto no tiene empleados asignados.</div>';
+                }
+            }
         }
-
-        // Re-crear el HTML de info de persona
-        infoBlock.innerHTML = `
-            <div class="details-info-line">
-                <span class="details-info-label">Email:</span>
-                <span class="details-info-value" data-field="email">${this.data.email || 'N/A'}</span>
-            </div>
-            <div class="details-info-line">
-                <span class="details-info-label">Línea Negocio:</span>
-                <span class="details-info-value" data-field="lineaNegocio">${this.data.lineaNegocio || 'N/A'}</span>
-            </div>
-            <div class="details-info-line">
-                <span class="details-info-label">Centro Costo:</span>
-                <span class="details-info-value" data-field="centroCosto">${this.data.centroCosto || 'N/A'}</span>
-            </div>
-            <div class="details-info-line">
-                <span class="details-info-label">Departamento:</span>
-                <span class="details-info-value" data-field="departamento">${this.data.departamento || 'N/A'}</span>
-            </div>
-        `;
-
-        // Lógica de botones de manuales (como antes)
-        const canShowManuals = this.data.id && this.data.codDepAx && !isVacant;
-        this.btnFunciones.style.display = canShowManuals ? "inline-block" : "none";
-        this.btnProcedimientos.style.display = canShowManuals ? "inline-block" : "none";
-        this.btnUsuario.style.display = canShowManuals ? "inline-block" : "none";
-        
-    } else {
-        // ==================================
-        // --- VISTA MODO CARGO (Nueva Lógica)
-        // ==================================
-        const isVacant = this.data.tags.includes("vacante");
-        
-        this.nameEl.textContent = this.data.cargoPuesto;  // "ASISTENTE DE DESARROLLO"
-        this.puestoEl.textContent = this.data.cargoPersona; // "3 PERSONAS ASIGNADAS"
-        
-        // Ocultar la imagen de perfil (no aplica a un cargo)
-        this.imgEl.style.display = 'none'; 
-
-        // Ocultar botones de manuales (no aplican a un cargo)
-        this.btnFunciones.style.display = "none";
-        this.btnProcedimientos.style.display = "none";
-        this.btnUsuario.style.display = "none";
-
-        // Generar lista de empleados
-        if (this.data.listaEmpleados && this.data.listaEmpleados.length > 0) {
-            let employeeHtml = '<div class="details-employee-list">';
-            this.data.listaEmpleados.forEach(emp => {
-                employeeHtml += `
-                    <div class="employee-list-item">
-                        <img src="${emp.foto || 'https://via.placeholder.com/40/cccccc/ffffff?text=N/A'}" class="employee-list-img" alt="">
-                        <div class="employee-list-info">
-                            <div class="employee-list-name">${emp.nombre || ''} ${emp.apellido || ''}</div>
-                            <div class="employee-list-email">${emp.emailCorporativo || 'Sin email'}</div>
-                        </div>
-                    </div>
-                `;
-            });
-            employeeHtml += '</div>';
-            infoBlock.innerHTML = employeeHtml; // Inyecta la lista
-        } else if (isVacant) {
-            infoBlock.innerHTML = '<div class="details-info-line" style="text-align:center; padding-top:10px;">Este puesto está actualmente vacante.</div>';
-        } else {
-            infoBlock.innerHTML = '<div class="details-info-line" style="text-align:center; padding-top:10px;">Este puesto no tiene empleados asignados.</div>';
-        }
-    }
 
         // 6. Mostrar el modal
         this.overlay.classList.add("visible");
@@ -430,10 +456,11 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        /* if (!receivedUserId) {
+        //* 
+        if (!receivedUserId) {
           receivedUserId = "interno\\dromero";
           console.log("Usando usuario interno\\dromero para pruebas");
-        } */
+        } //*/
 
         // Asegurarnos de usar la fuente de datos correcta según el modo
         const currentMode = document.getElementById("modo-select").value;
@@ -1007,28 +1034,35 @@
           }; // Ripple effect, al dar click en el nodo da un efecto visual
 
           // 1. Clonamos tu plantilla 'fichaTemplate' para heredar su tamaño y forma
-          OrgChart.templates.vacanteTemplate = Object.assign(
+        OrgChart.templates.vacanteTemplate = Object.assign(
             {},
             OrgChart.templates.fichaTemplate
-          );
+        );
 
-          // 2. Definimos el fondo oscuro (SVG)
-          OrgChart.templates.vacanteTemplate.node =
+        // 2. Definimos el fondo oscuro (SVG)
+        OrgChart.templates.vacanteTemplate.node =
             '<rect x="0" y="0" height="{h}" width="{w}" fill="#4a4a4a" rx="5" ry="5"></rect>';
 
-          // 3. Definimos los campos con texto blanco
-          // (Asegúrate que coincidan con los campos de 'fichaTemplate')
+        // 3. Nos aseguramos de que no muestre imagen
+        OrgChart.templates.vacanteTemplate.img_0 = ""; // Sin imagen
 
-          // Campo 'nombre' (field_0)
-          OrgChart.templates.vacanteTemplate.field_0 =
-            '<text style="font-size: 16px; font-weight: bold;" fill="#ffffff" x="125" y="60" text-anchor="middle">{val}</text>';
+        // 4. Definimos los campos con texto blanco y CENTRADOS
+        OrgChart.templates.vacanteTemplate.field_0 = // Puesto
+            '<foreignObject x="10" y="30" width="230" height="40">' + // x=10, ancho=230 (márgenes de 10px en nodo de 250px)
+            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 16px; font-weight: bold; color: #ffffff; line-height: 1.2; height: auto; max-height: 38px; text-align: center; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">' +
+            '{val}' +
+            '</div>' +
+            '</foreignObject>';
 
-          // Campo 'puesto' (field_1)
-          OrgChart.templates.vacanteTemplate.field_1 =
-            '<text style="font-size: 14px; font-style: italic;" fill="#e0e0e0" x="125" y="85" text-anchor="middle">{val}</text>';
-
-          // 4. Nos aseguramos de que no muestre imagen
-          OrgChart.templates.vacanteTemplate.img_0 = "";
+        OrgChart.templates.vacanteTemplate.field_1 = // "PUESTO VACANTE"
+            '<foreignObject x="10" y="75" width="230" height="20">' +
+            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-style: italic; color: #e0e0e0; line-height: 1.2; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
+            '{val}' +
+            '</div>' +
+            '</foreignObject>';
+        
+        // 5. ¡IMPORTANTE! Matamos el field_2 (botón azul) heredado
+        OrgChart.templates.vacanteTemplate.field_2 = "";
 
           // --- 2.1 DEFINIR BINDINGS (MAPEOS) ---
           // (Mueve tu binding de persona aquí para tener ambos)
@@ -1057,26 +1091,28 @@
           OrgChart.templates.cargoTemplate.img_0 = "";
 
           // Ajustamos los campos de texto (sin foto, movemos todo a la izquierda)
-          OrgChart.templates.cargoTemplate.field_0 = // Puesto
-            '<foreignObject x="15" y="25" width="225" height="40">' +
+        OrgChart.templates.cargoTemplate.field_0 = // Puesto
+            '<foreignObject x="15" y="15" width="220" height="35">' + // y=15, h=35
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 16px; font-weight: bold; color: #D35400; line-height: 1.2; height: auto; max-height: 34px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
             "{val}" +
             "</div>" +
             "</foreignObject>";
 
-          OrgChart.templates.cargoTemplate.field_1 = // Persona
-            '<foreignObject x="15" y="60" width="225" height="30">' +
-            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; color: #333; line-height: 1.2; height: auto; max-height: 27px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
+        OrgChart.templates.cargoTemplate.field_1 = // Persona
+            '<foreignObject x="15" y="50" width="220" height="35">' + // y=50 (15+35), h=35
+            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; color: #333; line-height: 1.2; height: auto; max-height: 34px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
             "{val}" +
             "</div>" +
             "</foreignObject>";
 
-          OrgChart.templates.cargoTemplate.field_2 = // Departamento
-            '<foreignObject x="15" y="85" width="225" height="20">' +
+        OrgChart.templates.cargoTemplate.field_2 = // Departamento
+            '<foreignObject x="15" y="85" width="220" height="20">' + // y=85 (50+35), h=20
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 12px; font-style: italic; color: #797D7F; line-height: 1.2; text-align: left;">' +
             "{val}" +
             "</div>" +
             "</foreignObject>";
+        
+        //OrgChart.templates.cargoTemplate.field_2 = ""; // Departamento
 
           // 6. Configuración de Tags
           const tagsConfig = {
@@ -1092,7 +1128,7 @@
             // Tag para la plantilla vacante
             vacante: {
               template: "vacanteTemplate",
-              nodeBinding: { field_0: "puesto" },
+            //   nodeBinding: { field_0: "puesto" },
             },
 
             // Tags vacíos solo para que el CSS los pueda seleccionar
@@ -1591,7 +1627,7 @@
 
           // --- Transformación de "Cargo" ---
           const balkanCargoNodes = flatApiData
-            .filter((cargo) => cargo && cargo.codigoPosicion != null) // Filtro básico
+            .filter((cargo) => cargo && cargo.codigoPosicion != '00006') // Filtro básico
             .map((cargo) => {
               const isVacant = cargo.esVacante === "1";
               const id = String(cargo.codigoPosicion).trim();
@@ -1625,7 +1661,10 @@
                         // Es un array de empleados
                         listaEmpleados = cargo.Empleado;
                         primerEmpleado = cargo.Empleado[0];
-                        cargoPersonaDisplay = `${listaEmpleados.length} PERSONAS ASIGNADAS`;
+                        cargoPersonaDisplay = (listaEmpleados.length === 1)
+                            ? `${listaEmpleados[0].nombre || ''} ${listaEmpleados[0].apellido || ''}`.trim() // Nombre si es 1
+                            : `${listaEmpleados.length} PERSONAS ASIGNADAS`; // Conteo si son más
+                        // cargoPersonaDisplay = `${listaEmpleados.length} PERSONAS ASIGNADAS`;
                     } else if (typeof cargo.Empleado === 'object' && !Array.isArray(cargo.Empleado)) {
                         // Es un solo empleado (objeto)
                         listaEmpleados = [cargo.Empleado];
