@@ -5,8 +5,8 @@
     <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0" /> -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Organigrama LIRIS S.A.</title>
-    <script src="Balkan/orgchart.js"></script>
-    <!-- <script src="BalkanPro/orgchart.js"></script> -->
+    <!-- <script src="Balkan/orgchart.js"></script> -->
+    <script src="BalkanPro/orgchart.js"></script>
     <!-- <script src="main.js"></script> -->
     <link rel="stylesheet" href="styles.css" />
 
@@ -499,7 +499,7 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        //* 
+        /* 
         if (!receivedUserId) {
           receivedUserId = "interno\\dromero";
           console.log("Usando usuario interno\\dromero para pruebas");
@@ -1821,6 +1821,7 @@
           const sanitizedCargoNodes =
             sanitizeCircularReferences(balkanCargoNodes);
 
+          console.log(sanitizedCargoNodes)
           // Aplicamos la misma lógica de subniveles relativos
           aplicarSubnivelesRelativos(sanitizedCargoNodes);
           
