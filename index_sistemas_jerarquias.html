@@ -121,7 +121,6 @@
       let isCargoDataReady = false; // ¡NUEVO! Bandera para saber si ya cargamos la data de cargo
       let filteredNodes = [];
 
-    //TODO: cuando se cambia de persona a cargo o viceversa que se cambie con los mismos filtros que tenia 
     //TODO: permitir el buscador en la vista por cargos
     //TODO: Poner una lupa y que esa lupa despliegue el input search
     //TODO: Mejorar el diseño de los select
@@ -1543,8 +1542,15 @@
 
           // 5. Listener para MODO (Persona/Cargo)
           $("#modo-select").on("change", function () {
-            const vista = $(this).val();
+            // --- Guardar los filtros actuales ---
+            const filtrosGuardados = {
+                linea: $("#linea-negocio-select").val(),
+                costo: $("#centro-costos-select").val(),
+                depto: $("#departamento-select").val()
+            };
+            console.log("Filtros guardados:", filtrosGuardados);
 
+            const vista = $(this).val();
             if (vista === "Persona") {
               console.log("Cambiando a vista: Persona");
               statusDiv.innerText = "Cargando vista de Personas...";
@@ -1553,17 +1559,39 @@
               chart.config.template = "fichaTemplate";
               chart.config.nodeBinding = personaBinding;
 
-              // Repoblar selects con data de Persona
-              populateSelect("linea-negocio-select", "lineaNegocio", allNodes);
-              populateSelect("centro-costos-select", "centroCosto", allNodes);
-              populateSelect("departamento-select", "departamento", allNodes);
+              const sourceNodes = allNodes;
+              /// --- Repoblar y Restaurar Cascada ---
+                // 2a. Poblar y restaurar LÍNEA
+                populateSelect("linea-negocio-select", "lineaNegocio", sourceNodes);
+                $("#linea-negocio-select").val(filtrosGuardados.linea);
 
-              // Notificar a Select2 y aplicar filtro (con valores de login si existen)
-              $(".control-select").trigger("change.select2");
-
-              // Re-ejecutamos la lógica de login/prueba
-              // (Mantiene tu lógica de 'dromero' para pruebas)
-              procesarLoginDeUsuario();
+                // 2b. Poblar y restaurar COSTO (basado en línea restaurada)
+                const nodosParaCostos = (filtrosGuardados.linea === "todos")
+                    ? sourceNodes
+                    : sourceNodes.filter((n) => n.lineaNegocio === filtrosGuardados.linea);
+                populateSelect("centro-costos-select", "centroCosto", nodosParaCostos);
+                // Solo restaurar si la opción aún existe en este set de nodos
+                if ($("#centro-costos-select option[value='" + filtrosGuardados.costo + "']").length > 0) {
+                    $("#centro-costos-select").val(filtrosGuardados.costo);
+                } else {
+                    filtrosGuardados.costo = 'todos'; // Forzar a 'todos' si no se encontró
+                }
+                
+                // 2c. Poblar y restaurar DEPTO (basado en línea Y costo restaurados)
+                const nodosParaDeptos = (filtrosGuardados.costo === "todos")
+                    ? nodosParaCostos // Nodos ya filtrados por línea
+                    : nodosParaCostos.filter((n) => n.centroCosto === filtrosGuardados.costo);
+                populateSelect("departamento-select", "departamento", nodosParaDeptos);
+                // Solo restaurar si la opción aún existe
+                if ($("#departamento-select option[value='" + filtrosGuardados.depto + "']").length > 0) {
+                    $("#departamento-select").val(filtrosGuardados.depto);
+                }
+                
+                // 2d. Notificar a Select2 de los cambios
+                $(".control-select").trigger("change.select2");
+                
+                // 2e. Aplicar los filtros restaurados
+                aplicarFiltrosJerarquicos()
 
               statusDiv.style.display = "none";
               //loaderOverlay.classList.remove("visible");
@@ -1574,7 +1602,7 @@
               chart.config.nodeBinding = cargoBinding;
 
               // Esta función ya se encarga de repoblar y filtrar
-              loadAndRenderCargoChart(apiCargoUrl);
+              loadAndRenderCargoChart(apiCargoUrl, filtrosGuardados);
             }
           });
 
@@ -1639,18 +1667,53 @@
       }
 
       /** Carga, transforma y renderiza la data de CARGOS.    */
-      async function loadAndRenderCargoChart(apiUrl) {
+      async function loadAndRenderCargoChart(apiUrl, filtrosGuardados = null) {
+        // Objeto por defecto si no se pasan filtros
+        if (!filtrosGuardados) {
+          filtrosGuardados = { linea: 'todos', costo: 'todos', depto: 'todos' };
+        }
+
+        // Esta función repobla y restaura los filtros para la vista de Cargo
+        function poblarYRestaurarFiltrosCargo() {
+            const sourceNodes = allCargoNodes; // Fuente de datos para Cargo
+            console.log("Restaurando filtros para vista Cargo...");
+
+            // 1. Poblar y restaurar LÍNEA
+            populateSelect("linea-negocio-select", "lineaNegocio", sourceNodes);
+            $("#linea-negocio-select").val(filtrosGuardados.linea);
+
+            // 2. Poblar y restaurar COSTO
+            const nodosParaCostos = (filtrosGuardados.linea === "todos")
+                ? sourceNodes
+                : sourceNodes.filter((n) => n.lineaNegocio === filtrosGuardados.linea);
+            populateSelect("centro-costos-select", "centroCosto", nodosParaCostos);
+            if ($("#centro-costos-select option[value='" + filtrosGuardados.costo + "']").length > 0) {
+                $("#centro-costos-select").val(filtrosGuardados.costo);
+            } else {
+                filtrosGuardados.costo = 'todos'; // Forzar a 'todos' si no se encontró
+            }
+
+            // 3. Poblar y restaurar DEPTO
+            const nodosParaDeptos = (filtrosGuardados.costo === "todos")
+                ? nodosParaCostos
+                : nodosParaCostos.filter((n) => n.centroCosto === filtrosGuardados.costo);
+            populateSelect("departamento-select", "departamento", nodosParaDeptos);
+            if ($("#departamento-select option[value='" + filtrosGuardados.depto + "']").length > 0) {
+                $("#departamento-select").val(filtrosGuardados.depto);
+            }
+
+            // 4. Notificar a Select2
+            $(".control-select").trigger("change.select2");
+
+            // 5. Aplicar filtros
+            aplicarFiltrosJerarquicos();
+        }
+
         if (isCargoDataReady) {
             console.log("Datos de Cargos ya cargados. Usando cache.");
             
-            // 1. Repoblar los selects con los datos de Cargo (importante!)
-            populateSelect("linea-negocio-select", "lineaNegocio", allCargoNodes);
-            populateSelect("centro-costos-select", "centroCosto", allCargoNodes);
-            populateSelect("departamento-select", "departamento", allCargoNodes);
-            $(".control-select").trigger("change.select2");
-
-            // 2. Llamar a la lógica de login, que filtrará y cargará
-            procesarLoginDeUsuario(); 
+            // Simplemente llamamos a la función que repuebla y aplica filtros
+            poblarYRestaurarFiltrosCargo();
             return; // Salimos de la función
         }
 
@@ -1770,18 +1833,8 @@
             `Transformación de Cargo completa (${allCargoNodes.length} nodos).`
           ); */
 
-          // 2. Repoblar los selects con la nueva data
-          populateSelect("linea-negocio-select", "lineaNegocio", allCargoNodes);
-          populateSelect("centro-costos-select", "centroCosto", allCargoNodes);
-          populateSelect("departamento-select", "departamento", allCargoNodes);
-
-          // 3. Notificar a Select2 que las opciones cambiaron
-          $(".control-select").trigger("change.select2");
-          console.log("Selects repoblados y Select2 actualizado para Cargos.");
-
-          // 4. Workaround para límite de 200 nodos:
-          // Seleccionar el primer departamento por defecto para evitar cargar "Todos"
-          procesarLoginDeUsuario();
+          // Llamamos a la función que repuebla y aplica los filtros guardados
+          poblarYRestaurarFiltrosCargo();
 
           statusDiv.style.display = "none";
           //loaderOverlay.classList.remove("visible");
