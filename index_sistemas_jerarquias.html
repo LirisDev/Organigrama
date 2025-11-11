@@ -109,10 +109,6 @@
       </main>
     </div>
 
-    <!-- Barra para escala -->
-    <!--     <input id="range_scale" type="range" min="1" max="100" value="1">
-    <div id="txt_scale">1</div> -->
-
     <script>
       // 1. Variable para guardar el usuario
       let receivedUserId = null; // Guardará el 'userId' formateado (ej. "interno\drendon")
@@ -132,9 +128,8 @@
     //TODO: Revisar los casos en que hay cargos que no reportan a nadie y ver similitudes entre vista cargo y vista empleados
 
       // --- Referencias a divs de estado ---
-      // --- Referencias a divs de estado ---
-        const loaderOverlay = document.getElementById("chart-loader-overlay");
-        const loaderText = document.getElementById("loader-text");
+      const loaderOverlay = document.getElementById("chart-loader-overlay");
+      const loaderText = document.getElementById("loader-text");
       const statusDiv = document.getElementById("status-message");
       const errorDiv = document.getElementById("error-message");
       const treeDiv = document.getElementById("tree");
@@ -179,7 +174,6 @@
           procesarLoginDeUsuario();
         }
       });
-      //TODO: Hacer mejoras en el organigrama de cargos
 
       /* DetailsForm Personalizado */
       let CustomDetailsForm = function () {
@@ -687,12 +681,59 @@
       }
 
       // --- Mapeo de nivelJerarquico a Tag de Subnivel ---
-      function getSubLevelTag(nivelJerarquico) {
-        const nivel = parseInt(nivelJerarquico) - 1; // Ajuste para que 1 sea nivel 0
-        if (nivel === 5) return "sub-level-1"; // Senior
-        if (nivel === 6) return "sub-level-2"; // Junior
-        if (nivel === 7) return "sub-level-3"; // Asistente
-        return "sub-level-0"; // Otros
+      /* Aplica tags de subnivel (sub-level-X) de forma relativa
+       * basándose en los 'order' de los nodos hermanos.  */
+      function aplicarSubnivelesRelativos(nodos) {
+        console.log("Iniciando post-procesamiento de subniveles relativos...");
+
+        // 1. Agrupar nodos por 'pid' (hermanos)
+        const nodesByParent = new Map();
+        for (const node of nodos) { // Usamos el argumento 'nodos'
+            const pid = node.pid || 'root'; // Agrupar nodos raíz bajo 'root'
+            if (!nodesByParent.has(pid)) {
+                nodesByParent.set(pid, []);
+            }
+            nodesByParent.get(pid).push(node);
+        }
+
+        // 2. Procesar cada grupo de hermanos
+        for (const siblings of nodesByParent.values()) {
+            if (siblings.length <= 1) {
+                // Si solo hay un hijo (o ninguno), no hay subniveles que aplicar
+                siblings.forEach(node => {
+                    if (!node.tags) node.tags = []; // Asegurar que 'tags' exista
+                    node.tags.push('sub-level-0');
+                });
+                continue;
+            }
+
+            // 3. Obtener los niveles jerárquicos únicos de este grupo de hermanos
+            const uniqueLevels = [...new Set(siblings.map(s => s.order))];
+            uniqueLevels.sort((a, b) => a - b); // Ordenar de menor a mayor
+
+            // 4. Mapear el 'nivel' real (order) a su 'índice' de subnivel (ej. 0, 1, 2)
+            const levelIndexMap = new Map();
+            uniqueLevels.forEach((level, index) => {
+                levelIndexMap.set(level, index);
+            });
+
+            // 5. Asignar el tag de subnivel correcto a cada nodo hermano
+            for (const node of siblings) {
+                const subLevelIndex = levelIndexMap.get(node.order);
+                
+                if (!node.tags) node.tags = []; // Asegurar que 'tags' exista
+                
+                const subLevelTag = `sub-level-${subLevelIndex}`;
+                node.tags.push(subLevelTag);
+
+                // Opcional: Añadir el tag para la línea punteada
+                if (subLevelIndex > 0) {
+                    node.tags.push("sublevel-node");
+                }
+            }
+        }
+        console.log("Post-procesamiento de subniveles completado.");
+        // No es necesario retornar, la función 'muta' los nodos en el array
       }
 
       ///////// * Puebla el <select> con los filtros únicos de los nodos.
@@ -1001,64 +1042,12 @@
 
           // 4. Sanitización
           const sanitizedNodes = sanitizeCircularReferences(balkanNodes);
+          aplicarSubnivelesRelativos(sanitizedNodes);
+
           allNodes = sanitizedNodes; // Guarda todos los nodos globalmente
           if (sanitizedNodes.length === 0)
             throw new Error("No hay nodos válidos después de sanitizar.");
           console.log("Nodos sanitizados:", sanitizedNodes);
-
-          // --- INICIO DEL NUEVO BLOQUE DE CÓDIGO ---
-            console.log("Iniciando post-procesamiento de subniveles relativos...");
-
-            // 1. Agrupar nodos por 'pid' (hermanos)
-            const nodesByParent = new Map();
-            for (const node of sanitizedNodes) {
-                const pid = node.pid || 'root'; // Agrupar nodos raíz bajo 'root'
-                if (!nodesByParent.has(pid)) {
-                    nodesByParent.set(pid, []);
-                }
-                nodesByParent.get(pid).push(node);
-            }
-
-            // 2. Procesar cada grupo de hermanos
-            for (const siblings of nodesByParent.values()) {
-                if (siblings.length <= 1) {
-                    // Si solo hay un hijo (o ninguno), no hay subniveles que aplicar
-                    siblings.forEach(node => {
-                        if (!node.tags) node.tags = []; // Asegurar que 'tags' exista
-                        node.tags.push('sub-level-0');
-                    });
-                    continue;
-                }
-
-                // 3. Obtener los niveles jerárquicos únicos de este grupo de hermanos
-                // Usamos 'order' que ya definiste (ej. 1, 2, 3, 4...)
-                const uniqueLevels = [...new Set(siblings.map(s => s.order))];
-                uniqueLevels.sort((a, b) => a - b); // Ordenar de menor a mayor (ej. [2, 3, 5])
-
-                // 4. Mapear el 'nivel' real (order) a su 'índice' de subnivel (ej. 0, 1, 2)
-                // { 2 => 0, 3 => 1, 5 => 2 }
-                const levelIndexMap = new Map();
-                uniqueLevels.forEach((level, index) => {
-                    levelIndexMap.set(level, index);
-                });
-
-                // 5. Asignar el tag de subnivel correcto a cada nodo hermano
-                for (const node of siblings) {
-                    const subLevelIndex = levelIndexMap.get(node.order);
-                    
-                    if (!node.tags) node.tags = []; // Asegurar que 'tags' exista
-                    
-                    const subLevelTag = `sub-level-${subLevelIndex}`;
-                    node.tags.push(subLevelTag);
-
-                    // Opcional: Añadir el tag para la línea punteada si no es el nivel principal
-                    if (subLevelIndex > 0) {
-                        node.tags.push("sublevel-node"); // Ya usabas este tag
-                    }
-                }
-            }
-            console.log("Post-procesamiento de subniveles completado.");
-            // --- FIN DEL NUEVO BLOQUE DE CÓDIGO ---
 
           isDataReady = true;
 
@@ -1221,14 +1210,14 @@
             "sub-level-0": { subLevels: 0, levelSeparation: 20 },
             "sub-level-1": { subLevels: 1, levelSeparation: 20 },
             "sub-level-2": { subLevels: 2, levelSeparation: 20 },
-            "sub-level-3": { subLevels: 3, levelSeparation: 20 }, // Tuve un 'levelSeparation' extra aquí
-            "sub-level-4": { subLevels: 4, levelSeparation: 20 }, // NUEVO
-            "sub-level-5": { subLevels: 5, levelSeparation: 20 }, // NUEVO
-            "sub-level-6": { subLevels: 6, levelSeparation: 20 }, // NUEVO
-            "sub-level-7": { subLevels: 7, levelSeparation: 20 }, // NUEVO
-            "sub-level-8": { subLevels: 8, levelSeparation: 20 }, // NUEVO
-            "sub-level-9": { subLevels: 9, levelSeparation: 20 }, // NUEVO
-            "sub-level-10": { subLevels: 10, levelSeparation: 20 }, // NUEVO
+            "sub-level-3": { subLevels: 3, levelSeparation: 20 }, 
+            "sub-level-4": { subLevels: 4, levelSeparation: 20 }, 
+            "sub-level-5": { subLevels: 5, levelSeparation: 20 }, 
+            "sub-level-6": { subLevels: 6, levelSeparation: 20 }, 
+            "sub-level-7": { subLevels: 7, levelSeparation: 20 }, 
+            "sub-level-8": { subLevels: 8, levelSeparation: 20 }, 
+            "sub-level-9": { subLevels: 9, levelSeparation: 20 }, 
+            "sub-level-10": { subLevels: 10, levelSeparation: 20 },
             filter: {
               template: "dot",
             },
@@ -1392,8 +1381,6 @@
 
           //CUANDO SE CIERRA UN NODO SE CIERRAN TODOS LOS NODOS HIJOS Y AL ABRIR VA DE 1 EN 1
           chart.onExpandCollpaseButtonClick((args) => {
-            // Usamos 'sender' (el gráfico) y 'args' (la info del evento)
-
             const nodeId = args.id;
             const node = chart.getNode(nodeId);
 
@@ -1641,53 +1628,6 @@
             //procesarLoginDeUsuario();
           });
 
-          //////// NODO con height Dinámico
-          /* 
-                chart.on('field', function (sender, args) {
-                    console.log("Field event:", args);
-                    if (args.name == 'img') {
-                        let text1 = args.data["nombre"];
-                        let text2 = args.data["puesto"];
-                        let img = args.data["img"];
-
-                        args.value = `<foreignobject x="10" y="10" width="200" height="200">
-                                            <div class="fields" xmlns="http://www.w3.org/1999/xhtml" >
-                                                ${text1 ? '<p>' + text1 + '</p>' : ''}
-                                                ${text2 ? '<p>' + text2 + '</p>' : ''}
-                                                ${img ? '<img src="' + img + '" alt="Imagen" />' : ''}
-                                            </div>
-                                        </foreignobject>`;
-                    }
-                });
-
-                
-
-
-                chart.on('node-initialized', function (sender, args) {
-                    let node = args.node;
-                    let data = chart._get(node.id);
-                    console.log(data)
-                    if (data.nombre) {
-                        let text1 = data["nombre"];
-                        let text2 = data["puesto"];
-                        let img = data["img"];
-
-                        let sss = `<foreignobject  x="10" y="10" width="200" height="20">
-                                            <div class="fields">
-                                                ${text1 ? '<p>' + text1 + '</p>' : ''}
-                                                ${text2 ? '<p>' + text2 + '</p>' : ''}
-                                                ${img ? '<img src="' + img + '" alt="Imagen" />' : ''}
-                                            </div>
-                                        </foreignobject>`;
-
-                        document.getElementById('test_height').innerHTML = sss;
-
-                        let rect1 = document.querySelector('#test_height .fields').getBoundingClientRect();
-
-                        node.h = rect1.height + 45;
-                    }
-                }); */
-
         //   statusDiv.style.display = "none"; // Ocultar "Cargando..."
           loaderOverlay.classList.remove("visible");
         } catch (error) {
@@ -1748,13 +1688,9 @@
               if (pid === "0" || pid === id) pid = undefined;  // Evitar auto-referencia
 
               // Lógica de Tags
-              const subLevelTag = getSubLevelTag(cargo.nivelJerarquico);
               const levelTag = `level-${cargo.nivelJerarquico || "99"}`;
               let tags = [levelTag];
-              if (subLevelTag !== "sub-level-0") {
-                tags.push(subLevelTag);
-                tags.push("sublevel-node");
-              }
+              
               if (isVacant) {
                 tags.push("vacante");
               }
@@ -1822,6 +1758,9 @@
           const sanitizedCargoNodes =
             sanitizeCircularReferences(balkanCargoNodes);
 
+          // Aplicamos la misma lógica de subniveles relativos
+          aplicarSubnivelesRelativos(sanitizedCargoNodes);
+          
           // Cargar la nueva data en el chart
           // 1. Guardar data (ya no se carga todo)
           allCargoNodes = sanitizedCargoNodes;
