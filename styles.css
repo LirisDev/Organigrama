@@ -768,3 +768,75 @@ div.boc-node.level-6[data-n-id] {
 #custom-details-form #details-img {
     display: none;
 }
+
+/* --- CSS para Ocultar/Mostrar el Buscador --- */
+
+/* 1. Ocultar el buscador (que Balkan crea) por defecto */
+div.boc-search {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: opacity 0.3s ease 0s;
+}
+
+/* 2. Clase para mostrar el buscador cuando hacemos clic */
+div.boc-search.is-visible {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    
+    /* ¡AJUSTE AQUÍ! Lo movemos más a la derecha */
+    /* Icono (70px) + Ancho icono (40px) + Espacio (10px) = 120px */
+    right: 120px !important; 
+    top: 20px !important;
+}
+        
+/* 3. Estilo para NUESTRO icono (el que crearemos con JS) */
+#custom-search-icon {
+    position: absolute;
+    top: 20px;
+    /* Lo dejamos en 70px (al lado del menú de 3 rayas que está en 20px) */
+    right: 70px; 
+    
+    /* Estilos de botón */
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 1001; 
+    transition: background-color 0.2s;
+
+    margin-top: 9px; 
+    box-sizing: border-box;
+}
+
+/* Estilo del SVG (la lupa) dentro de nuestro botón */
+#custom-search-icon svg {
+    width: 20px;
+    height: 20px;
+    stroke: #555;
+    stroke-width: 2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+#custom-search-icon:hover {
+    background-color: #f5f5f5;
+}
+
+
+/* 3. (OPCIONAL) Ajuste visual del icono de la lupa */
+div[data-ctrl-search] {
+    top: 20px !important;
+    right: 70px !important;
+}
+
+.search-item-hovered rect{
+    fill: #F57C00;
+}
