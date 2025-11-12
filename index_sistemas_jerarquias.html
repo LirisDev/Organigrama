@@ -121,11 +121,9 @@
       let isCargoDataReady = false; // Bandera para saber si ya cargamos la data de cargo
       let filteredNodes = [];
 
-      //TODO: Hacer que los manuales salgan como en los procesos, con el pdf que se muestre.
-      //TODO: desde gerente planta balanceado no aparecen auxiliares, lo mismo para planta aves gerente de operacion, auxiliares operativos, 
+      //TODO: Corregir el bug inicial y que se muestre mis manuales
       //TODO: Bloquear los filtros para que otras personas no vean otros departamentos, solo lo suyo excepto algunos casos, CONSULTAR
       //TODO: Mejorar el diseño de los select
-      //TODO: Revisar los casos en que hay cargos que no reportan a nadie y ver similitudes entre vista cargo y vista empleados
 
       // --- Referencias a divs de estado ---
       const loaderOverlay = document.getElementById("chart-loader-overlay");
@@ -457,12 +455,12 @@
         // if (!codEmp || !depParam) {
         //     console.warn(`Faltan datos para generar el manual de ${tipo}.`, nodeData);
         //     return null; // No podemos construir la URL
-        // }
+        // } 
 
-        // Construir y devolver la URL
-        return `https://soporte.liris.com.ec/rhh/frameMain.aspx?Carpeta=${encodeURIComponent(
+        return `http://192.168.127.162/rhh/visor.html?Carpeta=${encodeURIComponent(
           carpeta
-        )}&CodEmp=${codEmp || ""}&DepartMyProcessId=`//${depParam}`;
+        )}&CodEmp=${codEmp || ""}&DepartMyProcessId=${depParam}`;
+
       }
 
       /* FUNCION PARA ITERAR AL MOMENTO DE COLAPSAR NODOS */
