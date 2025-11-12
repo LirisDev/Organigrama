@@ -121,8 +121,11 @@
       let isCargoDataReady = false; // Bandera para saber si ya cargamos la data de cargo
       let filteredNodes = [];
 
-    //TODO: Mejorar el diseño de los select
-    //TODO: Revisar los casos en que hay cargos que no reportan a nadie y ver similitudes entre vista cargo y vista empleados
+      //TODO: Hacer que los manuales salgan como en los procesos, con el pdf que se muestre.
+
+      //TODO: Bloquear los filtros para que otras personas no vean otros departamentos, solo lo suyo excepto algunos casos, CONSULTAR
+      //TODO: Mejorar el diseño de los select
+      //TODO: Revisar los casos en que hay cargos que no reportan a nadie y ver similitudes entre vista cargo y vista empleados
 
       // --- Referencias a divs de estado ---
       const loaderOverlay = document.getElementById("chart-loader-overlay");
@@ -457,7 +460,7 @@
         // }
 
         // Construir y devolver la URL
-        return `https://soporte.liris.com.ec/rhh/UserDocsF.aspx?Carpeta=${encodeURIComponent(
+        return `https://soporte.liris.com.ec/rhh/frameMain.aspx?Carpeta=${encodeURIComponent(
           carpeta
         )}&CodEmp=${codEmp || ""}&DepartMyProcessId=`//${depParam}`;
       }
@@ -1565,8 +1568,8 @@
               statusDiv.innerText = "Cargando vista de Personas...";
               statusDiv.style.display = "block";
 
-              // chart.config.template = "fichaTemplate";
-              // chart.config.nodeBinding = personaBinding;
+              chart.config.template = "fichaTemplate";
+              chart.config.nodeBinding = personaBinding;
 
               const sourceNodes = allNodes;
               /// --- Repoblar y Restaurar Cascada ---
