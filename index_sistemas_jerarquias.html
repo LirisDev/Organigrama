@@ -122,7 +122,7 @@
       let filteredNodes = [];
 
       //TODO: Hacer que los manuales salgan como en los procesos, con el pdf que se muestre.
-
+      //TODO: desde gerente planta balanceado no aparecen auxiliares, lo mismo para planta aves gerente de operacion, auxiliares operativos, 
       //TODO: Bloquear los filtros para que otras personas no vean otros departamentos, solo lo suyo excepto algunos casos, CONSULTAR
       //TODO: Mejorar el diseño de los select
       //TODO: Revisar los casos en que hay cargos que no reportan a nadie y ver similitudes entre vista cargo y vista empleados
@@ -1144,8 +1144,14 @@
             '</div>' +
             '</foreignObject>';
         
-        // 5. ¡IMPORTANTE! Matamos el field_2 (botón azul) heredado
+        // 5. ¡IMPORTANTE! Matamos el field_2 
         OrgChart.templates.vacanteTemplate.field_2 = "";
+            //     OrgChart.templates.vacanteTemplate.field_2 = // "PUESTO VACANTE"
+            // '<foreignObject x="10" y="95" width="230" height="20">' +
+            // '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-style: italic; color: #e0e0e0; line-height: 1.2; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
+            // '{val}' +
+            // '</div>' +
+            // '</foreignObject>';
 
           // --- 2.1 DEFINIR BINDINGS (MAPEOS) ---
           // (Mueve tu binding de persona aquí para tener ambos)
@@ -1798,7 +1804,13 @@
 
           // --- Transformación de "Cargo" ---
           const balkanCargoNodes = flatApiData
-            .filter((cargo) => cargo && cargo.codigoPosicion != '00006') // Filtro básico
+            .filter((cargo) => cargo && cargo.codigoPosicion != '00006' 
+                          && cargo.codigoPosicionReporta != "00424"   //Este id no aparece en la api pero si en la viewEmployeers
+                          //&& !(cargo.codigoPosicionReporta === '00006' && cargo.codigoPosicion !== '00001')  
+                          //&& !['00006', '00416', '00330', '00353'].includes(cargo.codigoPosicion) 
+                          && cargo.puesto != null
+
+                    ) // Filtro básico
             .map((cargo) => {
               const isVacant = cargo.esVacante === "1";
               const id = String(cargo.codigoPosicion).trim();
@@ -1843,6 +1855,9 @@
                         cargoPersonaDisplay = "Sin Asignar";
                     }
                 }
+                else {
+                  //cargoPersonaDisplay = cargo.codigoPosicionReporta
+                }
 
               return {
                 id,
@@ -1854,6 +1869,7 @@
                 cargoPuesto: cargo.puesto || "Puesto N/A",
                 cargoPersona: cargoPersonaDisplay, // "3 PERSONAS ASIGNADAS" o "Nombre Apellido"
                 cargoDepto: cargo.nombreDepartamento || "N/A",
+                //cargoDepto: cargo.codigoPosicion,//cargo.nombreDepartamento || "N/A", //WIP: prueba para sabeer codPosicion de la gente
 
                 // Campos para los filtros
                 lineaNegocio: cargo.nombreLineaNegocio || "N/A",
