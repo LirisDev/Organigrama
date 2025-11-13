@@ -114,6 +114,7 @@
       let receivedUserId = null; // Guardará el 'userId' formateado (ej. "interno\drendon")
       let isDataReady = false; // Una "bandera" para saber si 'allNodes' está cargado
       let empleadoLogueado = null; // Guardará el objeto del empleado una vez encontrado
+      let usuarioPuedeVerTodo = false; // Variable global de permiso
     
       let chart = null;
       let allNodes = []; // Aquí guardaremos todos los nodos (Estos son los nodos de "Persona")
@@ -123,7 +124,6 @@
 
       //TODO: Corregir el bug inicial
       //TODO: si tiene una sola opcion en ceentro de costos o marketing que la seleccione automaticamente, en el orden debido
-      //TODO: Bloquear los filtros para que otras personas no vean otros departamentos, solo lo suyo excepto algunos casos, CONSULTAR
 
       // --- Referencias a divs de estado ---
       const loaderOverlay = document.getElementById("chart-loader-overlay");
@@ -470,6 +470,22 @@
 
       }
 
+      /* FUNCION PARA HABILITAR/DESHABILITAR FILTROS */
+      function actualizarEstadoFiltros() {
+          const selectIds = "#linea-negocio-select, #centro-costos-select, #departamento-select";
+          if (usuarioPuedeVerTodo) {
+              // Habilitar si tiene permiso
+              console.log("🔐 Actualizando UI: Filtros HABILITADOS.");
+              $(selectIds).prop("disabled", false);
+          } else {
+              // Deshabilitar si no tiene permiso
+              console.log("🔐 Actualizando UI: Filtros DESHABILITADOS.");
+              $(selectIds).prop("disabled", true);
+          }
+          // Notificar a Select2 del cambio de estado para que actualice la UI (grisado)
+          $(selectIds).trigger("change.select2");
+      }
+
       /* FUNCION PARA ITERAR AL MOMENTO DE COLAPSAR NODOS */
       function iterate(c, n, collapseIds, excludeId) {
         if (excludeId != n.id) {
@@ -500,9 +516,55 @@
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
         /* 
         if (!receivedUserId) {
-          receivedUserId = "interno\\dromero";
+          //receivedUserId = "interno\\2300070659"; //Auxiliar
+          receivedUserId = "interno\\dromero"; //Auxiliar
           console.log("Usando usuario interno\\dromero para pruebas");
         } //*/
+
+        // --- 🔐 INICIO LÓGICA DE PERMISOS ---
+        // 1. Siempre buscamos en 'allNodes' (Vista Persona) para obtener
+        //    los datos de permiso (puesto y codPosicion_R)
+        let personaDataCompleta = null;
+        if (receivedUserId) { // Solo si hemos recibido un ID
+            personaDataCompleta = allNodes.find(
+                n => n.userid && n.userid.toLowerCase() === receivedUserId
+            );
+        }
+
+        if (personaDataCompleta) {
+            const puesto = (personaDataCompleta.puesto || "").toLowerCase();
+            // Usamos 'codPosicion_R' de la API de Persona
+            const codPosReporta = personaDataCompleta.codPosicion_R || null; 
+
+            // 2. Aplicar la lógica de permisos que definiste
+            const puedeVer =
+                puesto.includes("gerente") ||
+                puesto.includes("presidente") ||
+                puesto.includes("jefe") ||
+                puesto.includes("analista de procesos") ||
+                puesto.includes("asistente de desarrollo") ||
+                puesto.includes("ingeniero de desarrollo") ||
+                puesto.includes("analista") ||
+                puesto.includes("coordinador") ||
+                puesto.includes("administrador") ||
+                puesto.includes("auditor") ||
+                puesto.includes("auditor senior") ||
+                puesto.includes("supervisor") ||
+                codPosReporta === "00001" ||
+                codPosReporta === null; // Raíz (reporta a '0' o null)
+
+            usuarioPuedeVerTodo = puedeVer; // 3. Actualizar variable global
+        } else {
+            // Si no se encontró (ej. usuario 'admin' de WP), default a NO ver todo
+            usuarioPuedeVerTodo = false; 
+        }
+        
+        if (usuarioPuedeVerTodo) {
+            console.log("🔐 Permiso Concedido: Ver Todo");
+        } else {
+            console.log("🔐 Permiso Denegado: Vista Restringida");
+        }
+        // --- 🔐 FIN LÓGICA DE PERMISOS ---
 
         // Asegurarnos de usar la fuente de datos correcta según el modo
         const currentMode = document.getElementById("modo-select").value;
@@ -617,8 +679,8 @@
             aplicarFiltrosJerarquicos();
           }
         }
-        // Evitamos que se ejecute múltiples veces
-        //receivedUserId = null;
+        //    DESPUÉS de que la cascada haya terminado de poblarlos.
+        actualizarEstadoFiltros();
       }
 
       // --- Función Sanitize (para evitar bucles infinitos) ---
@@ -1029,7 +1091,7 @@
                   rutaManual: emp.rutaManual || "Sin manual asignado",
 
                   codDepAx: emp.codDepAx || null,
-                  codDepartamento: emp.codigoDepartamento || null,
+                  codDepartamento: emp.codigoDepartamento || null, //TODO: en la api de personas no tienen codigoDepartamento
                   order,
                 };
               }
@@ -1397,6 +1459,19 @@
           /////////////////////////
           chart = new OrgChart(treeDiv, chartConfig);
 
+          //CUANDO SE DA CLICK A UN NODO SE MUESTRA LA INFORMACIÓN DE ESTE EN CONSOLA
+          chart.on('click', function(sender, args){
+            // sender es la instancia del gráfico
+            // args.node.id es el ID del nodo que clickeaste
+            
+            // sender.get() obtiene el objeto de datos completo para ese ID
+            const nodeData = sender.get(args.node.id);
+            
+            console.log("--- 🖱️ NODO CLICKEADO ---");
+            console.log(nodeData);
+            console.log("--------------------------");
+        });
+
           //CUANDO SE CIERRA UN NODO SE CIERRAN TODOS LOS NODOS HIJOS Y AL ABRIR VA DE 1 EN 1
           chart.onExpandCollpaseButtonClick((args) => {
             const nodeId = args.id;
@@ -1670,6 +1745,9 @@
               loadAndRenderCargoChart(apiCargoUrl, filtrosGuardados);
               chart.config.searchFields = ["cargoPuesto", "cargoPersona"];
             }
+            // Esto reaplicará el estado (bloqueado o desbloqueado) a los filtros
+            // después de que hayan sido repoblados para la nueva vista.
+            actualizarEstadoFiltros();
           });
 
           chart.searchUI.on("searchclick", function (sender, args) {
@@ -1915,13 +1993,14 @@
                 // Campos para el template 'cargoTemplate'
                 cargoPuesto: cargo.puesto || "Puesto N/A",
                 cargoPersona: cargoPersonaDisplay, // "3 PERSONAS ASIGNADAS" o "Nombre Apellido"
-                cargoDepto: cargo.nombreDepartamento || "N/A",
+                cargoDepto: (primerEmpleado ? primerEmpleado.nombreDepartamento : cargo.nombreDepartamento) || "N/A",
                 //cargoDepto: cargo.codigoPosicion,//cargo.nombreDepartamento || "N/A", //WIP: prueba para sabeer codPosicion de la gente
 
                 // Campos para los filtros
-                lineaNegocio: cargo.nombreLineaNegocio || "N/A",
-                centroCosto: cargo.nombreCentroCosto || "N/A",
-                departamento: cargo.nombreDepartamento || "N/A",
+                lineaNegocio: (primerEmpleado ? primerEmpleado.nombreLineaNegocio : cargo.nombreLineaNegocio) || "N/A",
+                centroCosto: (primerEmpleado ? primerEmpleado.nombreCentroCosto : cargo.nombreCentroCosto) || "N/A",
+                departamento: (primerEmpleado ? primerEmpleado.nombreDepartamento : cargo.nombreDepartamento) || "N/A",
+
 
                 // Guardamos el ARRAY de empleados completo para el modal
                 listaEmpleados: listaEmpleados,
