@@ -122,7 +122,6 @@
       let filteredNodes = [];
 
       //TODO: Corregir el bug inicial
-      //TODO: ponerle nombre y puesto en el search
       //TODO: si tiene una sola opcion en ceentro de costos o marketing que la seleccione automaticamente, en el orden debido
       //TODO: Bloquear los filtros para que otras personas no vean otros departamentos, solo lo suyo excepto algunos casos, CONSULTAR
 
@@ -458,7 +457,8 @@
         //     return null; // No podemos construir la URL
         // } 
 
-        return `http://192.168.127.162/rhh/visor.html?Carpeta=${encodeURIComponent(
+        //return `http://192.168.127.162/rhh/visor.html?Carpeta=${encodeURIComponent(
+        return `https://soporte.liris.com.ec/rhh/visor.html?Carpeta=${encodeURIComponent(
           carpeta
         )}&CodEmp=${codEmp || ""}&DepartMyProcessId=${depParam}`;
 
