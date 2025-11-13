@@ -123,6 +123,7 @@
       let filteredNodes = [];
 
       //TODO: Corregir el bug inicial
+      //TODO: poner highlight
       //TODO: si tiene una sola opcion en ceentro de costos o marketing que la seleccione automaticamente, en el orden debido
 
       // --- Referencias a divs de estado ---
@@ -831,6 +832,8 @@
           option.textContent = value;
           selectElement.appendChild(option);
         });
+        // Devolvemos las opciones que encontramos
+        return sortedValues;
       }
 
       ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
@@ -1608,67 +1611,94 @@
               selectedLinea === "todos"
                 ? sourceNodes // Todos los nodos
                 : sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
-            populateSelect(
-              "centro-costos-select",
-              "centroCosto",
-              nodosParaCostos
-            );
+            const sortedCostos = populateSelect(
+              "centro-costos-select",
+              "centroCosto",
+              nodosParaCostos
+            );
+            
+            // 3. Notificar a Select2 del cambio en Costo
+            $("#centro-costos-select").trigger("change.select2");
 
-            // 3. Repoblar Departamento (basado en la línea)
-            // (Si la línea cambia, el depto debe reflejar solo esa línea)
-            const nodosParaDeptos =
-              selectedLinea === "todos"
-                ? sourceNodes
-                : sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
-            populateSelect(
-              "departamento-select",
-              "departamento",
-              nodosParaDeptos
-            );
+            // --- 4. ¡LÓGICA DE AUTO-SELECCIÓN! ---
+            if (sortedCostos.length === 1) {
+              // Hay solo 1 costo, auto-seleccionar Y DISPARAR SU 'CHANGE'.
+              // El handler de Costo se encargará de poblar Depto y aplicar el filtro.
+              console.log("Auto-seleccionando Centro de Costo:", sortedCostos[0]);
+              $("#centro-costos-select").val(sortedCostos[0]).trigger("change");
+            } else {
+              // Hay múltiples costos (o 0), así que la cascada se detiene aquí.
+              // Debemos poblar manualmente el Depto (basado en "Todos" los costos)
+              // y luego aplicar el filtro nosotros mismos.
+              console.log("LíneaNegocio: Múltiples costos, poblando Depto y aplicando filtro.");
+              
+              // Nodos para Depto (basado en Línea, pero Costo="todos")
+              const nodosParaDeptos =
+                selectedLinea === "todos"
+                  ? sourceNodes
+                  : sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
+              
+              populateSelect(
+                "departamento-select",
+                "departamento",
+                nodosParaDeptos
+              );
+              $("#departamento-select").trigger("change.select2"); // Notificar a Select2
 
-            // 4. Notificar a Select2 de TODOS los cambios
-            $(".control-select").trigger("change.select2");
-
-            // 5. Aplicar el filtro final
-            aplicarFiltrosJerarquicos();
+              // Aplicar el filtro (Línea=Seleccionada, Costo=todos, Depto=todos)
+              aplicarFiltrosJerarquicos();
+}
           });
 
           // 3. Listener para CENTRO DE COSTO
-          $("#centro-costos-select").on("change", function () {
-            const selectedLinea = $("#linea-negocio-select").val();
-            const selectedCosto = $(this).val();
-            const sourceNodes =
-              document.getElementById("modo-select").value === "Cargo"
-                ? allCargoNodes
-                : allNodes;
+          // 3. Listener para CENTRO DE COSTO
+          $("#centro-costos-select").on("change", function () {
+            console.log("Filtro Maestro: Centro de Costo cambió."); 
+            const selectedLinea = $("#linea-negocio-select").val();
+            const selectedCosto = $(this).val();
+            const sourceNodes =
+              document.getElementById("modo-select").value === "Cargo"
+                ? allCargoNodes
+                : allNodes;
 
-            // 1. Limpiar Departamento
-            $("#departamento-select").val("todos");
+            // 1. Limpiar Departamento
+            $("#departamento-select").val("todos");
 
-            // 2. Repoblar Departamento (basado en línea Y costo)
-            let nodosParaDeptos = sourceNodes;
-            if (selectedLinea !== "todos") {
-              nodosParaDeptos = nodosParaDeptos.filter(
-                (n) => n.lineaNegocio === selectedLinea
-              );
-            }
-            if (selectedCosto !== "todos") {
-              nodosParaDeptos = nodosParaDeptos.filter(
-                (n) => n.centroCosto === selectedCosto
-              );
-            }
-            populateSelect(
-              "departamento-select",
-              "departamento",
-              nodosParaDeptos
-            );
+            // 2. Repoblar SOLO el SIGUIENTE filtro: Departamento (basado en línea Y costo)
+            let nodosParaDeptos = sourceNodes;
+            if (selectedLinea !== "todos") {
+              nodosParaDeptos = nodosParaDeptos.filter(
+                (n) => n.lineaNegocio === selectedLinea
+              );
+            }
+            if (selectedCosto !== "todos") {
+              nodosParaDeptos = nodosParaDeptos.filter(
+                (n) => n.centroCosto === selectedCosto
+              );
+            }
+            
+            const sortedDeptos = populateSelect(
+              "departamento-select",
+              "departamento",
+              nodosParaDeptos
+            );
 
-            // 3. Notificar a Select2
-            $("#departamento-select").trigger("change.select2");
+            // 3. Notificar a Select2
+            $("#departamento-select").trigger("change.select2");
 
-            // 4. Aplicar el filtro final
-            aplicarFiltrosJerarquicos();
-          });
+            // --- 4. ¡LÓGICA DE AUTO-SELECCIÓN! ---
+            if (sortedDeptos.length === 1) {
+              // Hay solo 1 depto, auto-seleccionar Y DISPARAR SU 'CHANGE'.
+              // El handler de Depto se encargará de aplicar el filtro.
+              console.log("Auto-seleccionando Departamento:", sortedDeptos[0]);
+            $("#departamento-select").val(sortedDeptos[0]).trigger("change");
+            } else {
+              // Hay múltiples deptos (o 0), así que la cascada se detiene aquí.
+              // Aplicamos el filtro nosotros mismos.
+              console.log("CentroCosto: Múltiples deptos, aplicando filtro.");
+              aplicarFiltrosJerarquicos();
+            }
+          });
 
           // 4. Listener para DEPARTAMENTO (el más simple)
           $("#departamento-select").on("change", aplicarFiltrosJerarquicos);
