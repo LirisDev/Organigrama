@@ -838,5 +838,87 @@ div[data-ctrl-search] {
 }
 
 .search-item-hovered rect{
-    fill: #F57C00;
+    fill: var(--color-primario);
+}
+
+/* Contenedor principal del select */
+.select2-container--default .select2-selection--single {
+  background-color: #f8f9fa !important;
+  border: 1px solid #ced4da !important;
+  border-radius: 6px !important;
+  height: 38px !important;
+  display: flex !important;
+  align-items: center !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+/* Sombra azul y borde más marcado al pasar el mouse o enfocar */
+.select2-container--default .select2-selection--single:hover,
+.select2-container--default.select2-container--open .select2-selection--single {
+  border-color: var(--color-primario) !important;
+  box-shadow: 0 0 0 1px var(--color-primario-hover) !important;
+}
+
+/* Texto dentro del select */
+.select2-container--default .select2-selection__rendered {
+  color: #495057 !important;
+  font-size: 0.95rem !important;
+  line-height: 38px !important;
+  padding-left: 10px !important;
+}
+
+/* Flecha del dropdown */
+.select2-container--default .select2-selection__arrow {
+  height: 38px !important;
+  right: 8px !important;
+  top: 0 !important;
+}
+
+/* Estilo del menú desplegable */
+.select2-container--default .select2-results > .select2-results__options {
+  max-height: 180px !important;
+  overflow-y: auto !important;
+  font-size: 0.95rem !important;
+}
+
+/* Opción resaltada */
+.select2-container--default .select2-results__option--highlighted {
+  background-color: var(--color-primario) !important;
+  color: #fff !important;
+}
+
+/* Asegura el ancho correcto */
+.select2-container {
+  width: 220px !important;
+}
+
+
+
+
+/*
+ * =========================================
+ * ESTILOS PARA LA LISTA DEL BUSCADOR (CON SCROLL)
+ * =========================================
+ */
+
+/* * 1. Apunta al contenedor de la tabla de resultados.
+ * El !important es necesario para ganar la batalla de especificidad
+ * contra los estilos que la librería aplica dinámicamente.
+*/
+.boc-search > div:last-child {
+    /* * Altura de 5 items. 
+     * Asumimos 50px por item (40px de alto + 10px de padding/margen).
+     * Puedes ajustar este valor si tus items son más altos o bajos.
+     */
+    max-height: 250px !important; 
+    overflow-y: auto !important;  /* ¡Añade el scroll vertical! */
+    
+    /* (Opcional) Estilos para que se vea bien el contenedor con scroll */
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+/* (Opcional) Asegurar que los items tengan una altura fija */
+.boc-search-result table tr {
+    height: 50px; 
 }

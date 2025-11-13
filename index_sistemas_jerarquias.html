@@ -121,9 +121,10 @@
       let isCargoDataReady = false; // Bandera para saber si ya cargamos la data de cargo
       let filteredNodes = [];
 
-      //TODO: Corregir el bug inicial y que se muestre mis manuales
+      //TODO: Corregir el bug inicial
+      //TODO: ponerle nombre y puesto en el search
+      //TODO: si tiene una sola opcion en ceentro de costos o marketing que la seleccione automaticamente, en el orden debido
       //TODO: Bloquear los filtros para que otras personas no vean otros departamentos, solo lo suyo excepto algunos casos, CONSULTAR
-      //TODO: Mejorar el diseño de los select
 
       // --- Referencias a divs de estado ---
       const loaderOverlay = document.getElementById("chart-loader-overlay");
@@ -1263,7 +1264,7 @@
               nombre: 100, //percent
               puesto: 20, //percent
             },
-            searchDisplayField: "puesto",
+            searchDisplayField: "nombre",
             /* anim: {
                 func: OrgChart.anim.inCirc, // Prueba con outSin o outBack para una sensación más suave
                 duration: 400 // Aumenta la duración a 400ms (o más, como 500ms)
@@ -1384,8 +1385,8 @@
           ];
           OrgChart.aiUI.title = "AI for LIRIS S.A."; //
           OrgChart.SEARCH_PLACEHOLDER = "Buscar por nombre o puesto...";
-          OrgChart.SEARCH_RESULT_LIMIT = 5; // Limita la lista a 5 resultados. El valor por defecto es 5. //TODO: consultar si está bien
-
+          //OrgChart.SEARCH_RESULT_LIMIT = 5; // Limita la lista a 5 resultados. El valor por defecto es 5. //TODO: consultar si está bien
+          OrgChart.SEARCH_RESULT_LIMIT = Number.MAX_SAFE_INTEGER; 
 
           /////////////////////////
           chart = new OrgChart(treeDiv, chartConfig);
@@ -1404,9 +1405,8 @@
               iterate(chart, node, collapseIds, nodeId);
 
               // Colapsa los nodos y, una vez completada la animación, ajusta la vista
-              chart.expandCollapse(nodeId, [], collapseIds, function () {
-                chart.fit(); // Ajusta el organigrama a la pantalla
-              });
+              chart.expandCollapse(nodeId, [], collapseIds)
+              //   chart.fit(); // Ajusta el organigrama a la pantalla
             } else {
               // --- Lógica de Expansión Superficial ---
               // Lógica para expandir solo los hijos directos y mantener los nietos colapsados
@@ -1427,29 +1427,63 @@
                     }
                   });
                   // Ajusta la vista después de todas las operaciones de expansión/colapso
-                  chart.fit(); // Ajusta el organigrama a la pantalla
+                  //chart.fit(); // Ajusta el organigrama a la pantalla
                 });
               } else {
                 // Si el nodo no tiene hijos (es una hoja) o no se aplica la lógica de "solo hijos directos",
                 // permite la expansión predeterminada (que no hará nada visualmente para una hoja)
                 // y luego ajusta la vista.
-                chart.expand(nodeId, "all", function () {
-                  chart.fit(); // Ajusta el organigrama a la pantalla
-                });
+                chart.expand(nodeId, "all")
+
               }
             }
 
             // --- LÓGICA DE FIT ---
             // Lo ejecutamos después de un breve retraso para que la animación termine
             setTimeout(() => {
-              sender.center(nodeId, null, function() {
-                    sender.fit(); // Ajustar después de la animación de orientación
-                  });
+              chart.center(nodeId, null, null)
             }, 100); // 100ms de retraso
 
             // Prevenimos el comportamiento por defecto (que "recuerda" el estado)
             return false;
           });
+
+          // 2. Sobrescribe el método OrgChart.searchUI.createItem
+          //    Este método es responsable de generar el HTML para cada elemento de la lista de resultados.
+          // OrgChart.searchUI.createItem = function (img, id, first, second) {
+          //     // 'this' dentro de esta función se refiere a la instancia de searchUI,
+          //     // que a su vez tiene una referencia a la instancia del gráfico.
+          //     const chartInstance = this.instance;
+          //     const nodeData = chartInstance.get(id); // Obtén los datos completos del nodo usando su ID
+
+          //     const name = nodeData.nombre || '';  // Asume que el nombre está en el campo 'name'
+          //     const title = nodeData.puesto || ''; // Asume que el puesto está en el campo 'title'
+
+          //     // Retorna el HTML personalizado para el elemento de la lista de búsqueda
+          //     return `<tr data-search-item-id="${id}">
+          //                 <td class="boc-search-image-td">
+          //                     <div class="boc-search-img" style="background-image: url(${img})"></div>
+          //                 </td>
+          //                 <td class="boc-search-text-td">
+          //                     <div class="boc-search-nombre">${name}</div>
+          //                     <div class="boc-search-puesto" style="font-size: 0.8em; color: #666;">${title}</div>
+          //                 </td>
+          //             </tr>`;
+          // };
+
+          // // Opcional: Si quieres mantener el límite visual de 5 y el scroll, 
+          // // aplica los estilos CSS como se explicó anteriormente.
+          // // Esto debe hacerse después de que el gráfico esté listo y los resultados se muestren.
+          // chart.searchUI.on('show-items', function(sender, args) {
+          //     const searchResultsWrapper = sender.searchTableWrapper;
+          //     if (searchResultsWrapper) {
+          //         searchResultsWrapper.style.maxHeight = '250px'; // Ajusta esta altura según el tamaño de tus elementos
+          //         searchResultsWrapper.style.overflowY = 'auto';
+          //         searchResultsWrapper.style.border = '1px solid #ccc'; 
+          //         searchResultsWrapper.style.boxSizing = 'border-box';
+          //         searchResultsWrapper.style.padding = '5px';
+          //     }
+          // });
 
           // Se dispara DESPUÉS de que la carga inicial Y
           // la animación 'scaleInitial: match.boundary' han terminado.
@@ -1462,10 +1496,16 @@
 
           // --- ¡LÓGICA PARA CAMBIAR DE VISTA! ---
           // 1. Inicializar Select2 en todos los selects
-          $(".control-select").select2({
-            width: "240px", // Debe coincidir con tu CSS
-            //theme: 'classic' // Asegura que use el tema 'classic'
+          // Inicializa los selects de FILTROS (con buscador)
+          $("#linea-negocio-select, #centro-costos-select, #departamento-select").select2({
+              width: "240px"
           });
+          // Inicializa el select de MODO (SIN buscador)
+          $("#modo-select").select2({
+              width: "240px",
+              minimumResultsForSearch: Infinity, // Esta línea desactiva el buscador
+          });
+
           console.log("Select2 inicializado por primera vez.");
           procesarLoginDeUsuario();
 
@@ -1574,6 +1614,7 @@
 
               chart.config.template = "fichaTemplate";
               chart.config.nodeBinding = personaBinding;
+              chart.config.searchDisplayField = "nombre"
 
               const sourceNodes = allNodes;
               /// --- Repoblar y Restaurar Cascada ---
@@ -1616,6 +1657,8 @@
 
               chart.config.template = "cargoTemplate";
               chart.config.nodeBinding = cargoBinding;
+              chart.config.searchDisplayField = "puesto"
+
 
               // Esta función ya se encarga de repoblar y filtrar
               loadAndRenderCargoChart(apiCargoUrl, filtrosGuardados);
