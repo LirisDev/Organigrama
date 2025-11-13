@@ -187,6 +187,7 @@
        */
       CustomDetailsForm.prototype.init = function (balkanInstance) {
         this.instance = balkanInstance; // Guardamos la instancia del gráfico
+        this.currentPersonData = null; 
 
         // --- 1. Encontrar los elementos del DOM ---
         this.overlay = document.getElementById("details-overlay");
@@ -239,7 +240,7 @@
 
             // 4. ¡Llamar a nuestra función helper!
             // Esto re-poblará el modal con la información de la persona seleccionada
-            this.fillPersonData({
+            const personDataForModal = {
                 id: empData.codigoEmpleado,
                 nombre: `${empData.nombre || ''} ${empData.apellido || ''}`.trim(),
                 puesto: empData.puestoEmpleado || this.data.cargoPuesto,
@@ -250,12 +251,14 @@
                 departamento: this.data.departamento,
                 codDepAx: empData.codDepAx,
                 codDepartamento: this.data.codDepartamento
-            });
+            };
+            this.currentPersonData = personDataForModal; // ACTUALIZA LA VARIABLE
+            this.fillPersonData(personDataForModal);
         });
 
         // --- Lógica de los botones de Manuales ---
         this.btnFunciones.addEventListener("click", () => {
-          const url = getManualUrl(this.data, "funciones");
+          const url = getManualUrl(this.currentPersonData, "funciones");
           if (url) {
             window.open(url, "_blank");
           } else {
@@ -266,7 +269,7 @@
         });
 
         this.btnProcedimientos.addEventListener("click", () => {
-          const url = getManualUrl(this.data, "procedimientos");
+          const url = getManualUrl(this.currentPersonData, "procedimientos");
           if (url) {
             window.open(url, "_blank");
           } else {
@@ -277,7 +280,7 @@
         });
 
         this.btnUsuario.addEventListener("click", () => {
-          const url = getManualUrl(this.data, "usuario");
+          const url = getManualUrl(this.currentPersonData, "usuario");
           if (url) {
             window.open(url, "_blank");
           } else {
@@ -358,6 +361,7 @@
             // ==================================
             // --- VISTA MODO PERSONA ---
             // ==================================
+            this.currentPersonData = this.data; 
             this.fillPersonData(this.data);
             
         } else {
@@ -370,7 +374,7 @@
             if (employeeList && employeeList.length === 1) {
                 // --- CASO 1: Cargo con 1 sola persona ---
                 const singleEmp = employeeList[0];
-                this.fillPersonData({
+                this.currentPersonData = {
                     id: singleEmp.codigoEmpleado,
                     nombre: `${singleEmp.nombre || ''} ${singleEmp.apellido || ''}`.trim(),
                     puesto: singleEmp.puestoEmpleado || this.data.cargoPuesto,
@@ -381,11 +385,13 @@
                     departamento: this.data.departamento,
                     codDepAx: singleEmp.codDepAx,
                     codDepartamento: this.data.codDepartamento
-                });
+                };
+                this.fillPersonData(this.currentPersonData);
 
             } else {
                 // --- CASO 2: Cargo con >1 persona O vacante/sin asignar ---
-                
+                this.currentPersonData = null; 
+
                 this.nameEl.textContent = this.data.cargoPuesto;
                 this.puestoEl.textContent = this.data.cargoPersona; 
                 
