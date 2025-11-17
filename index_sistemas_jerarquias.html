@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0" /> -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>Organigrama LIRIS S.A.</title>
     <!-- <script src="Balkan/orgchart.js"></script> -->
     <script src="BalkanPro/orgchart.js"></script>
@@ -82,6 +85,21 @@
     <div class="org-container">
       <header id="custom-filters">
         <div>
+          <!--           <select id="nivel-select" class="control-select" multiple="multiple">
+            <option value="0">0. Supervisión y ejecución</option>
+            <option value="1">1. Alta Dirección</option>
+            <option value="2">2. Nivel Gerencial</option>
+            <option value="3">3. GERENTES CORPORATIVO</option>
+            <option value="4">4. GERENTES DE PLANTAS</option>
+            <option value="5">5. GERENTES RETAIL</option>
+            <option value="6">6. Nivel Jefatura</option>
+            <option value="7">7. Nivel Coordinacion/Supervision</option>
+            <option value="8">8. Nivel Analitico</option>
+            <option value="9">9. Nivel Operativo</option>
+            <option value="10">10. Nivel Base u Operario</option>
+            <option value="99">99. Sin Nivel Asignado</option>
+          </select> -->
+
           <select id="linea-negocio-select" class="control-select">
             <option value="todos">TODA LÍNEA DE NEGOCIOS</option>
           </select>
@@ -102,8 +120,8 @@
 
       <main id="tree-container">
         <div id="chart-loader-overlay">
-            <div class="loader-spinner"></div>
-            <div id="loader-text">Cargando...</div>
+          <div class="loader-spinner"></div>
+          <div id="loader-text">Cargando...</div>
         </div>
         <div id="tree"></div>
       </main>
@@ -115,7 +133,7 @@
       let isDataReady = false; // Una "bandera" para saber si 'allNodes' está cargado
       let empleadoLogueado = null; // Guardará el objeto del empleado una vez encontrado
       let usuarioPuedeVerTodo = false; // Variable global de permiso
-    
+
       let chart = null;
       let allNodes = []; // Aquí guardaremos todos los nodos (Estos son los nodos de "Persona")
       let allCargoNodes = []; // Aquí guardaremos los nodos de "Cargo"
@@ -123,7 +141,7 @@
       let filteredNodes = [];
 
       //TODO: Corregir el bug inicial
-      //TODO: poner highlight
+      //TODO: hacer un select con checkboxs para los niveles, y hacer validaciones
       //TODO: si tiene una sola opcion en ceentro de costos o marketing que la seleccione automaticamente, en el orden debido
 
       // --- Referencias a divs de estado ---
@@ -140,21 +158,30 @@
 
       // --- CÓDIGO PARA BLOQUEAR ZOOM DEL NAVEGADOR (ESCRITORIO) ---
       // 1. Bloquea el zoom con la rueda del ratón (Ctrl + Rueda)
-      window.addEventListener('wheel', function(event) {
-        // Comprueba si la tecla Ctrl está presionada
-        if (event.ctrlKey) {
+      window.addEventListener(
+        "wheel",
+        function (event) {
+          // Comprueba si la tecla Ctrl está presionada
+          if (event.ctrlKey) {
             event.preventDefault(); // Cancela el evento (el zoom)
-        }
-      }, { passive: false }); // 'passive: false' es necesario para permitir el preventDefault
+          }
+        },
+        { passive: false }
+      ); // 'passive: false' es necesario para permitir el preventDefault
 
       // 2. Bloquea el zoom con el teclado (Ctrl + '+' y Ctrl + '-')
-      window.addEventListener('keydown', function(event) {
+      window.addEventListener("keydown", function (event) {
         // Comprueba si la tecla Ctrl (o Cmd en Mac) está presionada
         if (event.ctrlKey || event.metaKey) {
-            // Comprueba si la tecla presionada es '+' o '-'
-            if (event.key === '+' || event.key === '-' || event.key === '=' || event.key === '_') {
-              event.preventDefault(); // Cancela el evento (el zoom)
-            }
+          // Comprueba si la tecla presionada es '+' o '-'
+          if (
+            event.key === "+" ||
+            event.key === "-" ||
+            event.key === "=" ||
+            event.key === "_"
+          ) {
+            event.preventDefault(); // Cancela el evento (el zoom)
+          }
         }
       });
 
@@ -188,7 +215,7 @@
        */
       CustomDetailsForm.prototype.init = function (balkanInstance) {
         this.instance = balkanInstance; // Guardamos la instancia del gráfico
-        this.currentPersonData = null; 
+        this.currentPersonData = null;
 
         // --- 1. Encontrar los elementos del DOM ---
         this.overlay = document.getElementById("details-overlay");
@@ -225,36 +252,38 @@
         });
 
         // Listener para la lista de empleados (usando delegación)
-        const infoBlock = this.form.querySelector('.details-info-block');
-        infoBlock.addEventListener('click', (event) => {
-            // 1. Encontrar el '.employee-list-item' más cercano al que se hizo clic
-            const item = event.target.closest('.employee-list-item');
-            if (!item) return; // No se hizo clic en un item, no hacer nada
+        const infoBlock = this.form.querySelector(".details-info-block");
+        infoBlock.addEventListener("click", (event) => {
+          // 1. Encontrar el '.employee-list-item' más cercano al que se hizo clic
+          const item = event.target.closest(".employee-list-item");
+          if (!item) return; // No se hizo clic en un item, no hacer nada
 
-            // 2. Obtener el ID del empleado del data-attribute
-            const empId = item.dataset.employeeId;
-            if (!empId || !this.data || !this.data.listaEmpleados) return;
+          // 2. Obtener el ID del empleado del data-attribute
+          const empId = item.dataset.employeeId;
+          if (!empId || !this.data || !this.data.listaEmpleados) return;
 
-            // 3. Encontrar la data completa de ese empleado
-            const empData = this.data.listaEmpleados.find(e => e.codigoEmpleado === empId);
-            if (!empData) return;
+          // 3. Encontrar la data completa de ese empleado
+          const empData = this.data.listaEmpleados.find(
+            (e) => e.codigoEmpleado === empId
+          );
+          if (!empData) return;
 
-            // 4. ¡Llamar a nuestra función helper!
-            // Esto re-poblará el modal con la información de la persona seleccionada
-            const personDataForModal = {
-                id: empData.codigoEmpleado,
-                nombre: `${empData.nombre || ''} ${empData.apellido || ''}`.trim(),
-                puesto: empData.puestoEmpleado || this.data.cargoPuesto,
-                img: empData.foto,
-                email: empData.emailCorporativo,
-                lineaNegocio: this.data.lineaNegocio,
-                centroCosto: this.data.centroCosto,
-                departamento: this.data.departamento,
-                codDepAx: empData.codDepAx,
-                codDepartamento: this.data.codDepartamento
-            };
-            this.currentPersonData = personDataForModal; // ACTUALIZA LA VARIABLE
-            this.fillPersonData(personDataForModal);
+          // 4. ¡Llamar a nuestra función helper!
+          // Esto re-poblará el modal con la información de la persona seleccionada
+          const personDataForModal = {
+            id: empData.codigoEmpleado,
+            nombre: `${empData.nombre || ""} ${empData.apellido || ""}`.trim(),
+            puesto: empData.puestoEmpleado || this.data.cargoPuesto,
+            img: empData.foto,
+            email: empData.emailCorporativo,
+            lineaNegocio: this.data.lineaNegocio,
+            centroCosto: this.data.centroCosto,
+            departamento: this.data.departamento,
+            codDepAx: empData.codDepAx,
+            codDepartamento: this.data.codDepartamento,
+          };
+          this.currentPersonData = personDataForModal; // ACTUALIZA LA VARIABLE
+          this.fillPersonData(personDataForModal);
         });
 
         // --- Lógica de los botones de Manuales ---
@@ -291,148 +320,216 @@
       };
 
       /**
-     * ¡NUEVA FUNCIÓN HELPER REFACTORIZADA!
-     * La sacamos de 'show' para poder reutilizarla.
-     */
-    CustomDetailsForm.prototype.fillPersonData = function (personData) {
+       * ¡NUEVA FUNCIÓN HELPER REFACTORIZADA!
+       * La sacamos de 'show' para poder reutilizarla.
+       */
+      CustomDetailsForm.prototype.fillPersonData = function (personData) {
         const isVacant = personData.tags && personData.tags.includes("vacante");
 
         this.nameEl.textContent = personData.nombre;
         this.puestoEl.textContent = personData.puesto;
-        
+
         // --- Lógica de la imagen (corregida para el bug del "flash") ---
         // 1. Configura la 'src' PRIMERO (mientras sigue oculto)
         if (isVacant || !personData.img) {
-            this.imgEl.src = "https://via.placeholder.com/110/cccccc/ffffff?text=N/A";
+          this.imgEl.src = "Logo-Liris.png"; //"https://via.placeholder.com/110/cccccc/ffffff?text=N/A";
         } else {
-            this.imgEl.src = personData.img;
+          this.imgEl.src = personData.img;
         }
         // 2. Muestra la imagen AHORA que ya tiene la 'src' correcta
-        this.imgEl.style.display = 'block'; // Asegúrate de que sea 'block' para centrar
+        this.imgEl.style.display = "block"; // Asegúrate de que sea 'block' para centrar
         // --- Fin corrección flash ---
 
         // Re-crear el HTML de info de persona
-        const infoBlock = this.form.querySelector('.details-info-block');
+        const infoBlock = this.form.querySelector(".details-info-block");
+        let infoHtml = ""; // Empezamos con un string vacío
+
         infoBlock.innerHTML = `
             <div class="details-info-line">
                 <span class="details-info-label">Email:</span>
-                <span class="details-info-value">${personData.email || 'N/A'}</span>
+                <span class="details-info-value">${
+                  personData.email || "N/A"
+                }</span>
             </div>
             <div class="details-info-line">
                 <span class="details-info-label">Línea Negocio:</span>
-                <span class="details-info-value">${personData.lineaNegocio || 'N/A'}</span>
+                <span class="details-info-value">${
+                  personData.lineaNegocio || "N/A"
+                }</span>
             </div>
             <div class="details-info-line">
                 <span class="details-info-label">Centro Costo:</span>
-                <span class="details-info-value">${personData.centroCosto || 'N/A'}</span>
+                <span class="details-info-value">${
+                  personData.centroCosto || "N/A"
+                }</span>
             </div>
             <div class="details-info-line">
                 <span class="details-info-label">Departamento:</span>
-                <span class="details-info-value">${personData.departamento || 'N/A'}</span>
+                <span class="details-info-value">${
+                  personData.departamento || "N/A"
+                }</span>
             </div>
         `;
 
+        /* 
+        // 1. Añadir Email (solo si existe y no es 'N/A')
+        if (personData.email && personData.email !== 'N/A') {
+            infoHtml += `
+            <div class="details-info-line">
+                <span class="details-info-label">Email:</span>
+                <span class="details-info-value" data-field="email">${personData.email}</span>
+            </div>`;
+        }
+
+        // 2. Añadir Línea Negocio (solo si existe y no es 'N/A')
+        if (personData.lineaNegocio && personData.lineaNegocio !== 'N/A') {
+            infoHtml += `
+            <div class="details-info-line">
+                <span class="details-info-label">Línea Negocio:</span>
+                <span class="details-info-value">${personData.lineaNegocio}</span>
+            </div>`;
+        }
+        
+        // 3. Añadir Centro Costo (solo si existe y no es 'N/A')
+        if (personData.centroCosto && personData.centroCosto !== 'N/A') {
+            infoHtml += `
+            <div class="details-info-line">
+                <span class="details-info-label">Centro Costo:</span>
+                <span class="details-info-value">${personData.centroCosto}</span>
+            </div>`;
+        }
+
+        // 4. Añadir Departamento (solo si existe y no es 'N/A')
+        if (personData.departamento && personData.departamento !== 'N/A') {
+            infoHtml += `
+            <div class="details-info-line">
+                <span class="details-info-label">Departamento:</span>
+                <span class="details-info-value">${personData.departamento}</span>
+            </div>`;
+        }
+
+        // 5. Asignar el HTML construido al bloque
+        infoBlock.innerHTML = infoHtml;
+        */
+
         // Lógica de botones de manuales
-        const canShowManuals = personData.id && personData.codDepAx && !isVacant;
-        this.btnFunciones.style.display = canShowManuals ? "inline-block" : "none";
-        this.btnProcedimientos.style.display = canShowManuals ? "inline-block" : "none";
-        this.btnUsuario.style.display = canShowManuals ? "inline-block" : "none";
-    };
+        const canShowManuals =
+          personData.id && personData.codDepAx && !isVacant;
+        this.btnFunciones.style.display = canShowManuals
+          ? "inline-block"
+          : "none";
+        this.btnProcedimientos.style.display = canShowManuals
+          ? "inline-block"
+          : "none";
+        this.btnUsuario.style.display = canShowManuals
+          ? "inline-block"
+          : "none";
+      };
 
-
-    /**
-     * Método SHOW: Se llama CADA VEZ que se abre el modal.
-     * ¡AHORA MANEJA 3 CASOS (Persona, Cargo-Lista, Cargo-Individual)!
-     */
-    CustomDetailsForm.prototype.show = function (nodeId) {
+      /**
+       * Método SHOW: Se llama CADA VEZ que se abre el modal.
+       * ¡AHORA MANEJA 3 CASOS (Persona, Cargo-Lista, Cargo-Individual)!
+       */
+      CustomDetailsForm.prototype.show = function (nodeId) {
         // 1. Obtener la data más reciente del nodo
         this.data = this.instance.get(nodeId);
         if (!this.data) return;
 
         // Resetea la imagen ANTES de cualquier lógica.
-        this.imgEl.style.display = 'none'; 
-        this.imgEl.src = ''; 
+        this.imgEl.style.display = "none";
+        this.imgEl.src = "";
 
         const currentMode = document.getElementById("modo-select").value;
-        const infoBlock = this.form.querySelector('.details-info-block');
-        
-        infoBlock.innerHTML = ''; // Limpiar el contenido anterior del bloque de info
-        
-        if (currentMode === 'Persona') {
-            // ==================================
-            // --- VISTA MODO PERSONA ---
-            // ==================================
-            this.currentPersonData = this.data; 
-            this.fillPersonData(this.data);
-            
+        const infoBlock = this.form.querySelector(".details-info-block");
+
+        infoBlock.innerHTML = ""; // Limpiar el contenido anterior del bloque de info
+
+        if (currentMode === "Persona") {
+          // ==================================
+          // --- VISTA MODO PERSONA ---
+          // ==================================
+          this.currentPersonData = this.data;
+          this.fillPersonData(this.data);
         } else {
-            // ==================================
-            // --- VISTA MODO CARGO ---
-            // ==================================
-            const isVacant = this.data.tags.includes("vacante");
-            const employeeList = this.data.listaEmpleados;
+          // ==================================
+          // --- VISTA MODO CARGO ---
+          // ==================================
+          const isVacant = this.data.tags.includes("vacante");
+          const employeeList = this.data.listaEmpleados;
 
-            if (employeeList && employeeList.length === 1) {
-                // --- CASO 1: Cargo con 1 sola persona ---
-                const singleEmp = employeeList[0];
-                this.currentPersonData = {
-                    id: singleEmp.codigoEmpleado,
-                    nombre: `${singleEmp.nombre || ''} ${singleEmp.apellido || ''}`.trim(),
-                    puesto: singleEmp.puestoEmpleado || this.data.cargoPuesto,
-                    img: singleEmp.foto,
-                    email: singleEmp.emailCorporativo,
-                    lineaNegocio: this.data.lineaNegocio,
-                    centroCosto: this.data.centroCosto,
-                    departamento: this.data.departamento,
-                    codDepAx: singleEmp.codDepAx,
-                    codDepartamento: this.data.codDepartamento
-                };
-                this.fillPersonData(this.currentPersonData);
+          if (employeeList && employeeList.length === 1) {
+            // --- CASO 1: Cargo con 1 sola persona ---
+            const singleEmp = employeeList[0];
+            this.currentPersonData = {
+              id: singleEmp.codigoEmpleado,
+              nombre: `${singleEmp.nombre || ""} ${
+                singleEmp.apellido || ""
+              }`.trim(),
+              puesto: singleEmp.puestoEmpleado || this.data.cargoPuesto,
+              img: singleEmp.foto,
+              email: singleEmp.emailCorporativo,
+              lineaNegocio: this.data.lineaNegocio,
+              centroCosto: this.data.centroCosto,
+              departamento: this.data.departamento,
+              codDepAx: singleEmp.codDepAx,
+              codDepartamento: this.data.codDepartamento,
+            };
+            this.fillPersonData(this.currentPersonData);
+          } else {
+            // --- CASO 2: Cargo con >1 persona O vacante/sin asignar ---
+            this.currentPersonData = null;
 
-            } else {
-                // --- CASO 2: Cargo con >1 persona O vacante/sin asignar ---
-                this.currentPersonData = null; 
+            this.nameEl.textContent = this.data.cargoPuesto;
+            this.puestoEl.textContent = this.data.cargoPersona;
 
-                this.nameEl.textContent = this.data.cargoPuesto;
-                this.puestoEl.textContent = this.data.cargoPersona; 
-                
-                // Ocultar botones de manuales
-                this.btnFunciones.style.display = "none";
-                this.btnProcedimientos.style.display = "none";
-                this.btnUsuario.style.display = "none";
+            // Ocultar botones de manuales
+            this.btnFunciones.style.display = "none";
+            this.btnProcedimientos.style.display = "none";
+            this.btnUsuario.style.display = "none";
 
-                // Generar lista de empleados
-                if (employeeList && employeeList.length > 1) {
-                    let employeeHtml = '<div class="details-employee-list">';
-                    
-                    // --- ¡CAMBIO AQUÍ! ---
-                    // Añadimos 'data-employee-id' a cada item
-                    employeeList.forEach(emp => {
-                        employeeHtml += `
-                            <div class="employee-list-item" data-employee-id="${emp.codigoEmpleado}">
-                                <img src="${emp.foto || 'https://via.placeholder.com/40/cccccc/ffffff?text=N/A'}" class="employee-list-img" alt="">
+            // Generar lista de empleados
+            if (employeeList && employeeList.length > 1) {
+              let employeeHtml = '<div class="details-employee-list">';
+
+              // Añadimos 'data-employee-id' a cada item
+              // 'https://via.placeholder.com/40/cccccc/ffffff?text=N/A'}" class="employee-list-img" alt="">
+              employeeList.forEach((emp) => {
+                employeeHtml += `
+                            <div class="employee-list-item" data-employee-id="${
+                              emp.codigoEmpleado
+                            }">
+                                <img src="${
+                                  emp.foto || "Logo-Liris.png"
+                                }" class="employee-list-img" alt="">
+
                                 <div class="employee-list-info">
-                                    <div class="employee-list-name">${emp.nombre || ''} ${emp.apellido || ''}</div>
-                                    <div class="employee-list-email">${emp.emailCorporativo || 'Sin email'}</div>
+                                    <div class="employee-list-name">${
+                                      emp.nombre || ""
+                                    } ${emp.apellido || ""}</div>
+                                    <div class="employee-list-email">${
+                                      emp.emailCorporativo || "Sin email"
+                                    }</div>
                                 </div>
                             </div>
                         `;
-                    });
-                    // --- FIN DEL CAMBIO ---
+              });
+              // --- FIN DEL CAMBIO ---
 
-                    employeeHtml += '</div>';
-                    infoBlock.innerHTML = employeeHtml;
-                } else if (isVacant) {
-                    infoBlock.innerHTML = '<div class="details-info-line" style="text-align:center; padding-top:10px;">Este puesto está actualmente vacante.</div>';
-                } else {
-                    infoBlock.innerHTML = '<div class="details-info-line" style="text-align:center; padding-top:10px;">Este puesto no tiene empleados asignados.</div>';
-                }
+              employeeHtml += "</div>";
+              infoBlock.innerHTML = employeeHtml;
+            } else if (isVacant) {
+              infoBlock.innerHTML =
+                '<div class="details-info-line" style="text-align:center; padding-top:10px;">Este puesto está actualmente vacante.</div>';
+            } else {
+              infoBlock.innerHTML =
+                '<div class="details-info-line" style="text-align:center; padding-top:10px;">Este puesto no tiene empleados asignados.</div>';
             }
+          }
         }
 
         // 6. Mostrar el modal (común para todos)
         this.overlay.classList.add("visible");
-    };
+      };
       /**
        * Método HIDE: Se llama para cerrar el modal.
        */
@@ -462,29 +559,29 @@
         // if (!codEmp || !depParam) {
         //     console.warn(`Faltan datos para generar el manual de ${tipo}.`, nodeData);
         //     return null; // No podemos construir la URL
-        // } 
+        // }
 
         //return `http://192.168.127.162/rhh/visor.html?Carpeta=${encodeURIComponent(
         return `https://soporte.liris.com.ec/rhh/visor.html?Carpeta=${encodeURIComponent(
           carpeta
         )}&CodEmp=${codEmp || ""}&DepartMyProcessId=${depParam}`;
-
       }
 
       /* FUNCION PARA HABILITAR/DESHABILITAR FILTROS */
       function actualizarEstadoFiltros() {
-          const selectIds = "#linea-negocio-select, #centro-costos-select, #departamento-select";
-          if (usuarioPuedeVerTodo) {
-              // Habilitar si tiene permiso
-              console.log("🔐 Actualizando UI: Filtros HABILITADOS.");
-              $(selectIds).prop("disabled", false);
-          } else {
-              // Deshabilitar si no tiene permiso
-              console.log("🔐 Actualizando UI: Filtros DESHABILITADOS.");
-              $(selectIds).prop("disabled", true);
-          }
-          // Notificar a Select2 del cambio de estado para que actualice la UI (grisado)
-          $(selectIds).trigger("change.select2");
+        const selectIds =
+          "#linea-negocio-select, #centro-costos-select, #departamento-select";
+        if (usuarioPuedeVerTodo) {
+          // Habilitar si tiene permiso
+          console.log("🔐 Actualizando UI: Filtros HABILITADOS.");
+          $(selectIds).prop("disabled", false);
+        } else {
+          // Deshabilitar si no tiene permiso
+          console.log("🔐 Actualizando UI: Filtros DESHABILITADOS.");
+          $(selectIds).prop("disabled", true);
+        }
+        // Notificar a Select2 del cambio de estado para que actualice la UI (grisado)
+        $(selectIds).trigger("change.select2");
       }
 
       /* FUNCION PARA ITERAR AL MOMENTO DE COLAPSAR NODOS */
@@ -499,12 +596,11 @@
         }
       }
 
-      // El nuevo icono de "Contraer Todo" (flechas hacia adentro) 
-        let collapse_all =
-            `<svg fill="#7A7A7A" width="800px" height="800px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      // El nuevo icono de "Contraer Todo" (flechas hacia adentro)
+      let collapse_all = `<svg fill="#7A7A7A" width="800px" height="800px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg">
               <path d="M11.493 8.757l-3.454-3.453-2.665 2.665 3.454 3.453-2.59 2.59 7.797 0.004-0.017-7.784-2.525 2.525zM23.172 11.422l3.454-3.453-2.665-2.665-3.454 3.453-2.525-2.525-0.017 7.784 7.797-0.004-2.59-2.59zM8.828 20.578l-3.454 3.453 2.665 2.665 3.454-3.453 2.526 2.525 0.017-7.784-7.797 0.004 2.589 2.59zM25.762 17.988l-7.797-0.004 0.017 7.784 2.525-2.525 3.454 3.453 2.665-2.665-3.454-3.453 2.59-2.59z"></path>
-            </svg>`
-        /**
+            </svg>`;
+      /**
        * Intenta buscar al empleado. Solo se ejecutará
        * si 'receivedUserId' Y 'allNodes' están listos.
        */
@@ -515,7 +611,7 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        /* 
+        //*
         if (!receivedUserId) {
           //receivedUserId = "interno\\2300070659"; //Auxiliar
           receivedUserId = "interno\\dromero"; //Auxiliar
@@ -526,44 +622,45 @@
         // 1. Siempre buscamos en 'allNodes' (Vista Persona) para obtener
         //    los datos de permiso (puesto y codPosicion_R)
         let personaDataCompleta = null;
-        if (receivedUserId) { // Solo si hemos recibido un ID
-            personaDataCompleta = allNodes.find(
-                n => n.userid && n.userid.toLowerCase() === receivedUserId
-            );
+        if (receivedUserId) {
+          // Solo si hemos recibido un ID
+          personaDataCompleta = allNodes.find(
+            (n) => n.userid && n.userid.toLowerCase() === receivedUserId
+          );
         }
 
         if (personaDataCompleta) {
-            const puesto = (personaDataCompleta.puesto || "").toLowerCase();
-            // Usamos 'codPosicion_R' de la API de Persona
-            const codPosReporta = personaDataCompleta.codPosicion_R || null; 
+          const puesto = (personaDataCompleta.puesto || "").toLowerCase();
+          // Usamos 'codPosicion_R' de la API de Persona
+          const codPosReporta = personaDataCompleta.codPosicion_R || null;
 
-            // 2. Aplicar la lógica de permisos que definiste
-            const puedeVer =
-                puesto.includes("gerente") ||
-                puesto.includes("presidente") ||
-                puesto.includes("jefe") ||
-                puesto.includes("analista de procesos") ||
-                puesto.includes("asistente de desarrollo") ||
-                puesto.includes("ingeniero de desarrollo") ||
-                puesto.includes("analista") ||
-                puesto.includes("coordinador") ||
-                puesto.includes("administrador") ||
-                puesto.includes("auditor") ||
-                puesto.includes("auditor senior") ||
-                puesto.includes("supervisor") ||
-                codPosReporta === "00001" ||
-                codPosReporta === null; // Raíz (reporta a '0' o null)
+          // 2. Aplicar la lógica de permisos que definiste
+          const puedeVer =
+            puesto.includes("gerente") ||
+            puesto.includes("presidente") ||
+            puesto.includes("jefe") ||
+            puesto.includes("analista de procesos") ||
+            puesto.includes("asistente de desarrollo") ||
+            puesto.includes("ingeniero de desarrollo") ||
+            puesto.includes("analista") ||
+            puesto.includes("coordinador") ||
+            puesto.includes("administrador") ||
+            puesto.includes("auditor") ||
+            puesto.includes("auditor senior") ||
+            puesto.includes("supervisor") ||
+            codPosReporta === "00001" ||
+            codPosReporta === null; // Raíz (reporta a '0' o null)
 
-            usuarioPuedeVerTodo = puedeVer; // 3. Actualizar variable global
+          usuarioPuedeVerTodo = puedeVer; // 3. Actualizar variable global
         } else {
-            // Si no se encontró (ej. usuario 'admin' de WP), default a NO ver todo
-            usuarioPuedeVerTodo = false; 
+          // Si no se encontró (ej. usuario 'admin' de WP), default a NO ver todo
+          usuarioPuedeVerTodo = false;
         }
-        
+
         if (usuarioPuedeVerTodo) {
-            console.log("🔐 Permiso Concedido: Ver Todo");
+          console.log("🔐 Permiso Concedido: Ver Todo");
         } else {
-            console.log("🔐 Permiso Denegado: Vista Restringida");
+          console.log("🔐 Permiso Denegado: Vista Restringida");
         }
         // --- 🔐 FIN LÓGICA DE PERMISOS ---
 
@@ -575,26 +672,26 @@
           // Si la data de personas o la data de cargo (según la vista) no está lista, salimos.
           return;
         }
-        
+
         // Ahora funciona para ambos modos porque 'userid' está en la raíz
-        if (currentMode === 'Persona') {
-            // --- Búsqueda en Vista por Persona (como antes) ---
-            empleadoLogueado = sourceNodes.find((nodo) => {
-                return nodo.userid && nodo.userid.toLowerCase() === receivedUserId;
-            });
+        if (currentMode === "Persona") {
+          // --- Búsqueda en Vista por Persona (como antes) ---
+          empleadoLogueado = sourceNodes.find((nodo) => {
+            return nodo.userid && nodo.userid.toLowerCase() === receivedUserId;
+          });
         } else {
-            // --- Búsqueda en Vista por Cargo (NUEVA LÓGICA) ---
-            empleadoLogueado = sourceNodes.find((nodo) => {
-                // nodo.listaEmpleados es el array que creamos en el map
-                if (!nodo.listaEmpleados || nodo.listaEmpleados.length === 0) {
-                    return false; // Cargo vacante o sin empleados
-                }
-                
-                // Usamos .some() para ver si CUALQUIERA de los empleados en la lista coincide
-                return nodo.listaEmpleados.some(
-                    emp => emp.userid && emp.userid.toLowerCase() === receivedUserId
-                );
-            });
+          // --- Búsqueda en Vista por Cargo (NUEVA LÓGICA) ---
+          empleadoLogueado = sourceNodes.find((nodo) => {
+            // nodo.listaEmpleados es el array que creamos en el map
+            if (!nodo.listaEmpleados || nodo.listaEmpleados.length === 0) {
+              return false; // Cargo vacante o sin empleados
+            }
+
+            // Usamos .some() para ver si CUALQUIERA de los empleados en la lista coincide
+            return nodo.listaEmpleados.some(
+              (emp) => emp.userid && emp.userid.toLowerCase() === receivedUserId
+            );
+          });
         }
 
         // Evitamos que se ejecute múltiples veces
@@ -667,7 +764,9 @@
           if (chart) {
             console.log(
               "ℹ️ Auto-filtrando el organigrama para el usuario... ",
-              empleadoLogueado.userid, ' en modo: ', currentMode
+              empleadoLogueado.userid,
+              " en modo: ",
+              currentMode
             );
             aplicarFiltrosJerarquicos();
           }
@@ -742,59 +841,57 @@
       }
 
       // --- Mapeo de nivelJerarquico a Tag de Subnivel ---
-      /* Aplica tags de subnivel (sub-level-X) de forma relativa
-       * basándose en los 'order' de los nodos hermanos.  */
+      /* Aplica tags de subnivel (sub-level-X) usando la lógica del usuario:
+       * (order - orderPadre - 1) */
       function aplicarSubnivelesRelativos(nodos) {
-        console.log("Iniciando post-procesamiento de subniveles relativos...");
+        console.log(
+          "Iniciando post-procesamiento de subniveles RELATIVOS AL PADRE..."
+        );
 
-        // 1. Agrupar nodos por 'pid' (hermanos)
-        const nodesByParent = new Map();
-        for (const node of nodos) { // Usamos el argumento 'nodos'
-            const pid = node.pid || 'root'; // Agrupar nodos raíz bajo 'root'
-            if (!nodesByParent.has(pid)) {
-                nodesByParent.set(pid, []);
-            }
-            nodesByParent.get(pid).push(node);
+        // 1. Crear un mapa para buscar el 'order' de cualquier nodo por su ID
+        // Esto es necesario para encontrar el 'order' del padre
+        const orderMap = new Map();
+        for (const node of nodos) {
+          if (node && node.id != null) {
+            orderMap.set(node.id, node.order || 99);
+          }
         }
 
-        // 2. Procesar cada grupo de hermanos
-        for (const siblings of nodesByParent.values()) {
-            if (siblings.length <= 1) {
-                // Si solo hay un hijo (o ninguno), no hay subniveles que aplicar
-                siblings.forEach(node => {
-                    if (!node.tags) node.tags = []; // Asegurar que 'tags' exista
-                    node.tags.push('sub-level-0');
-                });
-                continue;
-            }
+        // 2. Iterar todos los nodos para asignar el tag de subnivel
+        for (const node of nodos) {
+          if (!node.tags) node.tags = []; // Asegurar que 'tags' exista
 
-            // 3. Obtener los niveles jerárquicos únicos de este grupo de hermanos
-            const uniqueLevels = [...new Set(siblings.map(s => s.order))];
-            uniqueLevels.sort((a, b) => a - b); // Ordenar de menor a mayor
+          let subLevelIndex = 0; // Default para nodos huérfanos
+          const pid = node.pid;
+          const miOrder = node.order || 99;
 
-            // 4. Mapear el 'nivel' real (order) a su 'índice' de subnivel (ej. 0, 1, 2)
-            const levelIndexMap = new Map();
-            uniqueLevels.forEach((level, index) => {
-                levelIndexMap.set(level, index);
-            });
+          if (pid && orderMap.has(pid)) {
+            // Si el nodo tiene un padre que encontramos en el mapa
+            const padreOrder = orderMap.get(pid);
+            subLevelIndex = miOrder - padreOrder - 1;
+          } else if (!pid) {
+            // No tiene pid, es un nodo raíz.
+            // Asumimos que el "padre" es 0.
+            subLevelIndex = miOrder - 0 - 1;
+          }
 
-            // 5. Asignar el tag de subnivel correcto a cada nodo hermano
-            for (const node of siblings) {
-                const subLevelIndex = levelIndexMap.get(node.order);
-                
-                if (!node.tags) node.tags = []; // Asegurar que 'tags' exista
-                
-                const subLevelTag = `sub-level-${subLevelIndex}`;
-                node.tags.push(subLevelTag);
+          // Nos aseguramos de que el subnivel no sea negativo
+          if (subLevelIndex < 0) {
+            subLevelIndex = 0;
+          }
 
-                // Opcional: Añadir el tag para la línea punteada
-                if (subLevelIndex > 0) {
-                    node.tags.push("sublevel-node");
-                }
-            }
+          const subLevelTag = `sub-level-${subLevelIndex}`;
+
+          if (!node.tags.includes(subLevelTag)) {
+            node.tags.push(subLevelTag);
+          }
+
+          // Añadir el tag para la línea punteada
+          if (subLevelIndex > 0 && !node.tags.includes("sublevel-node")) {
+            node.tags.push("sublevel-node");
+          }
         }
-        console.log("Post-procesamiento de subniveles completado.");
-        // No es necesario retornar, la función 'muta' los nodos en el array
+        console.log("Post-procesamiento de subniveles relativos completado.");
       }
 
       ///////// * Puebla el <select> con los filtros únicos de los nodos.
@@ -881,7 +978,7 @@
           "4. Mapa de nodos creado para filtrado jerárquico.",
           nodeMap
         ); */
-        // 5. Un mapa para guardar los nodos que SÍ queremos mostrar 
+        // 5. Un mapa para guardar los nodos que SÍ queremos mostrar
         const nodesToShow = new Map();
 
         // 6. Recorrer TODOS los nodos
@@ -937,7 +1034,7 @@
         loaderOverlay.classList.add("visible");
         loaderText.innerText = "Cargando Organigrama...";
         // Resetea el spinner y el color por si hubo un error antes
-        loaderText.style.color = "#555"; 
+        loaderText.style.color = "#555";
         loaderOverlay.querySelector(".loader-spinner").style.display = "block";
         treeDiv.innerHTML = "";
 
@@ -959,7 +1056,7 @@
               "Formato inválido. No se encontró array en 'Persona'."
             );
           if (flatApiData.length === 0) {
-            loaderText.innerText  = "API OK, pero no hay datos.";
+            loaderText.innerText = "API OK, pero no hay datos.";
             return;
           }
           //loaderText.innerText = `Datos recibidos (${flatApiData.length}). Procesando...`;
@@ -993,11 +1090,11 @@
               (emp) =>
                 emp &&
                 //emp.codigoPosicion != null &&
-                emp.codigoPosicion != "00006"  &&
-                emp.codigoPosicionReporta != "00424"  &&
+                emp.codigoPosicion != "00006" &&
+                emp.codigoPosicionReporta != "00424" &&
                 emp.puesto != null
-                //!(emp.codigoPosicionReporta === "00003" && emp.vacante === "1")
-                /*&&
+              //!(emp.codigoPosicionReporta === "00003" && emp.vacante === "1")
+              /*&&
                         String(emp.codigoPosicion).trim() !== "00006" &&
                         // Filtramos solo el departamento de Sistemas y Directorio
                         (emp.nombreDepartamento === "SISTEMAS" || emp.nombreDepartamento === "DIRECTORIO" 
@@ -1087,9 +1184,8 @@
                   lineaNegocio: emp.nombreLineaNegocio || "N/A",
                   centroCosto: emp.nombreCentroCosto || "N/A",
                   departamento: emp.nombreDepartamento || "N/A", //
-                  img:
-                    emp.foto ||
-                    "https://via.placeholder.com/60/cccccc/ffffff?text=N/A",
+                  img: emp.foto || "Logo-Liris.png",
+                  //"https://via.placeholder.com/60/cccccc/ffffff?text=N/A",
                   email: emp.emailCorporativo || "Sin correo electrónico",
                   rutaManual: emp.rutaManual || "Sin manual asignado",
 
@@ -1187,41 +1283,41 @@
           }; // Ripple effect, al dar click en el nodo da un efecto visual
 
           // 1. Clonamos tu plantilla 'fichaTemplate' para heredar su tamaño y forma
-        OrgChart.templates.vacanteTemplate = Object.assign(
+          OrgChart.templates.vacanteTemplate = Object.assign(
             {},
             OrgChart.templates.fichaTemplate
-        );
+          );
 
-        // 2. Definimos el fondo oscuro (SVG)
-        OrgChart.templates.vacanteTemplate.node =
+          // 2. Definimos el fondo oscuro (SVG)
+          OrgChart.templates.vacanteTemplate.node =
             '<rect x="0" y="0" height="{h}" width="{w}" fill="#4a4a4a" rx="5" ry="5"></rect>';
 
-        // 3. Nos aseguramos de que no muestre imagen
-        OrgChart.templates.vacanteTemplate.img_0 = ""; // Sin imagen
+          // 3. Nos aseguramos de que no muestre imagen
+          OrgChart.templates.vacanteTemplate.img_0 = ""; // Sin imagen
 
-        // 4. Definimos los campos con texto blanco y CENTRADOS
-        OrgChart.templates.vacanteTemplate.field_0 = // Puesto
+          // 4. Definimos los campos con texto blanco y CENTRADOS
+          OrgChart.templates.vacanteTemplate.field_0 = // Puesto
             '<foreignObject x="10" y="30" width="230" height="40">' + // x=10, ancho=230 (márgenes de 10px en nodo de 250px)
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 16px; font-weight: bold; color: #ffffff; line-height: 1.2; height: auto; max-height: 38px; text-align: center; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">' +
-            '{val}' +
-            '</div>' +
-            '</foreignObject>';
+            "{val}" +
+            "</div>" +
+            "</foreignObject>";
 
-        OrgChart.templates.vacanteTemplate.field_1 = // "PUESTO VACANTE"
+          OrgChart.templates.vacanteTemplate.field_1 = // "PUESTO VACANTE"
             '<foreignObject x="10" y="75" width="230" height="20">' +
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-style: italic; color: #e0e0e0; line-height: 1.2; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
-            '{val}' +
-            '</div>' +
-            '</foreignObject>';
-        
-        // 5. ¡IMPORTANTE! Matamos el field_2 
-        OrgChart.templates.vacanteTemplate.field_2 = "";
-            //     OrgChart.templates.vacanteTemplate.field_2 = // "PUESTO VACANTE"
-            // '<foreignObject x="10" y="95" width="230" height="20">' +
-            // '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-style: italic; color: #e0e0e0; line-height: 1.2; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
-            // '{val}' +
-            // '</div>' +
-            // '</foreignObject>';
+            "{val}" +
+            "</div>" +
+            "</foreignObject>";
+
+          // 5. ¡IMPORTANTE! Matamos el field_2
+          OrgChart.templates.vacanteTemplate.field_2 = "";
+          //     OrgChart.templates.vacanteTemplate.field_2 = // "PUESTO VACANTE"
+          // '<foreignObject x="10" y="95" width="230" height="20">' +
+          // '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-style: italic; color: #e0e0e0; line-height: 1.2; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
+          // '{val}' +
+          // '</div>' +
+          // '</foreignObject>';
 
           // --- 2.1 DEFINIR BINDINGS (MAPEOS) ---
           // (Mueve tu binding de persona aquí para tener ambos)
@@ -1229,6 +1325,7 @@
             field_0: "nombre",
             field_1: "puesto",
             img_0: "img",
+            //column: "order" // jerarquía
           };
 
           // Binding para la vista de Cargo
@@ -1237,6 +1334,7 @@
             field_0: "cargoPuesto", // Puesto (ej. "GERENTE GENERAL")
             field_1: "cargoPersona", // Persona (ej. "SANTIAGO SAAB")
             field_2: "cargoDepto", // Depto (ej. "DIRECTORIO")
+            //column: "order" // jerarquía
           };
 
           // --- 2.2 DEFINIR TEMPLATE DE CARGO ---
@@ -1250,28 +1348,28 @@
           OrgChart.templates.cargoTemplate.img_0 = "";
 
           // Ajustamos los campos de texto (sin foto, movemos todo a la izquierda)
-        OrgChart.templates.cargoTemplate.field_0 = // Puesto
+          OrgChart.templates.cargoTemplate.field_0 = // Puesto
             '<foreignObject x="15" y="15" width="220" height="35">' + // y=15, h=35
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 16px; font-weight: bold; color: #D35400; line-height: 1.2; height: auto; max-height: 34px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
             "{val}" +
             "</div>" +
             "</foreignObject>";
 
-        OrgChart.templates.cargoTemplate.field_1 = // Persona
+          OrgChart.templates.cargoTemplate.field_1 = // Persona
             '<foreignObject x="15" y="50" width="220" height="35">' + // y=50 (15+35), h=35
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; color: #333; line-height: 1.2; height: auto; max-height: 34px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
             "{val}" +
             "</div>" +
             "</foreignObject>";
 
-        OrgChart.templates.cargoTemplate.field_2 = // Departamento
+          OrgChart.templates.cargoTemplate.field_2 = // Departamento
             '<foreignObject x="15" y="85" width="220" height="20">' + // y=85 (50+35), h=20
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 12px; font-style: italic; color: #797D7F; line-height: 1.2; text-align: left;">' +
             "{val}" +
             "</div>" +
             "</foreignObject>";
-        
-        //OrgChart.templates.cargoTemplate.field_2 = ""; // Departamento
+
+          //OrgChart.templates.cargoTemplate.field_2 = ""; // Departamento
 
           // 6. Configuración de Tags
           const tagsConfig = {
@@ -1279,13 +1377,13 @@
             "sub-level-0": { subLevels: 0, levelSeparation: 20 },
             "sub-level-1": { subLevels: 1, levelSeparation: 20 },
             "sub-level-2": { subLevels: 2, levelSeparation: 20 },
-            "sub-level-3": { subLevels: 3, levelSeparation: 20 }, 
-            "sub-level-4": { subLevels: 4, levelSeparation: 20 }, 
-            "sub-level-5": { subLevels: 5, levelSeparation: 20 }, 
-            "sub-level-6": { subLevels: 6, levelSeparation: 20 }, 
-            "sub-level-7": { subLevels: 7, levelSeparation: 20 }, 
-            "sub-level-8": { subLevels: 8, levelSeparation: 20 }, 
-            "sub-level-9": { subLevels: 9, levelSeparation: 20 }, 
+            "sub-level-3": { subLevels: 3, levelSeparation: 20 },
+            "sub-level-4": { subLevels: 4, levelSeparation: 20 },
+            "sub-level-5": { subLevels: 5, levelSeparation: 20 },
+            "sub-level-6": { subLevels: 6, levelSeparation: 20 },
+            "sub-level-7": { subLevels: 7, levelSeparation: 20 },
+            "sub-level-8": { subLevels: 8, levelSeparation: 20 },
+            "sub-level-9": { subLevels: 9, levelSeparation: 20 },
             "sub-level-10": { subLevels: 10, levelSeparation: 20 },
             filter: {
               template: "dot",
@@ -1294,7 +1392,7 @@
             // Tag para la plantilla vacante
             vacante: {
               template: "vacanteTemplate",
-            //   nodeBinding: { field_0: "puesto" },
+              //   nodeBinding: { field_0: "puesto" },
             },
 
             // Tags vacíos solo para que el CSS los pueda seleccionar
@@ -1312,7 +1410,7 @@
             "sublevel-node": {},
           };
 
-          // 7. Inicializar Gráfico 
+          // 7. Inicializar Gráfico
           const chartConfig = {
             //Configuraciones generales
             mouseScrool: OrgChart.action.zoom,
@@ -1323,11 +1421,10 @@
             layout: OrgChart.normal,
             scaleInitial: OrgChart.match.boundary, // Ajuste automático al contenedor, se visualiza todo
             //scaleInitial: 1,
-            enableAI: false,//true,
+            enableAI: false, //true,
             scaleMax: 1, // Por ejemplo, limita la escala máxima a 2 (200% de zoom)
             scaleMin: 0.2, // También puedes configurar la escala mínima si lo necesitas
-            //pinch: { enable: true }, // Deshabilita el "pinch-to-zoom" en móviles  
-            
+            //pinch: { enable: true }, // Deshabilita el "pinch-to-zoom" en móviles
             nodes: filteredNodes,
             tags: tagsConfig,
             nodeBinding: personaBinding,
@@ -1337,8 +1434,8 @@
             },
 
             orderBy: [
-                //{ field: "title", desc: false }, // Primero ordena por título ascendente
-                { field: "order", desc: false }   // Luego por nombre ascendente
+              { field: "order", desc: false }, // Primero ordena por Nivel jerarquico
+              { field: "nombre", desc: false }, // Luego por nombre de la A a la Z
             ],
             searchDisplayField: "nombre",
             /* anim: {
@@ -1375,17 +1472,23 @@
                 title: "Colapsar todo",
                 onClick: function () {
                   // 1. Detectar el modo actual y la fuente de datos
-                  const currentMode = document.getElementById("modo-select").value;
-                  const sourceNodes = (currentMode === "Cargo") ? allCargoNodes : allNodes;                                    
+                  const currentMode =
+                    document.getElementById("modo-select").value;
+                  const sourceNodes =
+                    currentMode === "Cargo" ? allCargoNodes : allNodes;
                   if (!sourceNodes || sourceNodes.length === 0) {
-                    console.error("CollapseAll: No hay sourceNodes (allNodes o allCargoNodes) disponibles.");
+                    console.error(
+                      "CollapseAll: No hay sourceNodes (allNodes o allCargoNodes) disponibles."
+                    );
                     return;
-                  }                                    
+                  }
                   // 2. Encontrar el nodo raíz (el que no tiene pid) en la data FUENTE
-                  const rootNode = sourceNodes.find(n => n.pid === undefined);
+                  const rootNode = sourceNodes.find((n) => n.pid === undefined);
                   if (!rootNode) {
-                    console.error("CollapseAll: No se pudo encontrar un nodo raíz (pid === undefined) en sourceNodes.");
-                    return; 
+                    console.error(
+                      "CollapseAll: No se pudo encontrar un nodo raíz (pid === undefined) en sourceNodes."
+                    );
+                    return;
                   }
                   const id = rootNode.id; // ¡Este es el ID dinámico! (será '15' o '00001')
 
@@ -1401,18 +1504,26 @@
                 icon: OrgChart.icon.layout_normal(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
                 title: "Horizontal Layout",
                 onClick: function () {
-                  chart.setOrientation(OrgChart.orientation.top, null, function() {
-                    chart.fit(); // Ajustar después de la animación de orientación
-                  });
+                  chart.setOrientation(
+                    OrgChart.orientation.top,
+                    null,
+                    function () {
+                      chart.fit(); // Ajustar después de la animación de orientación
+                    }
+                  );
                 },
               },
               verticalLayout: {
                 icon: OrgChart.icon.layout_left_offset(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
                 title: "Vertical Layout",
                 onClick: function () {
-                  chart.setOrientation(OrgChart.orientation.left, null, function() {
-                    chart.fit(); // Ajustar después de la animación de orientación
-                  });
+                  chart.setOrientation(
+                    OrgChart.orientation.left,
+                    null,
+                    function () {
+                      chart.fit(); // Ajustar después de la animación de orientación
+                    }
+                  );
                 },
               },
             },
@@ -1462,23 +1573,23 @@
           OrgChart.aiUI.title = "AI for LIRIS S.A."; //
           OrgChart.SEARCH_PLACEHOLDER = "Buscar por nombre o puesto...";
           //OrgChart.SEARCH_RESULT_LIMIT = 5; // Limita la lista a 5 resultados. El valor por defecto es 5. //TODO: consultar si está bien
-          OrgChart.SEARCH_RESULT_LIMIT = Number.MAX_SAFE_INTEGER; 
+          OrgChart.SEARCH_RESULT_LIMIT = Number.MAX_SAFE_INTEGER;
 
           /////////////////////////
           chart = new OrgChart(treeDiv, chartConfig);
 
           //CUANDO SE DA CLICK A UN NODO SE MUESTRA LA INFORMACIÓN DE ESTE EN CONSOLA
-          chart.on('click', function(sender, args){
+          chart.on("click", function (sender, args) {
             // sender es la instancia del gráfico
             // args.node.id es el ID del nodo que clickeaste
-            
+
             // sender.get() obtiene el objeto de datos completo para ese ID
             const nodeData = sender.get(args.node.id);
-            
+
             console.log("--- 🖱️ NODO CLICKEADO ---");
             console.log(nodeData);
             console.log("--------------------------");
-        });
+          });
 
           //CUANDO SE CIERRA UN NODO SE CIERRAN TODOS LOS NODOS HIJOS Y AL ABRIR VA DE 1 EN 1
           chart.onExpandCollpaseButtonClick((args) => {
@@ -1494,7 +1605,7 @@
               iterate(chart, node, collapseIds, nodeId);
 
               // Colapsa los nodos y, una vez completada la animación, ajusta la vista
-              chart.expandCollapse(nodeId, [], collapseIds)
+              chart.expandCollapse(nodeId, [], collapseIds);
               //   chart.fit(); // Ajusta el organigrama a la pantalla
             } else {
               // --- Lógica de Expansión Superficial ---
@@ -1522,21 +1633,21 @@
                 // Si el nodo no tiene hijos (es una hoja) o no se aplica la lógica de "solo hijos directos",
                 // permite la expansión predeterminada (que no hará nada visualmente para una hoja)
                 // y luego ajusta la vista.
-                chart.expand(nodeId, "all")
-
+                chart.expand(nodeId, "all");
               }
             }
 
             // --- LÓGICA DE FIT ---
             // Lo ejecutamos después de un breve retraso para que la animación termine
             setTimeout(() => {
-              chart.center(nodeId, null, null)
+              chart.center(nodeId, null, null);
             }, 100); // 100ms de retraso
 
             // Prevenimos el comportamiento por defecto (que "recuerda" el estado)
             return false;
           });
 
+          //TODO: para personalizar los item del search
           // 2. Sobrescribe el método OrgChart.searchUI.createItem
           //    Este método es responsable de generar el HTML para cada elemento de la lista de resultados.
           // OrgChart.searchUI.createItem = function (img, id, first, second) {
@@ -1560,7 +1671,7 @@
           //             </tr>`;
           // };
 
-          // // Opcional: Si quieres mantener el límite visual de 5 y el scroll, 
+          // // Opcional: Si quieres mantener el límite visual de 5 y el scroll,
           // // aplica los estilos CSS como se explicó anteriormente.
           // // Esto debe hacerse después de que el gráfico esté listo y los resultados se muestren.
           // chart.searchUI.on('show-items', function(sender, args) {
@@ -1568,32 +1679,108 @@
           //     if (searchResultsWrapper) {
           //         searchResultsWrapper.style.maxHeight = '250px'; // Ajusta esta altura según el tamaño de tus elementos
           //         searchResultsWrapper.style.overflowY = 'auto';
-          //         searchResultsWrapper.style.border = '1px solid #ccc'; 
+          //         searchResultsWrapper.style.border = '1px solid #ccc';
           //         searchResultsWrapper.style.boxSizing = 'border-box';
           //         searchResultsWrapper.style.padding = '5px';
           //     }
           // });
 
+
           // Se dispara DESPUÉS de que la carga inicial Y
           // la animación 'scaleInitial: match.boundary' han terminado.
-          chart.on('ready', function() {
+          chart.on("ready", function () {
             console.log("✅ Gráfico 100% listo (onReady). Mostrando UI.");
-            
+
             // 1. Mostrar los filtros
-            document.getElementById('custom-filters').classList.add('ui-ready');
+            document.getElementById("custom-filters").classList.add("ui-ready");
           });
 
           // --- ¡LÓGICA PARA CAMBIAR DE VISTA! ---
           // 1. Inicializar Select2 en todos los selects
           // Inicializa los selects de FILTROS (con buscador)
-          $("#linea-negocio-select, #centro-costos-select, #departamento-select").select2({
-              width: "240px"
+          $(
+            "#linea-negocio-select, #centro-costos-select, #departamento-select"
+          ).select2({
+            width: "240px",
           });
           // Inicializa el select de MODO (SIN buscador)
           $("#modo-select").select2({
-              width: "240px",
-              minimumResultsForSearch: Infinity, // Esta línea desactiva el buscador
+            width: "240px",
+            minimumResultsForSearch: Infinity, // Esta línea desactiva el buscador
           });
+          /* 
+          // --- //TODO: INICIALIZACIÓN DEL FILTRO DE NIVEL (MULTI-SELECT) ---
+          // Función para renderizar la OPCIÓN (en el dropdown)
+          function formatOptionWithCheckbox(option) {
+              if (!option.id) { return option.text; } // Placeholder
+
+              var selectedValues = $("#nivel-select").val() || [];
+              var isSelected = selectedValues.includes(option.id);
+
+              var $option = $(
+                  '<span><input type="checkbox" ' + (isSelected ? 'checked' : '') + ' /> ' + option.text + '</span>'
+              );
+              return $option;
+          }
+
+          var $nivelSelect = $("#nivel-select");
+
+          // Inicializar Select2
+          $nivelSelect.select2({
+              width: "240px",
+              multiple: true,
+              placeholder: "TODOS LOS NIVELES", // Este texto se actualizará
+              templateResult: formatOptionWithCheckbox,
+              // templateSelection: LO QUITAMOS para que se muestre el placeholder
+              closeOnSelect: false, 
+              allowClear: true, 
+              escapeMarkup: function (m) { return m; } 
+          });
+
+          // --- EVENTOS PARA SINCRONIZAR CHECKBOXES Y TEXTO ---
+
+          // 1. Sincroniza el checkbox del dropdown cuando se selecciona/deselecciona
+          $nivelSelect.on("select2:select select2:unselect", function (e) {
+              var optionId = e.params.data.id;
+              var isSelected = (e.type === 'select2:select');
+              var $optionList = $('.select2-results__options li[id$="' + optionId + '"]');
+              if ($optionList.length > 0) {
+                $optionList.find('input[type="checkbox"]').prop('checked', isSelected);
+              }
+          });
+          
+          // 2. El listener principal: se dispara con CUALQUIER cambio (select, unselect, clear)
+          $nivelSelect.on("change.select2", function (e) {
+              // Sincroniza checkboxes en caso de 'clear'
+              if (e.type === 'select2:clear') {
+                  $('.select2-results__options li input[type="checkbox"]').prop('checked', false);
+              }
+
+              // Obtiene los datos de lo que está seleccionado
+              var selectedData = $(this).select2('data');
+              // Busca el elemento del placeholder
+              var $placeholder = $(this).next('.select2-container').find('.select2-selection__placeholder');
+              // Busca la caja de búsqueda (donde también se escribe el texto)
+              var $searchText = $(this).next('.select2-container').find('.select2-search__field');
+
+              // Lógica para actualizar el texto
+              let summaryText = "TODOS LOS NIVELES"; // Default
+              if (selectedData && selectedData.length > 0) {
+                  if (selectedData.length === 1) {
+                    summaryText = selectedData[0].text;
+                } else if (selectedData.length === 12) { // Asumiendo 12 opciones
+                  summaryText = "TODOS LOS NIVELES";
+                } else {
+                  summaryText = selectedData.length + " NIVELES SELECCIONADOS";
+                }
+              }
+              // Actualiza tanto el placeholder como el texto de la caja de búsqueda
+              $placeholder.text(summaryText);
+              $searchText.attr('placeholder', summaryText);
+              // Aplicamos el filtro
+              aplicarFiltrosJerarquicos();
+          });
+          // --- FIN EVENTOS DE SINCRONIZACIÓN --- */
 
           console.log("Select2 inicializado por primera vez.");
           procesarLoginDeUsuario();
@@ -1628,20 +1815,25 @@
             if (sortedCostos.length === 1) {
               // Hay solo 1 costo, auto-seleccionar Y DISPARAR SU 'CHANGE'.
               // El handler de Costo se encargará de poblar Depto y aplicar el filtro.
-              console.log("Auto-seleccionando Centro de Costo:", sortedCostos[0]);
+              console.log(
+                "Auto-seleccionando Centro de Costo:",
+                sortedCostos[0]
+              );
               $("#centro-costos-select").val(sortedCostos[0]).trigger("change");
             } else {
               // Hay múltiples costos (o 0), así que la cascada se detiene aquí.
               // Debemos poblar manualmente el Depto (basado en "Todos" los costos)
               // y luego aplicar el filtro nosotros mismos.
-              console.log("LíneaNegocio: Múltiples costos, poblando Depto y aplicando filtro.");
-            
+              console.log(
+                "LíneaNegocio: Múltiples costos, poblando Depto y aplicando filtro."
+              );
+
               // Nodos para Depto (basado en Línea, pero Costo="todos")
               const nodosParaDeptos =
                 selectedLinea === "todos"
                   ? sourceNodes
                   : sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
-            
+
               populateSelect(
                 "departamento-select",
                 "departamento",
@@ -1651,13 +1843,13 @@
 
               // Aplicar el filtro (Línea=Seleccionada, Costo=todos, Depto=todos)
               aplicarFiltrosJerarquicos();
-}
+            }
           });
 
           // 3. Listener para CENTRO DE COSTO
           // 3. Listener para CENTRO DE COSTO
           $("#centro-costos-select").on("change", function () {
-            console.log("Filtro Maestro: Centro de Costo cambió."); 
+            console.log("Filtro Maestro: Centro de Costo cambió.");
             const selectedLinea = $("#linea-negocio-select").val();
             const selectedCosto = $(this).val();
             const sourceNodes =
@@ -1668,34 +1860,34 @@
             // 1. Limpiar Departamento
             $("#departamento-select").val("todos");
 
-              // 2. Repoblar SOLO el SIGUIENTE filtro: Departamento (basado en línea Y costo)
-              let nodosParaDeptos = sourceNodes;
-              if (selectedLinea !== "todos") {
-                nodosParaDeptos = nodosParaDeptos.filter(
-                  (n) => n.lineaNegocio === selectedLinea
-                );
-              }
-              if (selectedCosto !== "todos") {
-                nodosParaDeptos = nodosParaDeptos.filter(
-                  (n) => n.centroCosto === selectedCosto
-                );
-              }
-              
-              const sortedDeptos = populateSelect(
-                "departamento-select",
-                "departamento",
-                nodosParaDeptos
+            // 2. Repoblar SOLO el SIGUIENTE filtro: Departamento (basado en línea Y costo)
+            let nodosParaDeptos = sourceNodes;
+            if (selectedLinea !== "todos") {
+              nodosParaDeptos = nodosParaDeptos.filter(
+                (n) => n.lineaNegocio === selectedLinea
               );
+            }
+            if (selectedCosto !== "todos") {
+              nodosParaDeptos = nodosParaDeptos.filter(
+                (n) => n.centroCosto === selectedCosto
+              );
+            }
 
-              // 3. Notificar a Select2
-              $("#departamento-select").trigger("change.select2");
+            const sortedDeptos = populateSelect(
+              "departamento-select",
+              "departamento",
+              nodosParaDeptos
+            );
+
+            // 3. Notificar a Select2
+            $("#departamento-select").trigger("change.select2");
 
             // --- 4. ¡LÓGICA DE AUTO-SELECCIÓN! ---
             if (sortedDeptos.length === 1) {
               // Hay solo 1 depto, auto-seleccionar Y DISPARAR SU 'CHANGE'.
               // El handler de Depto se encargará de aplicar el filtro.
               console.log("Auto-seleccionando Departamento:", sortedDeptos[0]);
-            $("#departamento-select").val(sortedDeptos[0]).trigger("change");
+              $("#departamento-select").val(sortedDeptos[0]).trigger("change");
             } else {
               // Hay múltiples deptos (o 0), así que la cascada se detiene aquí.
               // Aplicamos el filtro nosotros mismos.
@@ -1711,13 +1903,13 @@
           $("#modo-select").on("change", function () {
             // Limpia el input de búsqueda cada vez que se cambia el modo
             if (chart && chart.searchUI && chart.searchUI.input) {
-                chart.searchUI.input.value = '';
+              chart.searchUI.input.value = "";
             }
             // --- Guardar los filtros actuales ---
             const filtrosGuardados = {
-                linea: $("#linea-negocio-select").val(),
-                costo: $("#centro-costos-select").val(),
-                depto: $("#departamento-select").val()
+              linea: $("#linea-negocio-select").val(),
+              costo: $("#centro-costos-select").val(),
+              depto: $("#departamento-select").val(),
             };
             console.log("Filtros guardados:", filtrosGuardados);
 
@@ -1729,41 +1921,71 @@
 
               chart.config.template = "fichaTemplate";
               chart.config.nodeBinding = personaBinding;
-              chart.config.searchDisplayField = "nombre"
+              chart.config.searchDisplayField = "nombre";
 
               const sourceNodes = allNodes;
               /// --- Repoblar y Restaurar Cascada ---
-                // 2a. Poblar y restaurar LÍNEA
-                populateSelect("linea-negocio-select", "lineaNegocio", sourceNodes);
-                $("#linea-negocio-select").val(filtrosGuardados.linea);
+              // 2a. Poblar y restaurar LÍNEA
+              populateSelect(
+                "linea-negocio-select",
+                "lineaNegocio",
+                sourceNodes
+              );
+              $("#linea-negocio-select").val(filtrosGuardados.linea);
 
-                // 2b. Poblar y restaurar COSTO (basado en línea restaurada)
-                const nodosParaCostos = (filtrosGuardados.linea === "todos")
-                    ? sourceNodes
-                    : sourceNodes.filter((n) => n.lineaNegocio === filtrosGuardados.linea);
-                populateSelect("centro-costos-select", "centroCosto", nodosParaCostos);
-                // Solo restaurar si la opción aún existe en este set de nodos
-                if ($("#centro-costos-select option[value='" + filtrosGuardados.costo + "']").length > 0) {
-                    $("#centro-costos-select").val(filtrosGuardados.costo);
-                } else {
-                    filtrosGuardados.costo = 'todos'; // Forzar a 'todos' si no se encontró
-                }
-                
-                // 2c. Poblar y restaurar DEPTO (basado en línea Y costo restaurados)
-                const nodosParaDeptos = (filtrosGuardados.costo === "todos")
-                    ? nodosParaCostos // Nodos ya filtrados por línea
-                    : nodosParaCostos.filter((n) => n.centroCosto === filtrosGuardados.costo);
-                populateSelect("departamento-select", "departamento", nodosParaDeptos);
-                // Solo restaurar si la opción aún existe
-                if ($("#departamento-select option[value='" + filtrosGuardados.depto + "']").length > 0) {
-                    $("#departamento-select").val(filtrosGuardados.depto);
-                }
-                
-                // 2d. Notificar a Select2 de los cambios
-                $(".control-select").trigger("change.select2");
-                
-                // 2e. Aplicar los filtros restaurados
-                aplicarFiltrosJerarquicos()
+              // 2b. Poblar y restaurar COSTO (basado en línea restaurada)
+              const nodosParaCostos =
+                filtrosGuardados.linea === "todos"
+                  ? sourceNodes
+                  : sourceNodes.filter(
+                      (n) => n.lineaNegocio === filtrosGuardados.linea
+                    );
+              populateSelect(
+                "centro-costos-select",
+                "centroCosto",
+                nodosParaCostos
+              );
+              // Solo restaurar si la opción aún existe en este set de nodos
+              if (
+                $(
+                  "#centro-costos-select option[value='" +
+                    filtrosGuardados.costo +
+                    "']"
+                ).length > 0
+              ) {
+                $("#centro-costos-select").val(filtrosGuardados.costo);
+              } else {
+                filtrosGuardados.costo = "todos"; // Forzar a 'todos' si no se encontró
+              }
+
+              // 2c. Poblar y restaurar DEPTO (basado en línea Y costo restaurados)
+              const nodosParaDeptos =
+                filtrosGuardados.costo === "todos"
+                  ? nodosParaCostos // Nodos ya filtrados por línea
+                  : nodosParaCostos.filter(
+                      (n) => n.centroCosto === filtrosGuardados.costo
+                    );
+              populateSelect(
+                "departamento-select",
+                "departamento",
+                nodosParaDeptos
+              );
+              // Solo restaurar si la opción aún existe
+              if (
+                $(
+                  "#departamento-select option[value='" +
+                    filtrosGuardados.depto +
+                    "']"
+                ).length > 0
+              ) {
+                $("#departamento-select").val(filtrosGuardados.depto);
+              }
+
+              // 2d. Notificar a Select2 de los cambios
+              $(".control-select").trigger("change.select2");
+
+              // 2e. Aplicar los filtros restaurados
+              aplicarFiltrosJerarquicos();
 
               statusDiv.style.display = "none";
               //loaderOverlay.classList.remove("visible");
@@ -1772,8 +1994,7 @@
 
               chart.config.template = "cargoTemplate";
               chart.config.nodeBinding = cargoBinding;
-              chart.config.searchDisplayField = "puesto"
-
+              chart.config.searchDisplayField = "puesto";
 
               // Esta función ya se encarga de repoblar y filtrar
               loadAndRenderCargoChart(apiCargoUrl, filtrosGuardados);
@@ -1788,13 +2009,17 @@
             // Oculta el buscador inmediatamente
             sender.hide();
 
-            sender.instance.center(args.nodeId, {
+            sender.instance.center(
+              args.nodeId,
+              {
                 anim: true,
-                duration: 300 // Duración de la animación de centrado
-            }, function () {
+                duration: 300, // Duración de la animación de centrado
+              },
+              function () {
                 // Función 'callback': se ejecuta DESPUÉS de centrar
                 sender.instance.setScale(1); // Fija el zoom a 100%
-            });
+              }
+            );
 
             return false; // Previene otros eventos
           });
@@ -1805,45 +2030,60 @@
             console.log("Funcionando...", this);
 
             if (chart.searchUI && chart.searchUI.input) {
-                chart.searchUI.input.addEventListener('keydown', function (event) {
-                    if (event.key === 'Enter') {
-                        event.preventDefault(); // Previene el envío del formulario
+              chart.searchUI.input.addEventListener(
+                "keydown",
+                function (event) {
+                  if (event.key === "Enter") {
+                    event.preventDefault(); // Previene el envío del formulario
 
-                        const searchTable = chart.searchUI.searchTableWrapper;
-                        if (!searchTable) return;
+                    const searchTable = chart.searchUI.searchTableWrapper;
+                    if (!searchTable) return;
 
-                        // 1. Busca el item SELECCIONADO (el que tiene data-selected="yes")
-                        let elementToClick = searchTable.querySelector('tr[data-selected="yes"]');
+                    // 1. Busca el item SELECCIONADO (el que tiene data-selected="yes")
+                    let elementToClick = searchTable.querySelector(
+                      'tr[data-selected="yes"]'
+                    );
 
-                        if (!elementToClick) {
-                            // 2. Si no hay ninguno seleccionado, busca el PRIMER item de la lista
-                            // (el primer tr que tenga el atributo data-search-item-id)
-                            elementToClick = searchTable.querySelector('tr[data-search-item-id]');
-                        }
-
-                        // 3. Simula el clic en el elemento encontrado (esto dispara tu 'searchclick')
-                        if (elementToClick) {
-                            elementToClick.click();
-                        }
+                    if (!elementToClick) {
+                      // 2. Si no hay ninguno seleccionado, busca el PRIMER item de la lista
+                      // (el primer tr que tenga el atributo data-search-item-id)
+                      elementToClick = searchTable.querySelector(
+                        "tr[data-search-item-id]"
+                      );
                     }
 
-                    if (event.key.length === 1 && event.key >= '0' && event.key <= '9' && !event.ctrlKey && !event.altKey && !event.metaKey) {
-                        event.preventDefault();
+                    // 3. Simula el clic en el elemento encontrado (esto dispara tu 'searchclick')
+                    if (elementToClick) {
+                      elementToClick.click();
                     }
-                });
+                  }
+
+                  if (
+                    event.key.length === 1 &&
+                    event.key >= "0" &&
+                    event.key <= "9" &&
+                    !event.ctrlKey &&
+                    !event.altKey &&
+                    !event.metaKey
+                  ) {
+                    event.preventDefault();
+                  }
+                }
+              );
             }
 
             /*   Crear y hacer funcionar boton de lupa que muestra el input search  */
             // 1. Encontrar los elementos de Balkan
             const chartContainer = this.element; // El div #tree
-            const searchElement = this.element.querySelector('.boc-search');
-            const searchInput = (this.searchUI && this.searchUI.input) ? this.searchUI.input : null;
-            const menuElement = this.element.querySelector('[data-ctrl-menu]'); // Las 3 rayitas
+            const searchElement = this.element.querySelector(".boc-search");
+            const searchInput =
+              this.searchUI && this.searchUI.input ? this.searchUI.input : null;
+            const menuElement = this.element.querySelector("[data-ctrl-menu]"); // Las 3 rayitas
             if (searchElement && menuElement && searchInput) {
               // 2. Crear nuestro nuevo icono (la lupa)
-              const searchIcon = document.createElement('div');
-              searchIcon.id = 'custom-search-icon';
-              searchIcon.title = 'Buscar';
+              const searchIcon = document.createElement("div");
+              searchIcon.id = "custom-search-icon";
+              searchIcon.title = "Buscar";
               searchIcon.innerHTML = `<svg viewBox="0 0 24 24">
                   <circle cx="11" cy="11" r="8"></circle>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -1854,24 +2094,29 @@
               menuElement.parentNode.insertBefore(searchIcon, menuElement);
 
               // 4. Asignar el evento click al icono
-              searchIcon.addEventListener('click', function(e) {
+              searchIcon.addEventListener("click", function (e) {
                 e.stopPropagation(); // Evitar que el clic se propague
                 // 5. Alternar (toggle) la clase que lo hace visible
-                const isVisible = searchElement.classList.toggle('is-visible');
+                const isVisible = searchElement.classList.toggle("is-visible");
                 // 6. Si ahora está visible, poner el foco en el input
                 if (isVisible && searchInput) {
                   searchInput.focus();
                 }
               });
               // 7. (Opcional) Ocultar si se hace clic fuera del buscador
-              document.addEventListener('click', function(e) {
+              document.addEventListener("click", function (e) {
                 // Si el clic NO fue en el buscador Y NO fue en el icono...
-                if (!searchElement.contains(e.target) && !searchIcon.contains(e.target)) {
-                  searchElement.classList.remove('is-visible');
+                if (
+                  !searchElement.contains(e.target) &&
+                  !searchIcon.contains(e.target)
+                ) {
+                  searchElement.classList.remove("is-visible");
                 }
               });
             } else {
-              console.error("onInit: No se pudieron encontrar los elementos de la UI de Balkan (search, menu, input).");
+              console.error(
+                "onInit: No se pudieron encontrar los elementos de la UI de Balkan (search, menu, input)."
+              );
             }
 
             // chart.config.scaleInitial = OrgChart.match.boundary;
@@ -1879,7 +2124,7 @@
             //procesarLoginDeUsuario();
           });
 
-        //   statusDiv.style.display = "none"; // Ocultar "Cargando..."
+          //   statusDiv.style.display = "none"; // Ocultar "Cargando..."
           loaderOverlay.classList.remove("visible");
         } catch (error) {
           console.error("ERROR DETALLADO:", error);
@@ -1893,51 +2138,72 @@
       async function loadAndRenderCargoChart(apiUrl, filtrosGuardados = null) {
         // Objeto por defecto si no se pasan filtros
         if (!filtrosGuardados) {
-          filtrosGuardados = { linea: 'todos', costo: 'todos', depto: 'todos' };
+          filtrosGuardados = { linea: "todos", costo: "todos", depto: "todos" };
         }
 
         // Esta función repobla y restaura los filtros para la vista de Cargo
-        function poblarYRestaurarFiltrosCargo() {
-            const sourceNodes = allCargoNodes; // Fuente de datos para Cargo
-            console.log("Restaurando filtros para vista Cargo...");
+        function poblarYRestaurarFiltrosCargo() {
+          const sourceNodes = allCargoNodes; // Fuente de datos para Cargo
+          console.log("Restaurando filtros para vista Cargo..."); // 1. Poblar y restaurar LÍNEA
 
-            // 1. Poblar y restaurar LÍNEA
-            populateSelect("linea-negocio-select", "lineaNegocio", sourceNodes);
-            $("#linea-negocio-select").val(filtrosGuardados.linea);
+          populateSelect("linea-negocio-select", "lineaNegocio", sourceNodes);
+          $("#linea-negocio-select").val(filtrosGuardados.linea); // 2. Poblar y restaurar COSTO
 
-            // 2. Poblar y restaurar COSTO
-            const nodosParaCostos = (filtrosGuardados.linea === "todos")
-                ? sourceNodes
-                : sourceNodes.filter((n) => n.lineaNegocio === filtrosGuardados.linea);
-            populateSelect("centro-costos-select", "centroCosto", nodosParaCostos);
-            if ($("#centro-costos-select option[value='" + filtrosGuardados.costo + "']").length > 0) {
-                $("#centro-costos-select").val(filtrosGuardados.costo);
-            } else {
-                filtrosGuardados.costo = 'todos'; // Forzar a 'todos' si no se encontró
-            }
+          const nodosParaCostos =
+            filtrosGuardados.linea === "todos"
+              ? sourceNodes
+              : sourceNodes.filter(
+                  (n) => n.lineaNegocio === filtrosGuardados.linea
+                );
+          populateSelect(
+            "centro-costos-select",
+            "centroCosto",
+            nodosParaCostos
+          );
+          if (
+            $(
+              "#centro-costos-select option[value='" +
+                filtrosGuardados.costo +
+                "']"
+            ).length > 0
+          ) {
+            $("#centro-costos-select").val(filtrosGuardados.costo);
+          } else {
+            filtrosGuardados.costo = "todos"; // Forzar a 'todos' si no se encontró
+          } // 3. Poblar y restaurar DEPTO
 
-            // 3. Poblar y restaurar DEPTO
-            const nodosParaDeptos = (filtrosGuardados.costo === "todos")
-                ? nodosParaCostos
-                : nodosParaCostos.filter((n) => n.centroCosto === filtrosGuardados.costo);
-            populateSelect("departamento-select", "departamento", nodosParaDeptos);
-            if ($("#departamento-select option[value='" + filtrosGuardados.depto + "']").length > 0) {
-                $("#departamento-select").val(filtrosGuardados.depto);
-            }
+          const nodosParaDeptos =
+            filtrosGuardados.costo === "todos"
+              ? nodosParaCostos
+              : nodosParaCostos.filter(
+                  (n) => n.centroCosto === filtrosGuardados.costo
+                );
+          populateSelect(
+            "departamento-select",
+            "departamento",
+            nodosParaDeptos
+          );
+          if (
+            $(
+              "#departamento-select option[value='" +
+                filtrosGuardados.depto +
+                "']"
+            ).length > 0
+          ) {
+            $("#departamento-select").val(filtrosGuardados.depto);
+          } // 4. Notificar a Select2
 
-            // 4. Notificar a Select2
-            $(".control-select").trigger("change.select2");
+          $(".control-select").trigger("change.select2"); // 5. Aplicar filtros
 
-            // 5. Aplicar filtros
-            aplicarFiltrosJerarquicos();
-        }
+          aplicarFiltrosJerarquicos();
+        }
 
         if (isCargoDataReady) {
-            console.log("Datos de Cargos ya cargados. Usando cache.");
-            
-            // Simplemente llamamos a la función que repuebla y aplica filtros
-            poblarYRestaurarFiltrosCargo();
-            return; // Salimos de la función
+          console.log("Datos de Cargos ya cargados. Usando cache.");
+
+          // Simplemente llamamos a la función que repuebla y aplica filtros
+          poblarYRestaurarFiltrosCargo();
+          return; // Salimos de la función
         }
 
         statusDiv.innerText = "Cargando vista de Cargos...";
@@ -1963,13 +2229,15 @@
 
           // --- Transformación de "Cargo" ---
           const balkanCargoNodes = flatApiData
-            .filter((cargo) => cargo && cargo.codigoPosicion != '00006' 
-                          && cargo.codigoPosicionReporta != "00424"   //Este id no aparece en la api pero si en la viewEmployeers
-                          //&& !(cargo.codigoPosicionReporta === '00006' && cargo.codigoPosicion !== '00001')  
-                          //&& !['00006', '00416', '00330', '00353'].includes(cargo.codigoPosicion) 
-                          && cargo.puesto != null
-
-                    ) // Filtro básico
+            .filter(
+              (cargo) =>
+                cargo &&
+                cargo.codigoPosicion != "00006" &&
+                cargo.codigoPosicionReporta != "00424" && //Este id no aparece en la api pero si en la viewEmployeers
+                //&& !(cargo.codigoPosicionReporta === '00006' && cargo.codigoPosicion !== '00001')
+                //&& !['00006', '00416', '00330', '00353'].includes(cargo.codigoPosicion)
+                cargo.puesto != null
+            ) // Filtro básico
             .map((cargo) => {
               const isVacant = cargo.esVacante === "1";
               const id = String(cargo.codigoPosicion).trim();
@@ -1977,12 +2245,12 @@
                 ? String(cargo.codigoPosicionReporta).trim()
                 : null;
 
-              if (pid === "0" || pid === id) pid = undefined;  // Evitar auto-referencia
+              if (pid === "0" || pid === id) pid = undefined; // Evitar auto-referencia
 
               // Lógica de Tags
               const levelTag = `level-${cargo.nivelJerarquico || "99"}`;
               let tags = [levelTag];
-              
+
               if (isVacant) {
                 tags.push("vacante");
               }
@@ -1990,33 +2258,43 @@
               const order = parseInt(cargo.nivelJerarquico || 99);
 
               // --- LÓGICA PARA MANEJAR 'Empleado' (Objeto o Array) ---
-                let listaEmpleados = []; // Almacenará el array de empleados
-                let primerEmpleado = null; // Para datos de manuales
-                let cargoPersonaDisplay = "PUESTO VACANTE"; // Nombre para el nodo
-                let cargoPersonaImgDisplay;
-                if (!isVacant && cargo.Empleado) {
-                    if (Array.isArray(cargo.Empleado) && cargo.Empleado.length > 0) {
-                        // Es un array de empleados
-                        listaEmpleados = cargo.Empleado;
-                        primerEmpleado = cargo.Empleado[0];
-                        cargoPersonaDisplay = (listaEmpleados.length === 1)
-                            ? `${listaEmpleados[0].nombre || ''} ${listaEmpleados[0].apellido || ''}`.trim() // Nombre si es 1
-                            : `${listaEmpleados.length} PERSONAS ASIGNADAS`; // Conteo si son más
-                        // cargoPersonaDisplay = `${listaEmpleados.length} PERSONAS ASIGNADAS`;
-                    } else if (typeof cargo.Empleado === 'object' && !Array.isArray(cargo.Empleado)) {
-                        // Es un solo empleado (objeto)
-                        listaEmpleados = [cargo.Empleado];
-                        primerEmpleado = cargo.Empleado;
-                        cargoPersonaDisplay = `${primerEmpleado.nombre || ''} ${primerEmpleado.apellido || ''}`.trim();
-                        cargoPersonaImgDisplay = primerEmpleado.foto;
-                    } else {
-                        // Es un cargo no vacante pero sin datos de empleado
-                        cargoPersonaDisplay = "Sin Asignar";
-                    }
+              let listaEmpleados = []; // Almacenará el array de empleados
+              let primerEmpleado = null; // Para datos de manuales
+              let cargoPersonaDisplay = "PUESTO VACANTE"; // Nombre para el nodo
+              let cargoPersonaImgDisplay;
+              if (!isVacant && cargo.Empleado) {
+                if (
+                  Array.isArray(cargo.Empleado) &&
+                  cargo.Empleado.length > 0
+                ) {
+                  // Es un array de empleados
+                  listaEmpleados = cargo.Empleado;
+                  primerEmpleado = cargo.Empleado[0];
+                  cargoPersonaDisplay =
+                    listaEmpleados.length === 1
+                      ? `${listaEmpleados[0].nombre || ""} ${
+                          listaEmpleados[0].apellido || ""
+                        }`.trim() // Nombre si es 1
+                      : `${listaEmpleados.length} PERSONAS ASIGNADAS`; // Conteo si son más
+                  // cargoPersonaDisplay = `${listaEmpleados.length} PERSONAS ASIGNADAS`;
+                } else if (
+                  typeof cargo.Empleado === "object" &&
+                  !Array.isArray(cargo.Empleado)
+                ) {
+                  // Es un solo empleado (objeto)
+                  listaEmpleados = [cargo.Empleado];
+                  primerEmpleado = cargo.Empleado;
+                  cargoPersonaDisplay = `${primerEmpleado.nombre || ""} ${
+                    primerEmpleado.apellido || ""
+                  }`.trim();
+                  cargoPersonaImgDisplay = primerEmpleado.foto;
+                } else {
+                  // Es un cargo no vacante pero sin datos de empleado
+                  cargoPersonaDisplay = "Sin Asignar";
                 }
-                else {
-                  //cargoPersonaDisplay = cargo.codigoPosicionReporta
-                }
+              } else {
+                //cargoPersonaDisplay = cargo.codigoPosicionReporta
+              }
 
               return {
                 id,
@@ -2027,39 +2305,50 @@
                 // Campos para el template 'cargoTemplate'
                 cargoPuesto: cargo.puesto || "Puesto N/A",
                 cargoPersona: cargoPersonaDisplay, // "3 PERSONAS ASIGNADAS" o "Nombre Apellido"
-                cargoDepto: (primerEmpleado ? primerEmpleado.nombreDepartamento : cargo.nombreDepartamento) || "N/A",
+                cargoDepto:
+                  (primerEmpleado
+                    ? primerEmpleado.nombreDepartamento
+                    : cargo.nombreDepartamento) || "N/A",
                 //cargoDepto: cargo.codigoPosicion,//cargo.nombreDepartamento || "N/A", //WIP: prueba para sabeer codPosicion de la gente
 
                 // Campos para los filtros
-                lineaNegocio: (primerEmpleado ? primerEmpleado.nombreLineaNegocio : cargo.nombreLineaNegocio) || "N/A",
-                centroCosto: (primerEmpleado ? primerEmpleado.nombreCentroCosto : cargo.nombreCentroCosto) || "N/A",
-                departamento: (primerEmpleado ? primerEmpleado.nombreDepartamento : cargo.nombreDepartamento) || "N/A",
-
+                lineaNegocio:
+                  (primerEmpleado
+                    ? primerEmpleado.nombreLineaNegocio
+                    : cargo.nombreLineaNegocio) || "N/A",
+                centroCosto:
+                  (primerEmpleado
+                    ? primerEmpleado.nombreCentroCosto
+                    : cargo.nombreCentroCosto) || "N/A",
+                departamento:
+                  (primerEmpleado
+                    ? primerEmpleado.nombreDepartamento
+                    : cargo.nombreDepartamento) || "N/A",
 
                 // Guardamos el ARRAY de empleados completo para el modal
                 listaEmpleados: listaEmpleados,
-                
+
                 // Campos de 'persona' que la Vista Cargo no usa (los dejamos null)
                 nombre: cargoPersonaDisplay,
                 puesto: cargo.puesto || "Puesto N/A",
                 // img: cargoPersonaImgDisplay,
 
                 // userid: null, //empleado ? empleado.userid : null,
-                
+
                 // Guardamos los datos para los manuales
-                codDepAx: (primerEmpleado ? primerEmpleado.codDepAx : null),
+                codDepAx: primerEmpleado ? primerEmpleado.codDepAx : null,
                 codDepartamento: cargo.codDepartamento || null, // El 'codDepartamento' viene del cargo
-            };
+              };
             });
 
           // Sanitizar (muy importante)
           const sanitizedCargoNodes =
             sanitizeCircularReferences(balkanCargoNodes);
 
-          console.log(sanitizedCargoNodes)
+          console.log(sanitizedCargoNodes);
           // Aplicamos la misma lógica de subniveles relativos
           aplicarSubnivelesRelativos(sanitizedCargoNodes);
-          
+
           // Cargar la nueva data en el chart
           // 1. Guardar data (ya no se carga todo)
           allCargoNodes = sanitizedCargoNodes;

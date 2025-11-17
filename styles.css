@@ -75,15 +75,15 @@ body {
 
 /* Oculta los filtros y el botón de búsqueda por defecto */
 #custom-filters {
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
 }
 
 /* Clase para mostrarlos suavemente */
 .ui-ready {
-    visibility: visible !important;
-    opacity: 1 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* Estilo base del nodo (de tu plantilla 'myTemplate') */
@@ -443,67 +443,71 @@ div.boc-node.level-6[data-n-id] {
 
 /* 1. Prepara el contenedor del gráfico */
 #tree-container {
-    /* Necesario para que el overlay se posicione correctamente */
-    flex-grow: 1;
-    position: relative; 
-    /* Dale una altura mínima para que el spinner se vea 
+  /* Necesario para que el overlay se posicione correctamente */
+  flex-grow: 1;
+  position: relative;
+  /* Dale una altura mínima para que el spinner se vea 
        incluso si el div #tree está vacío */
-    min-height: 400px; 
+  min-height: 400px;
 }
 
 /* 2. El overlay de carga */
 #chart-loader-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    /* Usamos un blanco semi-transparente o sólido. 
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* Usamos un blanco semi-transparente o sólido. 
        Prueba #ffffff si prefieres que sea opaco. */
-    background: rgba(255, 255, 255, 0.9); 
-    z-index: 10;
-    
-    /* Para centrar el spinner y el texto */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 10;
 
-    /* Oculto por defecto */
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 0.3s ease, visibility 0.3s;
+  /* Para centrar el spinner y el texto */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  /* Oculto por defecto */
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease, visibility 0.3s;
 }
 
 /* 3. Clase para mostrar el overlay */
 #chart-loader-overlay.visible {
-    visibility: visible;
-    opacity: 1;
+  visibility: visible;
+  opacity: 1;
 }
 
 /* 4. El spinner (animación de rotación) */
 .loader-spinner {
-    border: 5px solid #f3f3f3; /* Borde gris claro */
-    border-top: 5px solid #F57C00; /* Tu color Naranja */
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
-    animation: spin 1s linear infinite;
-    margin-bottom: 20px;
+  border: 5px solid #f3f3f3; /* Borde gris claro */
+  border-top: 5px solid #f57c00; /* Tu color Naranja */
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
 }
 
 /* 5. El texto debajo del spinner */
 #loader-text {
-    font-family: Arial, sans-serif;
-    color: #555;
-    font-size: 16px;
-    font-weight: bold;
+  font-family: Arial, sans-serif;
+  color: #555;
+  font-size: 16px;
+  font-weight: bold;
 }
 
 /* 6. Animación del spinner */
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* 4. Div del Gráfico (100% de su nuevo padre) */
@@ -650,7 +654,7 @@ div.boc-node.level-6[data-n-id] {
 /* Bloque de info (Email, Depto, etc.) */
 .details-info-block {
   text-align: left;
-  max-width: 400px; /* Centra el bloque de texto */
+  max-width: 440px; /* Centra el bloque de texto */
   margin: 0 auto 24px auto;
 }
 
@@ -720,125 +724,123 @@ div.boc-node.level-6[data-n-id] {
   /* display: none; */
 }
 
-
 /* Estilos para la lista de empleados en el modal (Modo Cargo) */
 .details-employee-list {
-    text-align: left;
-    max-height: 150px; /* Altura máxima, por si hay muchos empleados */
-    overflow-y: auto;  /* Scroll si es necesario */
-    border-top: 1px solid #eee;
-    margin-top: 10px;
-    padding-top: 10px;
+  text-align: left;
+  max-height: 150px; /* Altura máxima, por si hay muchos empleados */
+  overflow-y: auto; /* Scroll si es necesario */
+  border-top: 1px solid #eee;
+  margin-top: 10px;
+  padding-top: 10px;
 }
 
 .employee-list-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
 }
 
 .employee-list-item:hover {
-    background-color: #f0f0f0; /* Un gris claro para el hover */
+  background-color: #f0f0f0; /* Un gris claro para el hover */
 }
 
 .employee-list-img {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    margin-right: 10px;
-    object-fit: cover;
-    flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .employee-list-info {
-    font-size: 14px;
+  font-size: 14px;
 }
 
 .employee-list-name {
-    font-weight: bold;
-    color: #333;
+  font-weight: bold;
+  color: #333;
 }
 
 .employee-list-email {
-    font-size: 12px;
-    color: #777;
+  font-size: 12px;
+  color: #777;
 }
 
 /* Oculta la imagen principal del modal por defecto */
 #custom-details-form #details-img {
-    display: none;
+  display: none;
 }
 
 /* --- CSS para Ocultar/Mostrar el Buscador --- */
 
 /* 1. Ocultar el buscador (que Balkan crea) por defecto */
 div.boc-search {
-    display: none !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
-    transition: opacity 0.3s ease 0s;
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: opacity 0.3s ease 0s;
 }
 
 /* 2. Clase para mostrar el buscador cuando hacemos clic */
 div.boc-search.is-visible {
-    display: block !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    
-    /* ¡AJUSTE AQUÍ! Lo movemos más a la derecha */
-    /* Icono (70px) + Ancho icono (40px) + Espacio (10px) = 120px */
-    right: 120px !important; 
-    top: 20px !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  /* ¡AJUSTE AQUÍ! Lo movemos más a la derecha */
+  /* Icono (70px) + Ancho icono (40px) + Espacio (10px) = 120px */
+  right: 120px !important;
+  top: 20px !important;
 }
-        
+
 /* 3. Estilo para NUESTRO icono (el que crearemos con JS) */
 #custom-search-icon {
-    position: absolute;
-    top: 20px;
-    /* Lo dejamos en 70px (al lado del menú de 3 rayas que está en 20px) */
-    right: 70px; 
-    
-    /* Estilos de botón */
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 50%;
-    cursor: pointer;
-    z-index: 1001; 
-    transition: background-color 0.2s;
+  position: absolute;
+  top: 20px;
+  /* Lo dejamos en 70px (al lado del menú de 3 rayas que está en 20px) */
+  right: 70px;
 
-    margin-top: 9px; 
-    box-sizing: border-box;
+  /* Estilos de botón */
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 50%;
+  cursor: pointer;
+  /* z-index: 1001; */
+  transition: background-color 0.2s;
+
+  margin-top: 9px;
+  box-sizing: border-box;
 }
 
 /* Estilo del SVG (la lupa) dentro de nuestro botón */
 #custom-search-icon svg {
-    width: 20px;
-    height: 20px;
-    stroke: #555;
-    stroke-width: 2;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+  width: 20px;
+  height: 20px;
+  stroke: #555;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 #custom-search-icon:hover {
-    background-color: #f5f5f5;
+  background-color: #f5f5f5;
 }
-
 
 /* 3. (OPCIONAL) Ajuste visual del icono de la lupa */
 div[data-ctrl-search] {
-    top: 20px !important;
-    right: 70px !important;
+  top: 20px !important;
+  right: 70px !important;
 }
 
-.search-item-hovered rect{
-    fill: var(--color-primario);
+.search-item-hovered rect {
+  fill: var(--color-primario);
 }
 
 /* Contenedor principal del select */
@@ -892,9 +894,6 @@ div[data-ctrl-search] {
   width: 220px !important;
 }
 
-
-
-
 /*
  * =========================================
  * ESTILOS PARA LA LISTA DEL BUSCADOR (CON SCROLL)
@@ -906,19 +905,101 @@ div[data-ctrl-search] {
  * contra los estilos que la librería aplica dinámicamente.
 */
 .boc-search > div:last-child {
-    /* * Altura de 5 items. 
+  /* * Altura de 5 items. 
      * Asumimos 50px por item (40px de alto + 10px de padding/margen).
      * Puedes ajustar este valor si tus items son más altos o bajos.
      */
-    max-height: 250px !important; 
-    overflow-y: auto !important;  /* ¡Añade el scroll vertical! */
-    
-    /* (Opcional) Estilos para que se vea bien el contenedor con scroll */
-    border-radius: 4px;
-    border: 1px solid #ddd;
+  max-height: 250px !important;
+  overflow-y: auto !important; /* ¡Añade el scroll vertical! */
+
+  /* (Opcional) Estilos para que se vea bien el contenedor con scroll */
+  border-radius: 4px;
+  border: 1px solid #ddd;
 }
 
 /* (Opcional) Asegurar que los items tengan una altura fija */
 .boc-search-result table tr {
-    height: 50px; 
+  height: 50px;
+}
+
+/* --- Estilos para el Multi-select de Nivel con Checkboxes --- */
+
+/* Oculta el checkbox nativo que Select2 intenta mostrar en la lista */
+.select2-results__option .select2-selection__choice__remove {
+  display: none !important;
+}
+
+/* Contenedor para nuestro checkbox falso y el texto */
+.select2-results__option[aria-selected] {
+  display: flex;
+  align-items: center;
+  -webkit-user-select: none; /* Evita seleccionar el texto al hacer clic */
+  user-select: none;
+}
+
+/* Estilo para nuestro checkbox falso */
+.select2-results__option[aria-selected] input {
+  margin-right: 8px;
+  vertical-align: middle;
+  margin-top: -2px; /* Ajuste visual fino */
+  pointer-events: none; /* Hace que el clic vaya al 'label' (el span) */
+}
+
+/* Oculta el 'x' para quitar items individuales en la caja (queremos "limpiar todo") */
+.select2-selection--multiple .select2-selection__choice__remove {
+  display: none !important;
+}
+
+/* Estilo de la caja principal cuando está seleccionada */
+.select2-selection--multiple .select2-selection__choice {
+  background-color: #f0f0f0 !important;
+  border: 1px solid #ddd !important;
+  color: #555;
+  padding: 3px 8px !important;
+}
+
+/* Cuando el select está deshabilitado, oculta el 'x' de limpiar todo */
+.select2-container--disabled .select2-selection__clear {
+  display: none;
+}
+
+/* --- Estilos para el Multi-select de Nivel con Checkboxes --- */
+
+/* ... (tus reglas de .select2-results__option, etc. de antes) ... */
+
+/* Esta es la regla clave: 
+  Oculta las "píldoras" de selección (ej. "x 0. Supervisión") 
+  DENTRO del contenedor de Select2 para 'nivel-select'.
+*/
+/* --- Estilos para el Multi-select de Nivel con Checkboxes --- */
+
+/* ✅ REGLA CLAVE: Oculta las "píldoras" de selección */
+.select2-selection__choice {
+  display: none !important;
+}
+
+/* Fuerza a la caja de texto (donde aparece el placeholder) a ocupar el 100% */
+.select2-selection--multiple .select2-search--inline .select2-search__field {
+  width: 100% !important;
+  padding-left: 7px; /* Añade un pequeño padding para alinear el texto */
+  margin-top: 6px; /* Centra verticalmente el texto del placeholder */
+}
+
+/* Oculta el placeholder "fantasma" que Select2 deja a veces */
+.select2-search__field:placeholder-shown + .select2-selection__placeholder {
+  display: none;
+}
+
+/* --- (Estilos del dropdown - sin cambios) --- */
+.select2-results__option[aria-selected] {
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+.select2-results__option[aria-selected] input {
+  margin-right: 8px;
+  pointer-events: none;
+}
+.select2-container--disabled .select2-selection__clear {
+  display: none;
 }
