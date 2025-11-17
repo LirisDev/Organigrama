@@ -1186,6 +1186,10 @@
               const id = isVacant
                 ? String(emp.codigoPosicion).trim()
                 : String(emp.codigoEmpleado).trim();
+                
+              const CodEmpleado = isVacant
+                ? parseInt(emp.codigoPosicion)
+                : parseInt(emp.codigoEmpleado);
 
               let pid = emp.codigoPosicionReporta
                 ? String(emp.codigoPosicionReporta).trim()
@@ -1222,6 +1226,7 @@
                   pid,
                   tags,
                   order,
+                  CodEmpleado,
                   // Esto pondrá "PUESTO VACANTE" en la línea principal
                   nombre: "PUESTO VACANTE",
 
@@ -1248,6 +1253,7 @@
                   id,
                   pid,
                   tags,
+                  CodEmpleado,
                   nombre: `${emp.nombre || "N/A"} ${emp.apellido || ""}`.trim(),
                   userid: emp.userid || "UserId no definido",
                   puesto: emp.puesto || "Puesto N/A", // Usamos 'N/A' como default
@@ -1507,8 +1513,8 @@
             },
 
             orderBy: [
-              { field: "order", desc: false }, // Primero ordena por Nivel jerarquico
-              { field: "id", desc: true }, // Luego por nombre de la A a la Z
+                { field: "order", desc: false }, // Primero ordena por Nivel jerarquico (ascendente)
+                { field: "CodEmpleado", desc: false },    // Luego por id (ascendente)
             ],
             searchDisplayField: "nombre",
             /* anim: {
@@ -2505,6 +2511,9 @@
               let primerEmpleado = null; // Para datos de manuales
               let cargoPersonaDisplay = "PUESTO VACANTE"; // Nombre para el nodo
               let cargoPersonaImgDisplay;
+
+              let CodEmpleado = null;//999999999; // Valor alto por defecto (para ir al final)
+
               if (!isVacant && cargo.Empleado) {
                 if (
                   Array.isArray(cargo.Empleado) &&
@@ -2520,6 +2529,15 @@
                         }`.trim() // Nombre si es 1
                       : `${listaEmpleados.length} PERSONAS ASIGNADAS`; // Conteo si son más
                   // cargoPersonaDisplay = `${listaEmpleados.length} PERSONAS ASIGNADAS`;
+                  // --- LÓGICA DE ORDENAMIENTO PARA CARGOS ---
+                        if (listaEmpleados.length === 1) {
+                            // Si hay solo 1, usamos su código para ordenar
+                            CodEmpleado = parseInt(listaEmpleados[0].codigoEmpleado) || 999999999;
+                        } else {
+                            // Si hay varios, usamos un valor alto para que vayan al final (pero antes de los vacíos si quieres)
+                            // O mantenemos el 999999999 para que se agrupen al final junto con otros sin código único
+                            CodEmpleado = null;//999999998; // Ejemplo: Un poco antes que los vacantes/sin asignar puros
+                        }
                 } else if (
                   typeof cargo.Empleado === "object" &&
                   !Array.isArray(cargo.Empleado)
@@ -2531,6 +2549,10 @@
                     primerEmpleado.apellido || ""
                   }`.trim();
                   cargoPersonaImgDisplay = primerEmpleado.foto;
+                  // --- LÓGICA DE ORDENAMIENTO PARA CARGOS ---
+                  // Si es un objeto directo, es un solo empleado
+                  CodEmpleado = parseInt(primerEmpleado.codigoEmpleado) || null;//999999999;
+
                 } else {
                   // Es un cargo no vacante pero sin datos de empleado
                   cargoPersonaDisplay = "Sin Asignar";
@@ -2544,7 +2566,7 @@
                 pid,
                 tags,
                 order,
-
+                CodEmpleado,
                 // Campos para el template 'cargoTemplate'
                 cargoPuesto: cargo.puesto || "Puesto N/A",
                 cargoPersona: cargoPersonaDisplay, // "3 PERSONAS ASIGNADAS" o "Nombre Apellido"
