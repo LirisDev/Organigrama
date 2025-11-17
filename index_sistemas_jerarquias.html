@@ -85,21 +85,6 @@
     <div class="org-container">
       <header id="custom-filters">
         <div>
-          <!--           <select id="nivel-select" class="control-select" multiple="multiple">
-            <option value="0">0. Supervisión y ejecución</option>
-            <option value="1">1. Alta Dirección</option>
-            <option value="2">2. Nivel Gerencial</option>
-            <option value="3">3. GERENTES CORPORATIVO</option>
-            <option value="4">4. GERENTES DE PLANTAS</option>
-            <option value="5">5. GERENTES RETAIL</option>
-            <option value="6">6. Nivel Jefatura</option>
-            <option value="7">7. Nivel Coordinacion/Supervision</option>
-            <option value="8">8. Nivel Analitico</option>
-            <option value="9">9. Nivel Operativo</option>
-            <option value="10">10. Nivel Base u Operario</option>
-            <option value="99">99. Sin Nivel Asignado</option>
-          </select> -->
-
           <select id="linea-negocio-select" class="control-select">
             <option value="todos">TODA LÍNEA DE NEGOCIOS</option>
           </select>
@@ -115,6 +100,20 @@
             <option value="Persona">VISTA POR PERSONA</option>
             <option value="Cargo">VISTA POR CARGO</option>
           </select>
+          <!-- <select id="nivel-select" class="control-select" multiple="multiple"> -->
+            <!-- <option value="0">0. Supervisión y ejecución</option> -->
+            <!-- <option value="1">1. Alta Dirección</option>
+            <option value="2">2. Nivel Gerencial</option>
+            <option value="3">3. GERENTES CORPORATIVO</option>
+            <option value="4">4. GERENTES DE PLANTAS</option>
+            <option value="5">5. GERENTES RETAIL</option>
+            <option value="6">6. Nivel Jefatura y ejecución</option>
+            <option value="7">7. Nivel Coordinacion/Supervision y ejecución</option>
+            <option value="8">8. Nivel Analitico y ejecución</option>
+            <option value="9">9. Nivel Operativo</option>
+            <option value="10">10. Nivel Base u Operario</option> -->
+            <!-- <option value="99">Todos los niveles</option> -->
+          <!-- </select> -->
         </div>
       </header>
 
@@ -274,7 +273,7 @@
             id: empData.codigoEmpleado,
             nombre: `${empData.nombre || ""} ${empData.apellido || ""}`.trim(),
             puesto: empData.puestoEmpleado || this.data.cargoPuesto,
-            img: empData.foto,
+            img: empData.foto  || "Logo-Liris.png",
             email: empData.emailCorporativo,
             lineaNegocio: this.data.lineaNegocio,
             centroCosto: this.data.centroCosto,
@@ -334,7 +333,7 @@
         if (isVacant || !personData.img) {
           this.imgEl.src = "Logo-Liris.png"; //"https://via.placeholder.com/110/cccccc/ffffff?text=N/A";
         } else {
-          this.imgEl.src = personData.img;
+          this.imgEl.src = personData.img  || "Logo-Liris.png";
         }
         // 2. Muestra la imagen AHORA que ya tiene la 'src' correcta
         this.imgEl.style.display = "block"; // Asegúrate de que sea 'block' para centrar
@@ -428,7 +427,7 @@
 
       /**
        * Método SHOW: Se llama CADA VEZ que se abre el modal.
-       * ¡AHORA MANEJA 3 CASOS (Persona, Cargo-Lista, Cargo-Individual)!
+       * ¡MANEJA 3 CASOS (Persona, Cargo-Lista, Cargo-Individual)!
        */
       CustomDetailsForm.prototype.show = function (nodeId) {
         // 1. Obtener la data más reciente del nodo
@@ -466,7 +465,7 @@
                 singleEmp.apellido || ""
               }`.trim(),
               puesto: singleEmp.puestoEmpleado || this.data.cargoPuesto,
-              img: singleEmp.foto,
+              img: singleEmp.foto || "Logo-Liris.png",
               email: singleEmp.emailCorporativo,
               lineaNegocio: this.data.lineaNegocio,
               centroCosto: this.data.centroCosto,
@@ -530,6 +529,7 @@
         // 6. Mostrar el modal (común para todos)
         this.overlay.classList.add("visible");
       };
+      
       /**
        * Método HIDE: Se llama para cerrar el modal.
        */
@@ -538,50 +538,97 @@
         this.data = null; // Limpiar la data
       };
 
-      /* FUNCION PARA GENERAR URL DE LOS MANUALES */
-      function getManualUrl(nodeData, tipo) {
-        let carpeta = "";
-        if (tipo === "usuario") carpeta = "Manual de usuario";
-        if (tipo === "procedimientos") carpeta = "Manual de procedimientos";
-        if (tipo === "funciones") carpeta = "Manual de funciones";
+      /* //TODO: FUNCION PARA HABILITAR/DESHABILITAR FILTROS */
+      function actualizarEstadoFiltros() {
+        const selectIds = "#linea-negocio-select, #centro-costos-select, #departamento-select";
+        const $nivel = $("#nivel-select");
 
-        // Recreamos la lógica del depParam
-        const codEmp = nodeData.id;
-        const codDepAx = nodeData.codDepAx;
-        const codDepartamento = nodeData.codDepartamento; // Asumiendo que mapeaste este campo
+        // 1. Verificar valores de los filtros principales
+        const linea = $("#linea-negocio-select").val();
+        const costo = $("#centro-costos-select").val();
+        const depto = $("#departamento-select").val();
 
-        const depParam =
-          codDepAx && codDepartamento
-            ? `${codDepAx}|${codDepartamento}`
-            : codDepAx || ""; // Usa codDepAx si codDepartamento falta
+        // ¿Están TODOS en "todos"?
+        const filtrosEstanEnTodos = (linea === 'todos' && costo === 'todos' && depto === 'todos');
 
-        // Comprobar si tenemos los datos mínimos
-        // if (!codEmp || !depParam) {
-        //     console.warn(`Faltan datos para generar el manual de ${tipo}.`, nodeData);
-        //     return null; // No podemos construir la URL
-        // }
+        // 2. Lógica de Permisos de Usuario (Global)
+        if (usuarioPuedeVerTodo) {
+          console.log("🔐 Permiso Global: SI");
+          // Si tiene permiso, habilitamos los filtros principales
+          $(selectIds).prop("disabled", false);
 
-        //return `http://192.168.127.162/rhh/visor.html?Carpeta=${encodeURIComponent(
-        return `https://soporte.liris.com.ec/rhh/visor.html?Carpeta=${encodeURIComponent(
-          carpeta
-        )}&CodEmp=${codEmp || ""}&DepartMyProcessId=${depParam}`;
+          // 3. Lógica de Dependencia para Niveles:
+          // El nivel solo se habilita si NO hay filtros activos (todo está en "todos")
+          if (filtrosEstanEnTodos) {
+             $nivel.prop("disabled", false);
+          } else {
+             // Si filtró por Dpto/Línea, bloqueamos el nivel
+             $nivel.prop("disabled", true);
+             
+             // OPCIONAL: Al bloquear, seleccionamos "TODOS" los niveles automáticamente
+             // para evitar que el filtro de nivel oculte datos del departamento seleccionado.
+             // (Si prefieres que se mantenga la selección anterior, borra estas 4 líneas siguientes)
+            //  var allOptions = [];
+            //  $nivel.find('option').each(function() { allOptions.push(this.value); });
+            //  $nivel.val(allOptions).trigger('change'); 
+          }
+
+        } else {
+          // Si NO tiene permiso (es bodeguero, etc), se deshabilita TODO
+          console.log("🔐 Permiso Global: NO");
+          $(selectIds).prop("disabled", true);
+          $nivel.prop("disabled", true);
+        }
+
+        // 4. Notificar a Select2 para refrescar la visualización (grisado)
+        $(selectIds).trigger("change.select2");
+        $nivel.trigger("change.select2");
       }
-
       /* FUNCION PARA HABILITAR/DESHABILITAR FILTROS */
       function actualizarEstadoFiltros() {
-        const selectIds =
-          "#linea-negocio-select, #centro-costos-select, #departamento-select";
+        const selectIds = "#linea-negocio-select, #centro-costos-select, #departamento-select";
+        const $nivel = $("#nivel-select");
+
+        // 1. Verificar valores de los filtros principales
+        const linea = $("#linea-negocio-select").val();
+        const costo = $("#centro-costos-select").val();
+        const depto = $("#departamento-select").val();
+
+        // ¿Hay algún filtro activo? (Es decir, algo distinto a "todos")
+        const hayFiltrosActivos = (linea !== 'todos' || costo !== 'todos' || depto !== 'todos');
+
+        // 2. Lógica de Permisos de Usuario (Global)
         if (usuarioPuedeVerTodo) {
-          // Habilitar si tiene permiso
-          console.log("🔐 Actualizando UI: Filtros HABILITADOS.");
+          console.log("🔐 Permiso Global: SI");
+          // Si tiene permiso, habilitamos los filtros principales
           $(selectIds).prop("disabled", false);
+
+          // 3. Lógica de Dependencia para Niveles:
+          // El nivel solo se habilita si NO hay filtros activos (todo está en "todos")
+          if (!hayFiltrosActivos) {
+             $nivel.prop("disabled", false);
+          } else {
+             // Si filtró por Dpto/Línea, bloqueamos el nivel
+             $nivel.prop("disabled", true);
+             
+             // OPCIONAL: Al bloquear, seleccionamos "TODOS" los niveles automáticamente
+             // para evitar que el filtro de nivel oculte datos del departamento seleccionado.
+             // (Si prefieres que se mantenga la selección anterior, borra estas 4 líneas siguientes)
+             var allOptions = [];
+             $nivel.find('option').each(function() { allOptions.push(this.value); });
+             $nivel.val(allOptions).trigger('change'); 
+          }
+
         } else {
-          // Deshabilitar si no tiene permiso
-          console.log("🔐 Actualizando UI: Filtros DESHABILITADOS.");
+          // Si NO tiene permiso (es bodeguero, etc), se deshabilita TODO
+          console.log("🔐 Permiso Global: NO");
           $(selectIds).prop("disabled", true);
+          $nivel.prop("disabled", true);
         }
-        // Notificar a Select2 del cambio de estado para que actualice la UI (grisado)
+
+        // 4. Notificar a Select2 para refrescar la visualización (grisado)
         $(selectIds).trigger("change.select2");
+        $nivel.trigger("change.select2");
       }
 
       /* FUNCION PARA ITERAR AL MOMENTO DE COLAPSAR NODOS */
@@ -611,7 +658,7 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        //*
+        /*
         if (!receivedUserId) {
           //receivedUserId = "interno\\2300070659"; //Auxiliar
           receivedUserId = "interno\\dromero"; //Auxiliar
@@ -841,8 +888,7 @@
       }
 
       // --- Mapeo de nivelJerarquico a Tag de Subnivel ---
-      /* Aplica tags de subnivel (sub-level-X) usando la lógica del usuario:
-       * (order - orderPadre - 1) */
+      /* Aplica tags de subnivel (sub-level-X) usando la lógica: (order - orderPadre - 1) */
       function aplicarSubnivelesRelativos(nodos) {
         console.log(
           "Iniciando post-procesamiento de subniveles RELATIVOS AL PADRE..."
@@ -933,7 +979,7 @@
         return sortedValues;
       }
 
-      ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
+      ///////// * //TODO: Reconstruye el árbol manteniendo la jerarquía de los padres.
       function aplicarFiltrosJerarquicos() {
         // 1. Validar que el chart esté listo
         if (!chart) return;
@@ -945,7 +991,7 @@
         );
         if (!sourceNodes.length) return; // No hay datos que filtrar
 
-        // 2. Leer los 3 valores
+        // 2. Leer los 4 valores
         const selectedLinea = document.getElementById(
           "linea-negocio-select"
         ).value;
@@ -956,14 +1002,42 @@
           "departamento-select"
         ).value;
 
-        // statusDiv.style.display = "block";
-        // statusDiv.innerText = "Filtrando...";
+        // ✅ NUEVO: Obtener array de niveles (Select2 devuelve un array de strings)
+        const selectedNiveles = $("#nivel-select").val() || [];
 
-        // 3. Si todos están en "todos", recargar el árbol completo
+        // 2. Determinar Nivel de Colapso (Profundidad)
+        // Si no hay selección o están todos, mostramos todo (o un default seguro)
+        // Si hay selección, buscamos el número más alto.
+        let maxLevelToShow = 99; // Default: Mostrar todo
+        
+        if (selectedNiveles.length > 0 && selectedNiveles.length < 12 && !selectedNiveles.includes('99')) {
+            // Convertir a números y buscar el máximo
+            const nivelesNumericos = selectedNiveles.map(n => parseInt(n)).filter(n => !isNaN(n));
+            if (nivelesNumericos.length > 0) {
+                // El nivel 0 es profundidad 1, Nivel 1 es prof 2, etc.
+                // Sumamos 1 porque 'level' en config es la cantidad de niveles visibles.
+                maxLevelToShow = Math.max(...nivelesNumericos) + 1;
+            }
+        }
+
+        // ✅ ACTUALIZAR CONFIGURACIÓN DE COLAPSO
+        // Esto le dice al gráfico: "Expande automáticamente hasta este nivel"
+        chart.config.collapse = {
+            level: maxLevelToShow,
+            allChildren: true 
+        };
+
+        // 3. Determinar si el filtro de nivel está ACTIVO
+        // Está activo si hay algo seleccionado, NO incluye el '99' (que usas como 'todos' o 'sin asignar') 
+        // y no están seleccionados todos (menos de 12 opciones).
+        const isNivelActive = selectedNiveles.length > 0 && !selectedNiveles.includes('99') && selectedNiveles.length < 12;
+
+        // 4. Si todos están en "todos", recargar el árbol completo
         if (
           selectedLinea === "todos" &&
           selectedCosto === "todos" &&
-          selectedDept === "todos"
+          selectedDept === "todos" &&
+          !isNivelActive // ✅ Verificamos si el nivel está inactivo
         ) {
           chart.load(sourceNodes); // (O 'sanitizedNodes' si es tu fuente de verdad)
           //statusDiv.style.display = "none";
@@ -983,8 +1057,7 @@
 
         // 6. Recorrer TODOS los nodos
         for (const node of sourceNodes) {
-          // 7. --- ¡LA MAGIA ESTÁ AQUÍ! ---
-          // Comprobar si el nodo cumple con LOS TRES filtros (o si el filtro es "todos")
+          // Comprobar si el nodo cumple con LOS 4 filtros (o si el filtro es "todos")
           const lineaMatch =
             selectedLinea === "todos" || node.lineaNegocio === selectedLinea;
           const costosMatch =
@@ -992,9 +1065,11 @@
           const deptMatch =
             selectedDept === "todos" || node.departamento === selectedDept;
 
-          // 8. Si el nodo coincide con todos los filtros activos
-          if (lineaMatch && costosMatch && deptMatch) {
-            // 9. Para cada nodo que coincide, añadirlo A ÉL Y A TODOS SUS PADRES
+          const nivelMatch = !isNivelActive || selectedNiveles.includes(String(node.order));
+
+          // Si el nodo coincide con todos los filtros activos
+          if (lineaMatch && costosMatch && deptMatch && nivelMatch) {
+            // Para cada nodo que coincide, añadirlo A ÉL Y A TODOS SUS PADRES
             let currentNode = node;
             while (currentNode) {
               if (nodesToShow.has(currentNode.id)) {
@@ -1012,7 +1087,7 @@
           }
         }
 
-        // 10. Convertir el mapa de nodos a mostrar en un array y cargarlo
+        // 7. Convertir el mapa de nodos a mostrar en un array y cargarlo
         filteredNodes = Array.from(nodesToShow.values());
         // console.log("10. Filtrado completo. Nodos a mostrar:", filteredNodes);
         if (filteredNodes.length > 0) {
@@ -1217,7 +1292,7 @@
             sanitizedNodes
           );
           populateSelect("centro-costos-select", "centroCosto", sanitizedNodes);
-          populateSelect("departamento-select", "departamento", sanitizedNodes); // Tu select existente
+          populateSelect("departamento-select", "departamento", sanitizedNodes);
 
           // 4.1 Intentar procesar (en caso de que el 'userId' ya haya llegado)
           //procesarLoginDeUsuario();
@@ -1244,11 +1319,10 @@
           ('<path d="M0 6 L 0 104 Q 0 110 6 110 L 6 110 Q 0 110 0 104 L 0 6 Q 0 0 6 0 L 6 0 Q 0 0 0 6 Z" fill="#F57C00"></path>'); // Naranja principal de Liris?
 
           OrgChart.templates.fichaTemplate.img_0 =
-            /* ... (sin cambios) ... */
             '<clipPath id="{randId}"><circle cx="40" cy="55" r="30"></circle></clipPath>' +
             '<image preserveAspectRatio="xMidYMid slice" clip-path="url(#{randId})" xlink:href="{val}" x="10" y="25" width="60" height="60"></image>';
 
-          // --- CAMBIO: Ajustar foreignObject y añadir ellipsis ---
+          // --- Ajustar foreignObject y añadir ellipsis ---
           OrgChart.templates.fichaTemplate.field_0 = // Nombre
             '<foreignObject x="85" y="25" width="155" height="40">' + // Contenedor
             // Div interno: auto height, max-height for 2 lines approx, ellipsis
@@ -1264,7 +1338,6 @@
             "{val}" +
             "</div>" +
             "</foreignObject>";
-          // --- FIN CAMBIO ---
 
           OrgChart.templates.fichaTemplate.field_2 =
             /* ... (botón sin cambios) ... */
@@ -1282,7 +1355,7 @@
             rect: { x: 0, y: 0, width: 250, height: 110, rx: 15, ry: 15 },
           }; // Ripple effect, al dar click en el nodo da un efecto visual
 
-          // 1. Clonamos tu plantilla 'fichaTemplate' para heredar su tamaño y forma
+          // 1. Clonamos la plantilla 'fichaTemplate' para heredar su tamaño y forma
           OrgChart.templates.vacanteTemplate = Object.assign(
             {},
             OrgChart.templates.fichaTemplate
@@ -1435,7 +1508,7 @@
 
             orderBy: [
               { field: "order", desc: false }, // Primero ordena por Nivel jerarquico
-              { field: "nombre", desc: false }, // Luego por nombre de la A a la Z
+              { field: "id", desc: true }, // Luego por nombre de la A a la Z
             ],
             searchDisplayField: "nombre",
             /* anim: {
@@ -1650,40 +1723,40 @@
           //TODO: para personalizar los item del search
           // 2. Sobrescribe el método OrgChart.searchUI.createItem
           //    Este método es responsable de generar el HTML para cada elemento de la lista de resultados.
-          // OrgChart.searchUI.createItem = function (img, id, first, second) {
-          //     // 'this' dentro de esta función se refiere a la instancia de searchUI,
-          //     // que a su vez tiene una referencia a la instancia del gráfico.
-          //     const chartInstance = this.instance;
-          //     const nodeData = chartInstance.get(id); // Obtén los datos completos del nodo usando su ID
+          /* OrgChart.searchUI.createItem = function (img, id, first, second) {
+              // 'this' dentro de esta función se refiere a la instancia de searchUI,
+              // que a su vez tiene una referencia a la instancia del gráfico.
+              const chartInstance = this.instance;
+              const nodeData = chartInstance.get(id); // Obtén los datos completos del nodo usando su ID
 
-          //     const name = nodeData.nombre || '';  // Asume que el nombre está en el campo 'name'
-          //     const title = nodeData.puesto || ''; // Asume que el puesto está en el campo 'title'
+              const name = nodeData.nombre || '';  // Asume que el nombre está en el campo 'name'
+              const title = nodeData.puesto || ''; // Asume que el puesto está en el campo 'title'
 
-          //     // Retorna el HTML personalizado para el elemento de la lista de búsqueda
-          //     return `<tr data-search-item-id="${id}">
-          //                 <td class="boc-search-image-td">
-          //                     <div class="boc-search-img" style="background-image: url(${img})"></div>
-          //                 </td>
-          //                 <td class="boc-search-text-td">
-          //                     <div class="boc-search-nombre">${name}</div>
-          //                     <div class="boc-search-puesto" style="font-size: 0.8em; color: #666;">${title}</div>
-          //                 </td>
-          //             </tr>`;
-          // };
+              // Retorna el HTML personalizado para el elemento de la lista de búsqueda
+              return `<tr data-search-item-id="${id}">
+                          <td class="boc-search-image-td">
+                              <div class="boc-search-img" style="background-image: url(${img})"></div>
+                          </td>
+                          <td class="boc-search-text-td">
+                              <div class="boc-search-nombre">${name}</div>
+                              <div class="boc-search-puesto" style="font-size: 0.8em; color: #666;">${title}</div>
+                          </td>
+                      </tr>`;
+          };
 
-          // // Opcional: Si quieres mantener el límite visual de 5 y el scroll,
-          // // aplica los estilos CSS como se explicó anteriormente.
-          // // Esto debe hacerse después de que el gráfico esté listo y los resultados se muestren.
-          // chart.searchUI.on('show-items', function(sender, args) {
-          //     const searchResultsWrapper = sender.searchTableWrapper;
-          //     if (searchResultsWrapper) {
-          //         searchResultsWrapper.style.maxHeight = '250px'; // Ajusta esta altura según el tamaño de tus elementos
-          //         searchResultsWrapper.style.overflowY = 'auto';
-          //         searchResultsWrapper.style.border = '1px solid #ccc';
-          //         searchResultsWrapper.style.boxSizing = 'border-box';
-          //         searchResultsWrapper.style.padding = '5px';
-          //     }
-          // });
+          // Opcional: Si quieres mantener el límite visual de 5 y el scroll,
+          // aplica los estilos CSS como se explicó anteriormente.
+          // Esto debe hacerse después de que el gráfico esté listo y los resultados se muestren.
+          chart.searchUI.on('show-items', function(sender, args) {
+              const searchResultsWrapper = sender.searchTableWrapper;
+              if (searchResultsWrapper) {
+                  searchResultsWrapper.style.maxHeight = '250px'; // Ajusta esta altura según el tamaño de tus elementos
+                  searchResultsWrapper.style.overflowY = 'auto';
+                  searchResultsWrapper.style.border = '1px solid #ccc';
+                  searchResultsWrapper.style.boxSizing = 'border-box';
+                  searchResultsWrapper.style.padding = '5px';
+              }
+          }); */
 
 
           // Se dispara DESPUÉS de que la carga inicial Y
@@ -1708,7 +1781,8 @@
             width: "240px",
             minimumResultsForSearch: Infinity, // Esta línea desactiva el buscador
           });
-          /* 
+
+          //* 
           // --- //TODO: INICIALIZACIÓN DEL FILTRO DE NIVEL (MULTI-SELECT) ---
           // Función para renderizar la OPCIÓN (en el dropdown)
           function formatOptionWithCheckbox(option) {
@@ -1737,50 +1811,199 @@
               escapeMarkup: function (m) { return m; } 
           });
 
+          //TODO: ✅ NUEVO: Función para validar si se habilita o deshabilita el Nivel
+          function validarDependenciaNiveles() {
+              var linea = $("#linea-negocio-select").val();
+              var costo = $("#centro-costos-select").val();
+              var depto = $("#departamento-select").val();
+              
+              // Solo habilitar si todos los otros filtros están en "todos" Y el usuario tiene permiso global
+              if (linea === 'todos' && costo === 'todos' && depto === 'todos' && usuarioPuedeVerTodo) {
+                  $nivelSelect.prop("disabled", false);
+              } else {
+                  $nivelSelect.prop("disabled", true);
+                  
+                  // Opcional: Si se deshabilita, forzamos a que se marquen TODOS para no ocultar gente
+                  // var allValues = [];
+                  // $nivelSelect.find('option').each(function() { allValues.push(this.value); });
+                  // $nivelSelect.val(allValues).trigger('change.select2');
+              }
+          }
+
+          // ✅ NUEVO: Seleccionar TODAS las opciones al iniciar
+          var allOptions = [];
+          $nivelSelect.find('option').each(function() {
+              allOptions.push($(this).val());
+          });
+          $nivelSelect.val(allOptions).trigger('change'); // Esto marca todo visualmente
+
+          // --- //TODO: EVENTOS PARA SINCRONIZAR CHECKBOXES Y TEXTO ---
           // --- EVENTOS PARA SINCRONIZAR CHECKBOXES Y TEXTO ---
+          var isProgrammaticUpdate = false;
+          var isClearing = false; // Bandera para detectar si se presionó la "X"
 
-          // 1. Sincroniza el checkbox del dropdown cuando se selecciona/deselecciona
+          // 1. DETECTAR LIMPIEZA (La "X" general)
+          // Este evento ocurre ANTES de que se borren los datos
+          $nivelSelect.on('select2:clearing', function (e) {
+              isClearing = true; // Activamos modo limpieza
+          });
+
+          // 2. Listener Principal: SELECCIÓN y DESELECCIÓN
           $nivelSelect.on("select2:select select2:unselect", function (e) {
+              // Si es actualización automática O si estamos limpiando con la X, NO hacemos nada aquí
+              if (isProgrammaticUpdate || isClearing) return;
+
               var optionId = e.params.data.id;
-              var isSelected = (e.type === 'select2:select');
-              var $optionList = $('.select2-results__options li[id$="' + optionId + '"]');
-              if ($optionList.length > 0) {
-                $optionList.find('input[type="checkbox"]').prop('checked', isSelected);
+              
+              // Lógica para niveles numéricos (Ignora opciones como 99 si no es número)
+              var selectedLevel = parseInt(optionId);
+
+              if (!isNaN(selectedLevel)) {
+                  isProgrammaticUpdate = true; // Bloqueamos el listener para evitar bucles
+
+                  // Obtenemos los valores que quedan después del clic
+                  // (Nota: en 'unselect', $(this).val() ya no trae el ID clickeado)
+                  var currentValsInSelect = $(this).val() || [];
+                  
+                  // Verificamos si hay niveles SUPERIORES seleccionados
+                  // Ej: Si desmarqué el 5, pero sigue marcado el 7 en el array
+                  var hasHigherLevels = currentValsInSelect.some(function(val) {
+                      return parseInt(val) > selectedLevel;
+                  });
+
+                  var newValues = [];
+
+                  if (e.type === 'select2:select') {
+                      // ✅ CASO A: SELECCIÓN (Marcar todo hacia abajo)
+                      // Si marco el 7 -> [0, 1, ... 7]
+                      for (var i = 0; i <= selectedLevel; i++) {
+                          newValues.push(String(i));
+                      }
+                  } else {
+                      // ✅ CASO B: DESELECCIÓN (Toggle inteligente)
+                      
+                      if (hasHigherLevels) {
+                          // ESCENARIO: "Corte en el medio"
+                          // Estaba marcado hasta el 7, y desmarqué (clic) en el 5.
+                          // Interpretación: El usuario quiere ver HASTA el 5.
+                          // Acción: Re-seleccionamos el 5 y borramos 6 y 7.
+                          for (var i = 0; i <= selectedLevel; i++) {
+                              newValues.push(String(i));
+                          }
+                      } else {
+                          // ESCENARIO: "Toggle en la punta"
+                          // Estaba marcado hasta el 7, y desmarqué (clic) en el 7.
+                          // Interpretación: El usuario quiere quitar el 7.
+                          // Acción: Dejamos seleccionado hasta el 6.
+                          for (var i = 0; i < selectedLevel; i++) {
+                              newValues.push(String(i));
+                          }
+                      }
+                  }
+
+                  // Mantener opciones especiales (como 99) si estaban marcadas
+                  /* if (currentValsInSelect.includes('99')) newValues.push('99'); */
+
+                  // Aplicamos los cambios calculados
+                  $(this).val(newValues).trigger('change');
+                  
+                  isProgrammaticUpdate = false; // Liberamos el listener
               }
+              
+              // Forzar repintado visual (check y fondo gris)
+              syncVisualState($(this));
           });
-          
-          // 2. El listener principal: se dispara con CUALQUIER cambio (select, unselect, clear)
+
+          // 3. Listener para FINALIZAR la limpieza de la "X"
+          $nivelSelect.on("select2:clear", function (e) {
+              // Ya se borraron los datos internos, ahora limpiamos lo visual
+              isProgrammaticUpdate = true; 
+              
+              // Quitar clases visuales y checks
+              $('.select2-results__options li').removeClass('select2-results__option--selected').attr('aria-selected', 'false');
+              $('.select2-results__options li input[type="checkbox"]').prop('checked', false);
+              
+              // Restaurar placeholder
+              var $searchField = $(this).next('.select2-container').find('.select2-search__field');
+              $searchField.attr('placeholder', "TODOS LOS NIVELES");
+              
+              isProgrammaticUpdate = false;
+              isClearing = false; // Apagamos la bandera de limpieza
+          });
+
+          // 4. Listener General (Actualiza Texto Resumen y Gráfico)
           $nivelSelect.on("change.select2", function (e) {
-              // Sincroniza checkboxes en caso de 'clear'
-              if (e.type === 'select2:clear') {
-                  $('.select2-results__options li input[type="checkbox"]').prop('checked', false);
+              // Si se limpió todo (val es null o vacío)
+              if (!$(this).val() || $(this).val().length === 0) {
+                 // Asegurar limpieza visual
+                 $('.select2-results__options li input[type="checkbox"]').prop('checked', false);
+                 $('.select2-results__options li').removeClass('select2-results__option--selected').attr('aria-selected', 'false');
+              } else {
+                 // Si no estamos en medio de una limpieza con X, sincronizamos visualmente
+                 if (!isClearing) syncVisualState($(this));
               }
 
-              // Obtiene los datos de lo que está seleccionado
+              // --- LÓGICA DE TEXTO DE RESUMEN ---
               var selectedData = $(this).select2('data');
-              // Busca el elemento del placeholder
-              var $placeholder = $(this).next('.select2-container').find('.select2-selection__placeholder');
-              // Busca la caja de búsqueda (donde también se escribe el texto)
-              var $searchText = $(this).next('.select2-container').find('.select2-search__field');
+              var $searchField = $(this).next('.select2-container').find('.select2-search__field');
 
-              // Lógica para actualizar el texto
-              let summaryText = "TODOS LOS NIVELES"; // Default
+              let summaryText = "TODOS LOS NIVELES"; 
+              // Contar opciones reales (excluyendo placeholder si lo hubiera)
+              let totalOptions = 10; // 0 a 9 (ajusta este número si tienes más opciones en el HTML)
+
               if (selectedData && selectedData.length > 0) {
-                  if (selectedData.length === 1) {
-                    summaryText = selectedData[0].text;
-                } else if (selectedData.length === 12) { // Asumiendo 12 opciones
-                  summaryText = "TODOS LOS NIVELES";
-                } else {
-                  summaryText = selectedData.length + " NIVELES SELECCIONADOS";
-                }
+                  // Si hay selección pero no son todos
+                  // Buscamos el nivel máximo seleccionado para mostrar "HASTA NIVEL X"
+                  let maxLvl = 0;
+                  selectedData.forEach(d => {
+                      let v = parseInt(d.id);
+                      if(!isNaN(v) && v > maxLvl) maxLvl = v;
+                  });
+
+                  if (maxLvl > 0) {
+                      summaryText = "HASTA NIVEL " + maxLvl;
+                  }
+                  
+                  // Caso especial: si están todos seleccionados visualmente
+                  // (Puedes ajustar esta lógica según prefieras el texto)
               }
-              // Actualiza tanto el placeholder como el texto de la caja de búsqueda
-              $placeholder.text(summaryText);
-              $searchText.attr('placeholder', summaryText);
-              // Aplicamos el filtro
-              aplicarFiltrosJerarquicos();
+              
+              $searchField.attr('placeholder', summaryText);
+              
+              // Aplicar Filtro al Gráfico
+              // Solo si no estamos dentro de una actualización automática
+              if (!isProgrammaticUpdate) {
+                  aplicarFiltrosJerarquicos();
+              }
           });
-          // --- FIN EVENTOS DE SINCRONIZACIÓN --- */
+
+          // Función Helper Visual
+          function syncVisualState($selectElement) {
+              setTimeout(function() {
+                  var finalValues = $selectElement.val() || [];
+                  $('.select2-results__options li').each(function() {
+                      var idAttr = $(this).attr('id'); 
+                      if (!idAttr) return;
+                      var valueParts = idAttr.split('-');
+                      var value = valueParts[valueParts.length - 1];
+                      
+                      var shouldBeSelected = finalValues.includes(value);
+                      
+                      // 1. Checkbox
+                      $(this).find('input[type="checkbox"]').prop('checked', shouldBeSelected);
+                      
+                      // 2. Fondo Gris
+                      if (shouldBeSelected) {
+                          $(this).addClass('select2-results__option--selected');
+                          $(this).attr('aria-selected', 'true');
+                      } else {
+                          $(this).removeClass('select2-results__option--selected');
+                          $(this).attr('aria-selected', 'false');
+                      }
+                  });
+              }, 0);
+          }
+          // --- //TODO: FIN EVENTOS DE SINCRONIZACIÓN ---
 
           console.log("Select2 inicializado por primera vez.");
           procesarLoginDeUsuario();
@@ -1843,10 +2066,12 @@
 
               // Aplicar el filtro (Línea=Seleccionada, Costo=todos, Depto=todos)
               aplicarFiltrosJerarquicos();
+              actualizarEstadoFiltros();
+              // ✅ IMPORTANTE: Validar si se debe desbloquear el Nivel ahora
+              //validarDependenciaNiveles();
             }
           });
 
-          // 3. Listener para CENTRO DE COSTO
           // 3. Listener para CENTRO DE COSTO
           $("#centro-costos-select").on("change", function () {
             console.log("Filtro Maestro: Centro de Costo cambió.");
@@ -1893,11 +2118,17 @@
               // Aplicamos el filtro nosotros mismos.
               console.log("CentroCosto: Múltiples deptos, aplicando filtro.");
               aplicarFiltrosJerarquicos();
+             actualizarEstadoFiltros(); // 👈 IMPORTANTE
             }
+
+            
           });
 
           // 4. Listener para DEPARTAMENTO (el más simple)
-          $("#departamento-select").on("change", aplicarFiltrosJerarquicos);
+          $("#departamento-select").on("change", function() {
+              aplicarFiltrosJerarquicos();
+              actualizarEstadoFiltros(); // 👈 IMPORTANTE
+          });
 
           // 5. Listener para MODO (Persona/Cargo)
           $("#modo-select").on("change", function () {
@@ -1910,6 +2141,7 @@
               linea: $("#linea-negocio-select").val(),
               costo: $("#centro-costos-select").val(),
               depto: $("#departamento-select").val(),
+              niveles: $("#nivel-select").val() // ✅ GUARDAR NIVELES (Array)
             };
             console.log("Filtros guardados:", filtrosGuardados);
 
@@ -1981,10 +2213,15 @@
                 $("#departamento-select").val(filtrosGuardados.depto);
               }
 
-              // 2d. Notificar a Select2 de los cambios
+              // 2d. ✅ RESTAURAR NIVEL
+              if (filtrosGuardados.niveles) {
+                  $("#nivel-select").val(filtrosGuardados.niveles);
+              }
+
+              // 2e. Notificar a Select2 de los cambios
               $(".control-select").trigger("change.select2");
 
-              // 2e. Aplicar los filtros restaurados
+              // 2f. Aplicar los filtros restaurados
               aplicarFiltrosJerarquicos();
 
               statusDiv.style.display = "none";
@@ -2191,8 +2428,14 @@
             ).length > 0
           ) {
             $("#departamento-select").val(filtrosGuardados.depto);
-          } // 4. Notificar a Select2
+          } 
+          
+          // 4. ✅ RESTAURAR NIVEL
+          if (filtrosGuardados.niveles) {
+                $("#nivel-select").val(filtrosGuardados.niveles);
+            }
 
+          // 5. Notificar a Select2
           $(".control-select").trigger("change.select2"); // 5. Aplicar filtros
 
           aplicarFiltrosJerarquicos();

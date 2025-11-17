@@ -972,34 +972,47 @@ div[data-ctrl-search] {
   DENTRO del contenedor de Select2 para 'nivel-select'.
 */
 /* --- Estilos para el Multi-select de Nivel con Checkboxes --- */
+/* --- CORRECCIÓN VISUAL: Igualar altura de Multi-select con Single-select --- */
 
-/* ✅ REGLA CLAVE: Oculta las "píldoras" de selección */
-.select2-selection__choice {
+/* 1. Ocultar las píldoras (tags) como antes */
+.select2-selection--multiple .select2-selection__choice {
   display: none !important;
 }
 
-/* Fuerza a la caja de texto (donde aparece el placeholder) a ocupar el 100% */
-.select2-selection--multiple .select2-search--inline .select2-search__field {
-  width: 100% !important;
-  padding-left: 7px; /* Añade un pequeño padding para alinear el texto */
-  margin-top: 6px; /* Centra verticalmente el texto del placeholder */
+/* 2. Estilo del contenedor PRINCIPAL del Multi-select */
+.select2-container .select2-selection--multiple {
+  /* Forzamos la altura exacta de los otros inputs (38px) */
+  min-height: 38px !important; 
+  height: 38px !important;
+  
+  /* Alineación y bordes idénticos a los .control-select */
+  display: flex !important;
+  align-items: center !important; /* Centrado vertical perfecto */
+  border: 1px solid #ced4da !important;
+  border-radius: 6px !important;
+  background-color: #f8f9fa !important;
+  padding: 0 0 0 10px !important; /* Padding izquierdo para alinear el texto */
 }
 
-/* Oculta el placeholder "fantasma" que Select2 deja a veces */
+/* 3. Ajuste del campo de texto/placeholder interno */
+.select2-container .select2-search--inline .select2-search__field {
+  width: 100% !important;
+  margin-top: 0 !important;  /* Eliminamos el margen que causaba el desfase */
+  padding: 0 !important;
+  height: 36px !important;   /* Altura interna */
+  line-height: 36px !important;
+  font-size: 0.95rem !important; /* Tamaño de fuente igual a los demás */
+  color: #495057 !important;
+  background: transparent !important;
+}
+
+/* 4. Ocultar el placeholder fantasma */
 .select2-search__field:placeholder-shown + .select2-selection__placeholder {
   display: none;
 }
 
-/* --- (Estilos del dropdown - sin cambios) --- */
-.select2-results__option[aria-selected] {
-  display: flex;
-  align-items: center;
-  user-select: none;
-}
-.select2-results__option[aria-selected] input {
-  margin-right: 8px;
-  pointer-events: none;
-}
-.select2-container--disabled .select2-selection__clear {
-  display: none;
+/* 5. Efecto Focus (Borde naranja) para el Multi-select */
+.select2-container--focus .select2-selection--multiple {
+  border-color: var(--color-primario) !important;
+  box-shadow: 0 0 0 1px var(--color-primario-hover) !important;
 }
