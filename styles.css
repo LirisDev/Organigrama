@@ -962,18 +962,11 @@ div[data-ctrl-search] {
 .select2-container--disabled .select2-selection__clear {
   display: none;
 }
+.select2-container .select2-selection__clear {
+  display: none;
+}
 
 /* --- Estilos para el Multi-select de Nivel con Checkboxes --- */
-
-/* ... (tus reglas de .select2-results__option, etc. de antes) ... */
-
-/* Esta es la regla clave: 
-  Oculta las "píldoras" de selección (ej. "x 0. Supervisión") 
-  DENTRO del contenedor de Select2 para 'nivel-select'.
-*/
-/* --- Estilos para el Multi-select de Nivel con Checkboxes --- */
-/* --- CORRECCIÓN VISUAL: Igualar altura de Multi-select con Single-select --- */
-
 /* 1. Ocultar las píldoras (tags) como antes */
 .select2-selection--multiple .select2-selection__choice {
   display: none !important;
@@ -982,9 +975,9 @@ div[data-ctrl-search] {
 /* 2. Estilo del contenedor PRINCIPAL del Multi-select */
 .select2-container .select2-selection--multiple {
   /* Forzamos la altura exacta de los otros inputs (38px) */
-  min-height: 38px !important; 
+  min-height: 38px !important;
   height: 38px !important;
-  
+
   /* Alineación y bordes idénticos a los .control-select */
   display: flex !important;
   align-items: center !important; /* Centrado vertical perfecto */
@@ -997,9 +990,9 @@ div[data-ctrl-search] {
 /* 3. Ajuste del campo de texto/placeholder interno */
 .select2-container .select2-search--inline .select2-search__field {
   width: 100% !important;
-  margin-top: 0 !important;  /* Eliminamos el margen que causaba el desfase */
+  margin-top: 0 !important; /* Eliminamos el margen que causaba el desfase */
   padding: 0 !important;
-  height: 36px !important;   /* Altura interna */
+  height: 36px !important; /* Altura interna */
   line-height: 36px !important;
   font-size: 0.95rem !important; /* Tamaño de fuente igual a los demás */
   color: #495057 !important;
@@ -1015,4 +1008,39 @@ div[data-ctrl-search] {
 .select2-container--focus .select2-selection--multiple {
   border-color: var(--color-primario) !important;
   box-shadow: 0 0 0 1px var(--color-primario-hover) !important;
+}
+
+/* --- ESTILOS PARA SELECT2 DESHABILITADO (VISUALMENTE BLOQUEADO) --- */
+
+/* 1. Estilo para Single Select Deshabilitado */
+.select2-container--default.select2-container--disabled
+  .select2-selection--single {
+  background-color: #e9ecef !important; /* Gris oscuro visible */
+  cursor: not-allowed !important; /* Cursor de prohibido */
+  border-color: #ced4da !important;
+  opacity: 0.7 !important; /* Efecto desvanecido */
+  box-shadow: none !important;
+}
+
+/* Cambiar color del texto interno en Single */
+.select2-container--default.select2-container--disabled
+  .select2-selection__rendered {
+  color: #6c757d !important; /* Texto grisáceo */
+}
+
+/* 2. Estilo para Multi Select Deshabilitado (Tu filtro de Niveles) */
+.select2-container--default.select2-container--disabled
+  .select2-selection--multiple {
+  background-color: #e9ecef !important; /* Gris oscuro visible */
+  cursor: not-allowed !important;
+  border-color: #ced4da !important;
+  opacity: 0.7 !important;
+  box-shadow: none !important;
+}
+
+/* Asegurar que el input de búsqueda interno también parezca deshabilitado */
+.select2-container--default.select2-container--disabled .select2-search__field {
+  background-color: transparent !important;
+  cursor: not-allowed !important;
+  color: #6c757d !important; /* Placeholder grisáceo */
 }
