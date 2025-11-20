@@ -606,7 +606,7 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        //*
+        /*
         if (!receivedUserId) {
           //receivedUserId = "interno\\2300070659"; //Auxiliar
           receivedUserId = "interno\\dromero"; //Asistente de desarrollo
@@ -1469,7 +1469,10 @@
           // 7. Inicializar Gráfico
           const chartConfig = {
             //Configuraciones generales
-            mouseScrool: OrgChart.action.zoom,
+            //mouseScrool: OrgChart.action.zoom,
+            mouseScrool: OrgChart.action.scroll,
+            showYScroll: true,
+            showXScroll: true,
             enableSearch: true,
             searchFields: ["nombre", "puesto"],
             template: "fichaTemplate", // Plantilla base fichaTemplate, olivia, ana, etc
