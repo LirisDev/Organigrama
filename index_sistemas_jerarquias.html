@@ -606,7 +606,7 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        /*
+        //*
         if (!receivedUserId) {
           //receivedUserId = "interno\\2300070659"; //Auxiliar
           receivedUserId = "interno\\dromero"; //Asistente de desarrollo
@@ -1052,6 +1052,35 @@
         loaderOverlay.classList.remove("visible");
       }
 
+      /* FUNCION PARA GENERAR URL DE LOS MANUALES */
+      function getManualUrl(nodeData, tipo) {
+        let carpeta = "";
+        if (tipo === "usuario") carpeta = "Manual de usuario";
+        if (tipo === "procedimientos") carpeta = "Manual de procedimientos";
+        if (tipo === "funciones") carpeta = "Manual de funciones";
+
+        // Recreamos la lógica del depParam
+        const codEmp = nodeData.id;
+        const codDepAx = nodeData.codDepAx;
+        const codDepartamento = nodeData.codDepartamento; // Asumiendo que mapeaste este campo
+
+        const depParam =
+          codDepAx && codDepartamento
+            ? `${codDepAx}|${codDepartamento}`
+            : codDepAx || ""; // Usa codDepAx si codDepartamento falta
+
+        // Comprobar si tenemos los datos mínimos
+        // if (!codEmp || !depParam) {
+        //     console.warn(`Faltan datos para generar el manual de ${tipo}.`, nodeData);
+        //     return null; // No podemos construir la URL
+        // }
+
+        //return `http://192.168.127.162/rhh/visor.html?Carpeta=${encodeURIComponent(
+        return `https://soporte.liris.com.ec/rhh/visor.html?Carpeta=${encodeURIComponent(
+          carpeta
+        )}&CodEmp=${codEmp || ""}&DepartMyProcessId=${depParam}`;
+      }
+
       // --- Función Principal: Cargar, Mapear y Renderizar ---
       async function loadAndRenderChart(apiUrl) {
         loaderOverlay.classList.add("visible");
@@ -1466,6 +1495,24 @@
                 { field: "nombre", desc: false },    // Luego por id (ascendente)
             ],
             searchDisplayField: "nombre",
+            aiChatTools: [{
+                functionName: 'getEmployeeCount',
+                functionDescription: 'Esta herramienta se utiliza exclusivamente para **contar el número total de empleados o personas** que están actualmente visibles en el organigrama. Úsala cuando el usuario pregunte por la cantidad, el total, el número de empleados o personas.',
+                functionParameters: {
+                    type: "object",
+                    properties: {},
+                    required: []
+                }
+            },
+            {
+                functionName: 'fit',
+                functionDescription: 'Ajusta la vista del organigrama para que todo el contenido sea visible en la pantalla. Úsala cuando el usuario pida "ajustar", "encajar", "ver todo el gráfico" o "mostrar el gráfico completo".',
+                functionParameters: {
+                    type: "object",
+                    properties: {},
+                    required: []
+                }
+            }],
             /* anim: {
                 func: OrgChart.anim.inCirc, // Prueba con outSin o outBack para una sensación más suave
                 duration: 400 // Aumenta la duración a 400ms (o más, como 500ms)
@@ -1591,20 +1638,25 @@
 
           //PERSONALIZAR IA
           // Aquí se le pueden dar instrucciones al sistema de IA para que entienda el contexto de la empresa
-          // OrgChart.AI_SYSTEM_MESSAGES = [
-          //   "Trabajas para una empresa llamada LIRIS que se dedica desde el balanceado, criadero de pollos hasta su venta y distribución a demás de contar con supermercados retail llamado DelPortal en Guayaquil, Ecuador. El organigrama se trata del equipo de trabajo de esta empresa. La oficina de LIRIS queda en Samborondon, Ecuador. Si te piden eliminar, editar o crear un nodo, NO LO HAGAS, este organigrama solo es de visualización.",
-          // ];
           OrgChart.AI_SYSTEM_MESSAGES = [
-            "Eres una IA especializada en analizar y describir un organigrama existente. Trabajas con un organigrama real de la empresa LIRIS, una compañía de Ecuador dedicada al balanceado, crianza de pollos, venta, distribución y operación de supermercados DelPortal. La oficina principal está en Samborondón. \
-            Tu función es EXCLUSIVAMENTE interpretar correctamente la información ya existente en el organigrama. \
-            - No debes crear, alterar, eliminar ni inventar nodos, personas, cargos, departamentos, relaciones ni cantidades. \
-            - Si el usuario pide crear o modificar algo del organigrama, responde indicando que no está permitido y que solo puedes analizar la información disponible. \
-            - Siempre usa únicamente los datos actuales del organigrama: nombres, cargos, departamentos, líneas jerárquicas y niveles. \
-            - Al responder preguntas sobre cantidades (por ejemplo: cuántas personas hay en un departamento), debes basarte solo en los nodos visibles o cargados en el organigrama, y nunca suponer datos faltantes. \
-            - Si el usuario pregunta por algo que no aparece en el organigrama, responde que esa información no está disponible en la data mostrada. \
-            - Si una pregunta puede tener múltiples interpretaciones, pide aclaración antes de asumir. \
-            - Mantén las respuestas precisas, verificables y únicamente basadas en el contenido del organigrama."
+            //"Trabajas para una empresa llamada LIRIS que se dedica desde el balanceado, criadero de pollos hasta su venta y distribución a demás de contar con supermercados retail llamado DelPortal en Guayaquil, Ecuador. El organigrama se trata del equipo de trabajo de esta empresa. La oficina de LIRIS queda en Samborondon, Ecuador. Si te piden eliminar, editar o crear un nodo, NO LO HAGAS, este organigrama solo es de visualización.",
+            //"Cuando se te pregunte sobre el número de empleados, utiliza la herramienta 'getEmployeeCount'."
+            "Eres un asistente de RRHH para el Organigrama Interactivo en MiEmpresa.",
+            "Tu principal objetivo es ayudar con la información del organigrama.",
+            "Cuando el usuario pregunte por el **número de empleados, la cantidad de personas o el total de miembros del equipo**, siempre debes usar la herramienta `getEmployeeCount`.",
+            "Si el usuario pide **ajustar la vista del gráfico o ver todo el contenido**, usa la herramienta `fit`."
           ];
+          // OrgChart.AI_SYSTEM_MESSAGES = [
+          //   "Eres una IA especializada en analizar y describir un organigrama existente. Trabajas con un organigrama real de la empresa LIRIS, una compañía de Ecuador dedicada al balanceado, crianza de pollos, venta, distribución y operación de supermercados DelPortal. La oficina principal está en Samborondón. \
+          //   Tu función es EXCLUSIVAMENTE interpretar correctamente la información ya existente en el organigrama. \
+          //   - No debes crear, alterar, eliminar ni inventar nodos, personas, cargos, departamentos, relaciones ni cantidades. \
+          //   - Si el usuario pide crear o modificar algo del organigrama, responde indicando que no está permitido y que solo puedes analizar la información disponible. \
+          //   - Siempre usa únicamente los datos actuales del organigrama: nombres, cargos, departamentos, líneas jerárquicas y niveles. \
+          //   - Al responder preguntas sobre cantidades (por ejemplo: cuántas personas hay en un departamento), debes basarte solo en los nodos visibles o cargados en el organigrama, y nunca suponer datos faltantes. \
+          //   - Si el usuario pregunta por algo que no aparece en el organigrama, responde que esa información no está disponible en la data mostrada. \
+          //   - Si una pregunta puede tener múltiples interpretaciones, pide aclaración antes de asumir. \
+          //   - Mantén las respuestas precisas, verificables y únicamente basadas en el contenido del organigrama."
+          // ];
 
           OrgChart.aiUI.title = "AI for LIRIS S.A."; //
           OrgChart.SEARCH_PLACEHOLDER = "Buscar por nombre o puesto...";
@@ -1613,6 +1665,41 @@
 
           /////////////////////////
           chart = new OrgChart(treeDiv, chartConfig);
+
+          //FUNCIONES PARA QUE LA IA UTILICE 
+          // TODO: REVISAR QUE FUNCIONES SERÍAN UTILES IMPLEMENTAR
+          chart.onAIToolCalls(function(args) {
+              for (var toolCall of args.toolCalls) {
+                  if (toolCall.FunctionName === 'getEmployeeCount') {
+                      // La forma más sencilla de contar todos los nodos es obtener la longitud del objeto chart.nodes
+                      let employeeCount = 0;
+            
+                      // Filtra los nodos visibles para contar solo los que son "empleados"
+                      const visibleEmployeeNodes = chart.visibleNodeIds.filter(nodeId => {
+                          const node = chart.getNode(nodeId);
+                          // Excluye nodos con templateName 'subLevel' y otros que no sean empleados
+                          // Asegúrate de que 'fichaTemplate' y 'vacanteTemplate' son tus plantillas de empleados
+                          // Añade aquí cualquier otro templateName que NO deba contarse como empleado
+                          return node && 
+                                node.templateName !== 'subLevel' && 
+                                node.templateName !== 'invisibleGroup' && 
+                                node.templateName !== 'group'; // Añade más si tienes otros tipos de nodos internos
+                      });
+
+                      employeeCount = visibleEmployeeNodes.length;
+
+                      toolCall.FunctionResult = `Actualmente hay ${employeeCount} empleados reales visibles en el organigrama.`;
+                      console.log(`Resultado de getEmployeeCount (empleados reales visibles): ${toolCall.FunctionResult}`);
+                  }
+                  // Si tienes otras herramientas, asegúrate de que su lógica también esté aquí
+                  else if (toolCall.FunctionName === 'fit') {
+                      chart.fit();
+                      toolCall.FunctionResult = "El gráfico ha sido ajustado a la pantalla.";
+                      console.log(`Resultado de fit: ${toolCall.FunctionResult}`); // Depuración
+                  }
+              }
+          });
+
 
           //CUANDO SE DA CLICK A UN NODO SE MUESTRA LA INFORMACIÓN DE ESTE EN CONSOLA
           chart.on("click", function (sender, args) {
