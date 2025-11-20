@@ -382,7 +382,7 @@ div.boc-node.level-6[data-n-id] {
 
 .select2-container {
   width: 240px !important;
-  min-width: 200px;
+  min-width: 180px;
 }
 
 /* Forzar un look más plano y simple, sin gradientes */
@@ -1043,4 +1043,152 @@ div[data-ctrl-search] {
   background-color: transparent !important;
   cursor: not-allowed !important;
   color: #6c757d !important; /* Placeholder grisáceo */
+}
+
+/* ==========================================================================
+   FIX FINAL DE BORDES Y TAMAÑOS
+   Reemplaza todo el bloque @media anterior
+   ========================================================================== */
+
+@media (max-width: 768px) {
+
+  /* 1. EL CONTENEDOR PADRE (LIMPIEZA) */
+  #custom-filters {
+      width: 100% !important;
+      padding: 10px 0 !important; /* Solo padding arriba/abajo */
+      background-color: #fff;
+      overflow: hidden; /* Corta cualquier cosa que intente salirse */
+  }
+
+  /* 2. LA GRILLA (AQUÍ ESTÁ EL TRUCO DEL MARGEN) */
+  #custom-filters > div {
+      /* En lugar de padding, le decimos: ocupa el 94% de la pantalla */
+      width: 94% !important; 
+      /* Y céntrate automáticamente (deja 3% a cada lado libre) */
+      margin: 0 auto !important; 
+      
+      display: grid;
+      grid-template-columns: 1fr 1fr; /* 50% y 50% */
+      column-gap: 8px !important; /* Espacio horizontal entre selects */
+      row-gap: 8px !important;    /* Espacio vertical entre filas */
+  }
+
+  /* 3. LOS SELECTS (DOMAR EL TAMAÑO) */
+  .select2-container {
+      width: 100% !important; /* Que llene su celda de la grilla */
+      max-width: 100% !important; /* Doble seguridad */
+  }
+
+  /* Hacemos las cajas más compactas (36px de alto) */
+  .select2-container .select2-selection--single,
+  .select2-container .select2-selection--multiple {
+      height: 36px !important; 
+      min-height: 36px !important;
+      font-size: 12px !important; /* Letra más pequeña */
+      border-radius: 4px !important;
+  }
+
+  /* Ajuste vertical del texto */
+  .select2-container--default .select2-selection__rendered {
+      line-height: 34px !important;
+      padding-left: 8px !important;
+      padding-right: 20px !important; /* Espacio para que el texto no toque la flecha */
+  }
+  
+  /* Flecha más pequeña y pegada a la derecha */
+  .select2-container--default .select2-selection__arrow {
+      height: 34px !important;
+      width: 20px !important;
+      right: 1px !important;
+  }
+
+  /* 4. EL BOTÓN "TODOS LOS NIVELES" */
+  #custom-filters div > button, 
+  #custom-filters div > .btn {
+      grid-column: 1 / -1; /* Ocupa todo el ancho */
+      width: 100% !important;
+      height: 36px !important;
+      font-size: 12px !important;
+      margin-top: 0 !important; /* El gap de la grilla ya le da espacio */
+  }
+
+  /* 5. AJUSTE DE PANTALLA Y ORGANIGRAMA */
+  html, body, .org-container {
+      height: 100% !important;
+      margin: 0 !important;
+      overflow: hidden !important;
+  }
+
+  #tree-container {
+      flex-grow: 1;
+      width: 100%;
+      height: auto !important;
+  }
+  
+  /* 6. CONTROLES FLOTANTES (ABAJO A LA DERECHA) */
+  .boc-controls {
+      transform: scale(0.8);
+      transform-origin: bottom right;
+      bottom: 15px !important;
+      right: 10px !important;
+  }
+}
+/* ==========================================================================
+   MODO "PANTALLA FINA" (iPhone SE, Galaxy Fold, etc.)
+   Se activa solo cuando la pantalla mide menos de 400px
+   ========================================================================== */
+
+@media (max-width: 400px) {
+
+  /* 1. Reducir un poco el "aire" lateral para ganar espacio central */
+  #custom-filters {
+      padding: 10px 4px !important; /* Reducimos de 25px a 12px */
+  }
+  
+  #custom-filters div {
+      gap: 6px; /* Juntamos un poquito más las columnas */
+  }
+
+  /* 2. Hacemos los Selects "Miniatura" */
+  .select2-container .select2-selection--single,
+  .select2-container .select2-selection--multiple {
+      height: 34px !important; /* Bajamos de 40px a 34px */
+      font-size: 11px !important; /* Letra pequeña para que quepa "CORPORATIVO" */
+  }
+
+  /* Ajustamos el texto para que quede centrado en la nueva altura */
+  .select2-container--default .select2-selection__rendered {
+      line-height: 32px !important; 
+      padding-left: 6px !important; /* Menos relleno interno */
+      padding-right: 15px !important; /* Espacio justo para no tapar la flecha */
+  }
+  
+  /* Flechita más pequeña */
+  .select2-container--default .select2-selection__arrow {
+      height: 32px !important;
+      width: 15px !important; /* Flecha más estrecha */
+      right: 2px !important;
+  }
+  
+  /* Ajuste del icono de la flecha (el triangulito) */
+  .select2-container--default .select2-selection__arrow b {
+      border-width: 4px 3px 0 3px !important; /* Triángulo más pequeño */
+      margin-left: -3px !important;
+  }
+
+  /* 3. Botón "Todos los Niveles" también en modo mini */
+  #custom-filters div > button, 
+  #custom-filters div > .btn {
+      height: 34px !important;
+      font-size: 11px !important;
+      margin-top: 4px !important;
+  }
+  
+  /* 4. Asegurar que los textos largos no rompan el diseño */
+  /* Si dice "VISTA POR DEPARTAMENTO...", pondrá "VISTA POR..." */
+  .select2-selection__rendered {
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+  }
 }
