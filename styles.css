@@ -1045,60 +1045,70 @@ div[data-ctrl-search] {
   color: #6c757d !important; /* Placeholder grisáceo */
 }
 
+#select2-nivel-select-container.select2-selection__rendered {
+  display: none;
+}
+
+.select2-selection.select2-selection--multiple.select2-selection--clearable{
+  padding-left: 0px !important;
+}
+
 /* ==========================================================================
-   FIX FINAL DE BORDES Y TAMAÑOS
-   Reemplaza todo el bloque @media anterior
+   DISEÑO RESPONSIVE COMPACTO (SOLUCIÓN FINAL)
+   Reemplaza todo lo anterior relacionado con @media
    ========================================================================== */
 
+/* --- TIER 1: TABLETS Y MOVILES NORMALES (Menos de 768px) --- */
 @media (max-width: 768px) {
 
-  /* 1. EL CONTENEDOR PADRE (LIMPIEZA) */
+  /* 1. LIMPIEZA DEL CONTENEDOR PRINCIPAL */
   #custom-filters {
       width: 100% !important;
-      padding: 10px 0 !important; /* Solo padding arriba/abajo */
+      padding: 8px 0 !important;
       background-color: #fff;
-      overflow: hidden; /* Corta cualquier cosa que intente salirse */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   }
 
-  /* 2. LA GRILLA (AQUÍ ESTÁ EL TRUCO DEL MARGEN) */
+  /* 2. LA ESTRUCTURA (GRILLA CENTRADA) */
   #custom-filters > div {
-      /* En lugar de padding, le decimos: ocupa el 94% de la pantalla */
-      width: 94% !important; 
-      /* Y céntrate automáticamente (deja 3% a cada lado libre) */
+      /* Ancho del 92% asegura un margen del 4% a cada lado. IMPOSIBLE que toque bordes. */
+      width: 92% !important; 
       margin: 0 auto !important; 
       
       display: grid;
-      grid-template-columns: 1fr 1fr; /* 50% y 50% */
-      column-gap: 8px !important; /* Espacio horizontal entre selects */
-      row-gap: 8px !important;    /* Espacio vertical entre filas */
+      grid-template-columns: 1fr 1fr; /* Dos columnas exactas */
+      gap: 8px !important; /* Espacio entre cajitas */
   }
 
-  /* 3. LOS SELECTS (DOMAR EL TAMAÑO) */
+  /* 3. DOMAR LOS SELECTS (ESTILO COMPACTO) */
   .select2-container {
-      width: 100% !important; /* Que llene su celda de la grilla */
-      max-width: 100% !important; /* Doble seguridad */
+      width: 100% !important;
+      max-width: 100% !important;
   }
 
-  /* Hacemos las cajas más compactas (36px de alto) */
+  /* Cajas más delgadas y letra ajustada */
   .select2-container .select2-selection--single,
   .select2-container .select2-selection--multiple {
-      height: 36px !important; 
-      min-height: 36px !important;
-      font-size: 12px !important; /* Letra más pequeña */
+      height: 34px !important; /* Antes 38-40px, ahora más fino */
+      min-height: 34px !important;
+      font-size: 11px !important; /* Letra reducida para que quepa más texto */
       border-radius: 4px !important;
+      border: 1px solid #ccc !important;
   }
 
-  /* Ajuste vertical del texto */
+  /* Ajuste del texto dentro de la caja */
   .select2-container--default .select2-selection__rendered {
-      line-height: 34px !important;
-      padding-left: 8px !important;
-      padding-right: 20px !important; /* Espacio para que el texto no toque la flecha */
+      line-height: 32px !important; /* Centrado vertical */
+      padding-left: 6px !important;
+      padding-right: 18px !important; /* Espacio para no chocar con la flecha */
+      color: #444 !important;
+      letter-spacing: -0.3px; /* Un pequeño truco para que quepan más letras */
   }
   
-  /* Flecha más pequeña y pegada a la derecha */
+  /* Flecha más discreta */
   .select2-container--default .select2-selection__arrow {
-      height: 34px !important;
-      width: 20px !important;
+      height: 32px !important;
+      width: 18px !important;
       right: 1px !important;
   }
 
@@ -1107,88 +1117,101 @@ div[data-ctrl-search] {
   #custom-filters div > .btn {
       grid-column: 1 / -1; /* Ocupa todo el ancho */
       width: 100% !important;
-      height: 36px !important;
-      font-size: 12px !important;
-      margin-top: 0 !important; /* El gap de la grilla ya le da espacio */
+      height: 34px !important; /* Misma altura que los selects */
+      font-size: 11px !important;
+      margin-top: 0 !important;
+      text-transform: uppercase; /* Hace que se vea más ordenado */
   }
 
-  /* 5. AJUSTE DE PANTALLA Y ORGANIGRAMA */
+  /* 5. LAYOUT GENERAL */
   html, body, .org-container {
       height: 100% !important;
       margin: 0 !important;
       overflow: hidden !important;
   }
-
+  
   #tree-container {
       flex-grow: 1;
       width: 100%;
       height: auto !important;
   }
-  
-  /* 6. CONTROLES FLOTANTES (ABAJO A LA DERECHA) */
+
+  /* 6. CONTROLES FLOTANTES (ABAJO) */
   .boc-controls {
-      transform: scale(0.8);
+      transform: scale(0.75); /* Un poco más pequeños */
       transform-origin: bottom right;
       bottom: 15px !important;
       right: 10px !important;
   }
-}
-/* ==========================================================================
-   MODO "PANTALLA FINA" (iPhone SE, Galaxy Fold, etc.)
-   Se activa solo cuando la pantalla mide menos de 400px
-   ========================================================================== */
 
-@media (max-width: 400px) {
+  /* --- 7. BÚSQUEDA COMPACTA Y A LA IZQUIERDA --- */
+  
+  /* El contenedor de la búsqueda */
+  div.boc-search {
+      /* 1. TAMAÑO: Restringimos el ancho */
+      width: 60% !important;      /* Ocupa un poco más de la mitad */
+      max-width: 220px !important; /* Tope máximo para que no se estire demasiado */
+      min-width: 140px !important; /* Mínimo para que se pueda escribir */
 
-  /* 1. Reducir un poco el "aire" lateral para ganar espacio central */
-  #custom-filters {
-      padding: 10px 4px !important; /* Reducimos de 25px a 12px */
+      /* 2. POSICIÓN: Anclada a la IZQUIERDA */
+      left: 15px !important;      /* Margen izquierdo de seguridad */
+      right: auto !important;     /* ¡Clave! Le decimos que NO se pegue a la derecha */
+      
+      /* Ajuste vertical: Puede que necesites subirlo o bajarlo un poco */
+      /* top: 60px !important; <--- Descomenta y ajusta si choca con los filtros */
+      
+      display: flex !important;
+      align-items: center !important;
+      z-index: 900; /* Aseguramos que esté por encima del gráfico pero debajo de modales */
+  }
+
+  /* El campo de texto (Input) por dentro */
+  div.boc-search input {
+      width: 100% !important;
+      height: 32px !important;    /* Altura acorde a tus botones select */
+      font-size: 11px !important; /* Texto compacto */
+      padding-left: 8px !important;
+      border: 1px solid #ccc !important;
+      border-radius: 4px !important;
+      background-color: rgba(255, 255, 255, 0.95) !important; /* Fondo casi blanco */
   }
   
-  #custom-filters div {
-      gap: 6px; /* Juntamos un poquito más las columnas */
+  /* El icono de la lupa (ajuste visual) */
+  div.boc-search svg {
+      width: 14px !important;
+      height: 14px !important;
+      right: 5px !important; /* Lo pegamos un poco a la derecha DENTRO del input */
+      margin: 0 !important;
   }
+}
 
-  /* 2. Hacemos los Selects "Miniatura" */
+/* --- TIER 2: MÓVILES ESTRECHOS (iPhone SE, Fold, etc - Menos de 380px) --- */
+@media (max-width: 380px) {
+
+  /* Reducimos aún más para pantallas muy finas */
   .select2-container .select2-selection--single,
   .select2-container .select2-selection--multiple {
-      height: 34px !important; /* Bajamos de 40px a 34px */
-      font-size: 11px !important; /* Letra pequeña para que quepa "CORPORATIVO" */
+      height: 30px !important; /* Súper compacto */
+      font-size: 10px !important; /* Letra pequeña pero legible */
   }
 
-  /* Ajustamos el texto para que quede centrado en la nueva altura */
   .select2-container--default .select2-selection__rendered {
-      line-height: 32px !important; 
-      padding-left: 6px !important; /* Menos relleno interno */
-      padding-right: 15px !important; /* Espacio justo para no tapar la flecha */
+      line-height: 28px !important;
   }
   
-  /* Flechita más pequeña */
   .select2-container--default .select2-selection__arrow {
-      height: 32px !important;
-      width: 15px !important; /* Flecha más estrecha */
-      right: 2px !important;
-  }
-  
-  /* Ajuste del icono de la flecha (el triangulito) */
-  .select2-container--default .select2-selection__arrow b {
-      border-width: 4px 3px 0 3px !important; /* Triángulo más pequeño */
-      margin-left: -3px !important;
+      height: 28px !important;
   }
 
-  /* 3. Botón "Todos los Niveles" también en modo mini */
   #custom-filters div > button, 
   #custom-filters div > .btn {
-      height: 34px !important;
-      font-size: 11px !important;
-      margin-top: 4px !important;
+      height: 30px !important;
+      font-size: 10px !important;
   }
   
-  /* 4. Asegurar que los textos largos no rompan el diseño */
-  /* Si dice "VISTA POR DEPARTAMENTO...", pondrá "VISTA POR..." */
-  .select2-selection__rendered {
-      white-space: nowrap !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
+  /* Reducimos el gap para que no se vea separado */
+  #custom-filters > div {
+      gap: 5px !important;
+      width: 96% !important; /* Aprovechamos un poco más del ancho */
   }
 }
