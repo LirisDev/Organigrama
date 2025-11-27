@@ -1049,7 +1049,7 @@ div[data-ctrl-search] {
   display: none;
 }
 
-.select2-selection.select2-selection--multiple.select2-selection--clearable{
+.select2-selection.select2-selection--multiple.select2-selection--clearable {
   padding-left: 0px !important;
 }
 
@@ -1060,158 +1060,163 @@ div[data-ctrl-search] {
 
 /* --- TIER 1: TABLETS Y MOVILES NORMALES (Menos de 768px) --- */
 @media (max-width: 768px) {
-
   /* 1. LIMPIEZA DEL CONTENEDOR PRINCIPAL */
   #custom-filters {
-      width: 100% !important;
-      padding: 8px 0 !important;
-      background-color: #fff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    width: 100% !important;
+    padding: 8px 0 !important;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
 
   /* 2. LA ESTRUCTURA (GRILLA CENTRADA) */
   #custom-filters > div {
-      /* Ancho del 92% asegura un margen del 4% a cada lado. IMPOSIBLE que toque bordes. */
-      width: 92% !important; 
-      margin: 0 auto !important; 
-      
-      display: grid;
-      grid-template-columns: 1fr 1fr; /* Dos columnas exactas */
-      gap: 8px !important; /* Espacio entre cajitas */
+    /* Ancho del 92% asegura un margen del 4% a cada lado. IMPOSIBLE que toque bordes. */
+    width: 92% !important;
+    margin: 0 auto !important;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Dos columnas exactas */
+    gap: 8px !important; /* Espacio entre cajitas */
   }
 
   /* 3. DOMAR LOS SELECTS (ESTILO COMPACTO) */
   .select2-container {
-      width: 100% !important;
-      max-width: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   /* Cajas más delgadas y letra ajustada */
   .select2-container .select2-selection--single,
   .select2-container .select2-selection--multiple {
-      height: 34px !important; /* Antes 38-40px, ahora más fino */
-      min-height: 34px !important;
-      font-size: 11px !important; /* Letra reducida para que quepa más texto */
-      border-radius: 4px !important;
-      border: 1px solid #ccc !important;
+    height: 34px !important; /* Antes 38-40px, ahora más fino */
+    min-height: 34px !important;
+    font-size: 11px !important; /* Letra reducida para que quepa más texto */
+    border-radius: 4px !important;
+    border: 1px solid #ccc !important;
   }
 
   /* Ajuste del texto dentro de la caja */
   .select2-container--default .select2-selection__rendered {
-      line-height: 32px !important; /* Centrado vertical */
-      padding-left: 6px !important;
-      padding-right: 18px !important; /* Espacio para no chocar con la flecha */
-      color: #444 !important;
-      letter-spacing: -0.3px; /* Un pequeño truco para que quepan más letras */
+    line-height: 32px !important; /* Centrado vertical */
+    padding-left: 6px !important;
+    padding-right: 18px !important; /* Espacio para no chocar con la flecha */
+    color: #444 !important;
+    letter-spacing: -0.3px; /* Un pequeño truco para que quepan más letras */
   }
-  
+
   /* Flecha más discreta */
   .select2-container--default .select2-selection__arrow {
-      height: 32px !important;
-      width: 18px !important;
-      right: 1px !important;
+    height: 32px !important;
+    width: 18px !important;
+    right: 1px !important;
   }
 
   /* 4. EL BOTÓN "TODOS LOS NIVELES" */
-  #custom-filters div > button, 
+  #custom-filters div > button,
   #custom-filters div > .btn {
-      grid-column: 1 / -1; /* Ocupa todo el ancho */
-      width: 100% !important;
-      height: 34px !important; /* Misma altura que los selects */
-      font-size: 11px !important;
-      margin-top: 0 !important;
-      text-transform: uppercase; /* Hace que se vea más ordenado */
+    grid-column: 1 / -1; /* Ocupa todo el ancho */
+    width: 100% !important;
+    height: 34px !important; /* Misma altura que los selects */
+    font-size: 11px !important;
+    margin-top: 0 !important;
+    text-transform: uppercase; /* Hace que se vea más ordenado */
   }
 
   /* 5. LAYOUT GENERAL */
-  html, body, .org-container {
-      height: 100% !important;
-      margin: 0 !important;
-      overflow: hidden !important;
+  html,
+  body,
+  .org-container {
+    height: 100% !important;
+    margin: 0 !important;
+    overflow: hidden !important;
   }
-  
+
   #tree-container {
-      flex-grow: 1;
-      width: 100%;
-      height: auto !important;
+    flex-grow: 1;
+    width: 100%;
+    height: auto !important;
   }
 
   /* 6. CONTROLES FLOTANTES (ABAJO) */
   .boc-controls {
-      transform: scale(0.75); /* Un poco más pequeños */
-      transform-origin: bottom right;
-      bottom: 15px !important;
-      right: 10px !important;
+    transform: scale(0.75); /* Un poco más pequeños */
+    transform-origin: bottom right;
+    bottom: 15px !important;
+    right: 10px !important;
   }
 
   /* --- 7. BÚSQUEDA COMPACTA Y A LA IZQUIERDA --- */
-  
+
   /* El contenedor de la búsqueda */
   div.boc-search {
-      /* 1. TAMAÑO: Restringimos el ancho */
-      width: 60% !important;      /* Ocupa un poco más de la mitad */
-      max-width: 220px !important; /* Tope máximo para que no se estire demasiado */
-      min-width: 140px !important; /* Mínimo para que se pueda escribir */
+    /* 1. TAMAÑO: Restringimos el ancho */
+    width: 60% !important; /* Ocupa un poco más de la mitad */
+    max-width: 220px !important; /* Tope máximo para que no se estire demasiado */
+    min-width: 140px !important; /* Mínimo para que se pueda escribir */
 
-      /* 2. POSICIÓN: Anclada a la IZQUIERDA */
-      left: 15px !important;      /* Margen izquierdo de seguridad */
-      right: auto !important;     /* ¡Clave! Le decimos que NO se pegue a la derecha */
-      
-      /* Ajuste vertical: Puede que necesites subirlo o bajarlo un poco */
-      /* top: 60px !important; <--- Descomenta y ajusta si choca con los filtros */
-      
-      display: flex !important;
-      align-items: center !important;
-      z-index: 900; /* Aseguramos que esté por encima del gráfico pero debajo de modales */
+    /* 2. POSICIÓN: Anclada a la IZQUIERDA */
+    left: 15px !important; /* Margen izquierdo de seguridad */
+    right: auto !important; /* ¡Clave! Le decimos que NO se pegue a la derecha */
+
+    /* Ajuste vertical: Puede que necesites subirlo o bajarlo un poco */
+    /* top: 60px !important; <--- Descomenta y ajusta si choca con los filtros */
+
+    display: flex !important;
+    align-items: center !important;
+    z-index: 900; /* Aseguramos que esté por encima del gráfico pero debajo de modales */
   }
 
   /* El campo de texto (Input) por dentro */
   div.boc-search input {
-      width: 100% !important;
-      height: 32px !important;    /* Altura acorde a tus botones select */
-      font-size: 11px !important; /* Texto compacto */
-      padding-left: 8px !important;
-      border: 1px solid #ccc !important;
-      border-radius: 4px !important;
-      background-color: rgba(255, 255, 255, 0.95) !important; /* Fondo casi blanco */
+    width: 100% !important;
+    height: 32px !important; /* Altura acorde a tus botones select */
+    font-size: 11px !important; /* Texto compacto */
+    padding-left: 8px !important;
+    border: 1px solid #ccc !important;
+    border-radius: 4px !important;
+    background-color: rgba(
+      255,
+      255,
+      255,
+      0.95
+    ) !important; /* Fondo casi blanco */
   }
-  
+
   /* El icono de la lupa (ajuste visual) */
   div.boc-search svg {
-      width: 14px !important;
-      height: 14px !important;
-      right: 5px !important; /* Lo pegamos un poco a la derecha DENTRO del input */
-      margin: 0 !important;
+    width: 14px !important;
+    height: 14px !important;
+    right: 5px !important; /* Lo pegamos un poco a la derecha DENTRO del input */
+    margin: 0 !important;
   }
 }
 
 /* --- TIER 2: MÓVILES ESTRECHOS (iPhone SE, Fold, etc - Menos de 380px) --- */
 @media (max-width: 380px) {
-
   /* Reducimos aún más para pantallas muy finas */
   .select2-container .select2-selection--single,
   .select2-container .select2-selection--multiple {
-      height: 30px !important; /* Súper compacto */
-      font-size: 10px !important; /* Letra pequeña pero legible */
+    height: 30px !important; /* Súper compacto */
+    font-size: 10px !important; /* Letra pequeña pero legible */
   }
 
   .select2-container--default .select2-selection__rendered {
-      line-height: 28px !important;
-  }
-  
-  .select2-container--default .select2-selection__arrow {
-      height: 28px !important;
+    line-height: 28px !important;
   }
 
-  #custom-filters div > button, 
-  #custom-filters div > .btn {
-      height: 30px !important;
-      font-size: 10px !important;
+  .select2-container--default .select2-selection__arrow {
+    height: 28px !important;
   }
-  
+
+  #custom-filters div > button,
+  #custom-filters div > .btn {
+    height: 30px !important;
+    font-size: 10px !important;
+  }
+
   /* Reducimos el gap para que no se vea separado */
   #custom-filters > div {
-      gap: 5px !important;
-      width: 96% !important; /* Aprovechamos un poco más del ancho */
+    gap: 5px !important;
+    width: 96% !important; /* Aprovechamos un poco más del ancho */
   }
 }
