@@ -376,8 +376,37 @@ div.boc-node.level-6[data-n-id] {
   flex-wrap: wrap;
   gap: 8px; /* ¡ESPACIO! (Esto separa cada filtro) */
   justify-content: center;
+  
+  align-items: center; /* Esto es clave para que se alineen verticalmente */
+  padding: 10px;
+}
+/* Diseño del botón rojo */
+.control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  
+  /* --- CAMBIOS DE COLOR --- */
+  background-color: #ffffff; /* Fondo blanco */
+  /* ----------------------- */
+
+  border-radius: 4px; 
+  padding: 6px 15px;
+  height: 28px;    
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s ease; /* Transición suave para el cambio de color */
+  text-decoration: none;
 }
 
+.control-btn:hover {
+  background-color: var(--color-primario-hover); /* Rojo más oscuro */
+  color: white;
+  border: 1px solid #F57C00; /* Borde Naranja */
+
+}
 /* --- ESTILOS PARA SELECT2 (Look "classic" simple) --- */
 
 .select2-container {

@@ -110,7 +110,7 @@
             <option value="12">12. Nivel Base/Operario</option>
           </select>
 
-          <!-- <button id="btn-download-app-manual" class="control-btn" title="Descargar Manual de Usuario">
+          <button id="btn-download-app-manual" class="control-btn" title="Descargar Manual de Usuario">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"
@@ -129,7 +129,7 @@
               <line x1="15" y1="15" x2="12" y2="18"></line>
             </svg>
             <span>Manual</span>
-          </button> -->
+          </button>
         </div>
       </header>
 
@@ -629,7 +629,7 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        /*
+        //*
         if (!receivedUserId) {
           //receivedUserId = "interno\\1207026814"; //Auxiliar
           receivedUserId = "interno\\dromero"; //Asistente de desarrollo
@@ -2806,16 +2806,35 @@
       // --- Llamada inicial ---
       document.addEventListener("DOMContentLoaded", function () {
 
-        // const btnManual = document.getElementById("btn-download-app-manual");
-        // if (btnManual) {
-        //     btnManual.addEventListener("click", function () {
-        //         // ⚠️ CAMBIA ESTA URL POR LA RUTA REAL DE TU PDF
-        //         const manualPdfUrl = "https://tu-servidor.com/manuales/Manual_General_App.pdf";
+        // --- INICIO CÓDIGO DEL BOTÓN (MODIFICADO PARA DESCARGA) ---
+        const btnManual = document.getElementById("btn-download-app-manual");
+        
+        if (btnManual) {
+            btnManual.addEventListener("click", function (e) {
+                e.preventDefault(); // Evita comportamientos por defecto
+
+                // ⚠️ 1. PON AQUÍ LA URL REAL DE TU PDF
+                const manualPdfUrl = "RRHH-USU-USORGA-V001 Manual de Usuario de Uso de Organigrama.pdf";
                 
-        //         // Abre el PDF en una pestaña nueva
-        //         window.open(manualPdfUrl, "_blank");
-        //     });
-        // }
+                // ⚠️ 2. PON AQUÍ EL NOMBRE CON EL QUE SE GUARDARÁ EL ARCHIVO
+                const nombreArchivo = "Manual_Usuario_Organigrama.pdf";
+
+                // Creación de un enlace temporal invisible
+                const link = document.createElement('a');
+                link.href = manualPdfUrl;
+                
+                // El atributo 'download' fuerza la descarga
+                link.setAttribute('download', nombreArchivo);
+                link.setAttribute('target', '_blank'); // Fallback por si el navegador bloquea la descarga directa
+                link.style.display = 'none';
+
+                // Añadirlo al documento, hacer clic y removerlo
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
+        // --- FIN CÓDIGO DEL BOTÓN ---
 
         const apiUrl =
           "https://mobile.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_persona";
