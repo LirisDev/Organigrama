@@ -99,9 +99,7 @@
             <option value="1">1. Alta Dirección</option>
             <option value="2">2. Nivel Gerencial</option>
             <option value="3">3. Gerentes Corporativo/Producción</option>
-            <option value="4">
-              4. Gerentes de Plantas/Retail/ Contable/Logística
-            </option>
+            <option value="4">4. Gerentes de Plantas/Retail/ Contable/Logística</option>
             <option value="5">5. Nivel Jefaturas</option>
             <option value="6">6. Nivel Jefatura Sistemas</option>
             <option value="7">7. Nivel Coordinación/Administración</option>
@@ -111,6 +109,27 @@
             <option value="11">11. Nivel Operativo Jr</option>
             <option value="12">12. Nivel Base/Operario</option>
           </select>
+
+          <!-- <button id="btn-download-app-manual" class="control-btn" title="Descargar Manual de Usuario">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="12" y2="18"></line>
+              <line x1="15" y1="15" x2="12" y2="18"></line>
+            </svg>
+            <span>Manual</span>
+          </button> -->
         </div>
       </header>
 
@@ -148,7 +167,7 @@
       let txtScaleElement = document.getElementById("txt_scale");
 
       const apiCargoUrl =
-        "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_cargo";
+        "https://mobile.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_cargo";
 
       // --- CÓDIGO PARA BLOQUEAR ZOOM DEL NAVEGADOR (ESCRITORIO) ---
       // 1. Bloquea el zoom con la rueda del ratón (Ctrl + Rueda)
@@ -610,7 +629,7 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        /*
+        //*
         if (!receivedUserId) {
           //receivedUserId = "interno\\1207026814"; //Auxiliar
           receivedUserId = "interno\\dromero"; //Asistente de desarrollo
@@ -2786,8 +2805,20 @@
 
       // --- Llamada inicial ---
       document.addEventListener("DOMContentLoaded", function () {
+
+        // const btnManual = document.getElementById("btn-download-app-manual");
+        // if (btnManual) {
+        //     btnManual.addEventListener("click", function () {
+        //         // ⚠️ CAMBIA ESTA URL POR LA RUTA REAL DE TU PDF
+        //         const manualPdfUrl = "https://tu-servidor.com/manuales/Manual_General_App.pdf";
+                
+        //         // Abre el PDF en una pestaña nueva
+        //         window.open(manualPdfUrl, "_blank");
+        //     });
+        // }
+
         const apiUrl =
-          "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_persona";
+          "https://mobile.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_persona";
         loadAndRenderChart(apiUrl);
       });
     </script>
