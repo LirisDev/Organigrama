@@ -51,6 +51,12 @@
             >
           </div>
           <div class="details-info-line">
+            <span class="details-info-label">Área:</span>
+            <span class="details-info-value" data-field="area"
+              >[area]</span
+            >
+          </div>
+          <div class="details-info-line">
             <span class="details-info-label">Departamento:</span>
             <span class="details-info-value" data-field="departamento"
               >[departamento]</span
@@ -295,6 +301,7 @@
             email: empData.emailCorporativo,
             lineaNegocio: this.data.lineaNegocio,
             centroCosto: this.data.centroCosto,
+            area: this.data.area,
             departamento: this.data.departamento,
             codDepAx: empData.codDepAx,
             codDepartamento: this.data.codDepartamento,
@@ -378,6 +385,12 @@
                 <span class="details-info-label">Centro Costo:</span>
                 <span class="details-info-value">${
                   personData.centroCosto || "N/A"
+                }</span>
+            </div>
+                        <div class="details-info-line">
+                <span class="details-info-label">Área:</span>
+                <span class="details-info-value">${
+                  personData.area || "N/A"
                 }</span>
             </div>
             <div class="details-info-line">
@@ -487,6 +500,7 @@
               email: singleEmp.emailCorporativo,
               lineaNegocio: this.data.lineaNegocio,
               centroCosto: this.data.centroCosto,
+              area: this.data.area,
               departamento: this.data.departamento,
               codDepAx: singleEmp.codDepAx,
               codDepartamento: this.data.codDepartamento,
