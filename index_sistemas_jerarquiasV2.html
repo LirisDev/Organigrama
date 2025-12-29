@@ -2790,6 +2790,8 @@
                   // Es un array de empleados
                   listaEmpleados = cargo.Empleado;
                   primerEmpleado = cargo.Empleado[0];
+                  console.log("Lista de Empleados para cargo", id, listaEmpleados);
+                  console.log(primerEmpleado);
                   cargoPersonaDisplay =
                     listaEmpleados.length === 1
                       ? `${listaEmpleados[0].nombre || ""} ${
@@ -2855,7 +2857,7 @@
                     : cargo.nombreCentroCosto) || "N/A",
                 area:
                   (primerEmpleado
-                    ? primerEmpleado.nombreArea
+                    ? cargo.nombreArea
                     : cargo.nombreArea) || "N/A", // NUEVO
                 departamento:
                   (primerEmpleado
