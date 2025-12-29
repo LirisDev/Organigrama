@@ -2853,10 +2853,10 @@
                   (primerEmpleado
                     ? primerEmpleado.nombreCentroCosto
                     : cargo.nombreCentroCosto) || "N/A",
-                // area:
-                //   (primerEmpleado
-                //     ? primerEmpleado.nombreArea
-                //     : cargo.nombreArea) || "N/A", //TODO: DESCOMENTAR cuando esté para cargos en la api
+                area:
+                  (primerEmpleado
+                    ? primerEmpleado.nombreArea
+                    : cargo.nombreArea) || "N/A", // NUEVO
                 departamento:
                   (primerEmpleado
                     ? primerEmpleado.nombreDepartamento
