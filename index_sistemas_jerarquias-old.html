@@ -51,12 +51,6 @@
             >
           </div>
           <div class="details-info-line">
-            <span class="details-info-label">Área:</span>
-            <span class="details-info-value" data-field="area"
-              >[area]</span
-            >
-          </div>
-          <div class="details-info-line">
             <span class="details-info-label">Departamento:</span>
             <span class="details-info-value" data-field="departamento"
               >[departamento]</span
@@ -91,10 +85,6 @@
 
           <select id="centro-costos-select" class="control-select">
             <option value="todos">TODO CENTRO DE COSTOS</option>
-          </select>
-
-          <select id="area-select" class="control-select">
-            <option value="todos">TODAS LAS ÁREAS</option>
           </select>
 
           <select id="departamento-select" class="control-select">
@@ -177,7 +167,7 @@
       let txtScaleElement = document.getElementById("txt_scale");
 
       const apiCargoUrl =
-        "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_cargo";    //TODO: APUNTA A QA
+        "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_cargo";       //TODO: APUNTA A QA
 
       // --- CÓDIGO PARA BLOQUEAR ZOOM DEL NAVEGADOR (ESCRITORIO) ---
       // 1. Bloquea el zoom con la rueda del ratón (Ctrl + Rueda)
@@ -301,7 +291,6 @@
             email: empData.emailCorporativo,
             lineaNegocio: this.data.lineaNegocio,
             centroCosto: this.data.centroCosto,
-            area: this.data.area,
             departamento: this.data.departamento,
             codDepAx: empData.codDepAx,
             codDepartamento: this.data.codDepartamento,
@@ -385,12 +374,6 @@
                 <span class="details-info-label">Centro Costo:</span>
                 <span class="details-info-value">${
                   personData.centroCosto || "N/A"
-                }</span>
-            </div>
-                        <div class="details-info-line">
-                <span class="details-info-label">Área:</span>
-                <span class="details-info-value">${
-                  personData.area || "N/A"
                 }</span>
             </div>
             <div class="details-info-line">
@@ -500,7 +483,6 @@
               email: singleEmp.emailCorporativo,
               lineaNegocio: this.data.lineaNegocio,
               centroCosto: this.data.centroCosto,
-              area: this.data.area,
               departamento: this.data.departamento,
               codDepAx: singleEmp.codDepAx,
               codDepartamento: this.data.codDepartamento,
@@ -573,18 +555,17 @@
       /* FUNCION PARA HABILITAR/DESHABILITAR FILTROS */
       function actualizarEstadoFiltros() {
         const selectIds =
-          "#linea-negocio-select, #centro-costos-select, #area-select, #departamento-select";
+          "#linea-negocio-select, #centro-costos-select, #departamento-select";
         const $nivel = $("#nivel-select");
 
         // 1. Verificar valores de los filtros principales
         const linea = $("#linea-negocio-select").val();
         const costo = $("#centro-costos-select").val();
-        const area = $("#area-select").val(); // <--- Nuevo
         const depto = $("#departamento-select").val();
 
         // ¿Hay algún filtro activo? (Es decir, algo distinto a "todos")
         const hayFiltrosActivos =
-          linea !== "todos" || costo !== "todos" || area !== "todos" || depto !== "todos";
+          linea !== "todos" || costo !== "todos" || depto !== "todos";
 
         // 2. Lógica de Permisos de Usuario (Global)
         if (usuarioPuedeVerTodo) {
@@ -650,7 +631,7 @@
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
         /*
         if (!receivedUserId) {
-          //receivedUserId = "interno\\0941513822"; //cajero
+          //receivedUserId = "interno\\1207026814"; //Auxiliar
           receivedUserId = "interno\\dromero"; //Asistente de desarrollo
           console.log("Usando usuario interno\\dromero para pruebas");
         } //*/
@@ -744,7 +725,6 @@
           // 1. OBTENER LOS SELECTS
           const selectLinea = document.getElementById("linea-negocio-select");
           const selectCostos = document.getElementById("centro-costos-select");
-          const selectArea = document.getElementById("area-select"); // ✅ NUEVO
           const selectDept = document.getElementById("departamento-select");
 
           // 2. APLICAR LÍNEA
@@ -771,39 +751,33 @@
             selectCostos.value = empleadoLogueado.centroCosto;
           }
 
-          // 5. REPOBLAR AREA
-          let nodosParaArea = nodosParaCostos; 
-          if (empleadoLogueado.centroCosto && empleadoLogueado.centroCosto !== "N/A") {
-            nodosParaArea = nodosParaCostos.filter((n) => n.centroCosto === empleadoLogueado.centroCosto);
+          // 5. REPOBLAR DEPARTAMENTO (basado en línea Y costo)
+          let nodosParaDeptos = nodosParaCostos; // Empezar con los nodos ya filtrados por línea
+          if (
+            empleadoLogueado.centroCosto &&
+            empleadoLogueado.centroCosto !== "N/A"
+          ) {
+            nodosParaDeptos = nodosParaCostos.filter(
+              (n) => n.centroCosto === empleadoLogueado.centroCosto
+            );
           }
-          populateSelect("area-select", "area", nodosParaArea);
+          populateSelect(
+            "departamento-select",
+            "departamento",
+            nodosParaDeptos
+          );
 
-          // ✅ 6. NUEVO: APLICAR ÁREA
-          if (selectArea && empleadoLogueado.area) {
-             selectArea.value = empleadoLogueado.area;
-          }
-
-          // 7. REPOBLAR DEPARTAMENTO (basado en Área)
-          let nodosParaDeptos = nodosParaArea;
-          // Si el usuario tiene área, filtramos los departamentos de esa área
-          if (empleadoLogueado.area && empleadoLogueado.area !== "N/A") {
-             nodosParaDeptos = nodosParaArea.filter((n) => n.area === empleadoLogueado.area);
-          }
-          
-          populateSelect("departamento-select", "departamento", nodosParaDeptos);
-
-          // 8. APLICAR DEPARTAMENTO
+          // 6. APLICAR DEPARTAMENTO
           if (selectDept && empleadoLogueado.departamento) {
             selectDept.value = empleadoLogueado.departamento;
           }
 
-          // 9. NOTIFICAR A SELECT2 DE TODOS LOS CAMBIOS (NO DISPARA EVENTO 'change')
+          // 7. NOTIFICAR A SELECT2 DE TODOS LOS CAMBIOS (NO DISPARA EVENTO 'change')
           $(selectLinea).trigger("change.select2");
           $(selectCostos).trigger("change.select2");
-          $(selectArea).trigger("change.select2");
           $(selectDept).trigger("change.select2");
 
-          // 10. DISPARAR FILTRO FINAL
+          // 8. DISPARAR FILTRO FINAL
           // (Solo si el chart ya existe)
           if (chart) {
             console.log(
@@ -995,9 +969,6 @@
         const selectedCosto = document.getElementById(
           "centro-costos-select"
         ).value;
-        const selectedArea = document.getElementById(
-          "area-select"
-        ).value; // ✅ NUEVO
         const selectedDept = document.getElementById(
           "departamento-select"
         ).value;
@@ -1045,13 +1016,12 @@
         if (
           selectedLinea === "todos" &&
           selectedCosto === "todos" &&
-          selectedArea === "todos" &&
           selectedDept === "todos" &&
           !isNivelActive // ✅ Verificamos si el nivel está inactivo
         ) {
           chart.load(sourceNodes); // (O 'sanitizedNodes' si es tu fuente de verdad)
           //statusDiv.style.display = "none";
-          //loaderOverlay.classList.remove("visible"); //////////////TODO:
+          //loaderOverlay.classList.remove("visible");
           return;
         }
 
@@ -1072,8 +1042,6 @@
             selectedLinea === "todos" || node.lineaNegocio === selectedLinea;
           const costosMatch =
             selectedCosto === "todos" || node.centroCosto === selectedCosto;
-          const areaMatch =
-            selectedArea === "todos" || node.area === selectedArea;          
           const deptMatch =
             selectedDept === "todos" || node.departamento === selectedDept;
 
@@ -1081,7 +1049,7 @@
             !isNivelActive || selectedNiveles.includes(String(node.order));
 
           // Si el nodo coincide con todos los filtros activos
-          if (lineaMatch && costosMatch && areaMatch &&deptMatch && nivelMatch) {
+          if (lineaMatch && costosMatch && deptMatch && nivelMatch) {
             // Para cada nodo que coincide, añadirlo A ÉL Y A TODOS SUS PADRES
             let currentNode = node;
             while (currentNode) {
@@ -1260,7 +1228,6 @@
               let tags = [levelTag];
               const order = parseInt(emp.nivelJerarquico || 99);
 
-              const areaMap = emp.nombreArea || "N/A";
               // Crear el objeto del nodo
               if (isVacant) {
                 tags.push("vacante");
@@ -1282,7 +1249,6 @@
 
                   // Importante para que los filtros jerárquicos no fallen
                   departamento: emp.nombreDepartamento || "N/A",
-                  area: emp.nombreArea || "N/A",
                   lineaNegocio: emp.nombreLineaNegocio || "N/A",
                   centroCosto: emp.nombreCentroCosto || "N/A",
 
@@ -1306,12 +1272,9 @@
                   codPosicion_R:
                     emp.codigoPosicionReporta ||
                     "Código de posición que reporta no definido",
-                  // Importante para los filtros jerárquicos
                   lineaNegocio: emp.nombreLineaNegocio || "N/A",
                   centroCosto: emp.nombreCentroCosto || "N/A",
-                  area: emp.nombreArea || "N/A",
                   departamento: emp.nombreDepartamento || "N/A", //
-
                   img: emp.foto || "Logo-Liris.png",
                   //"https://via.placeholder.com/60/cccccc/ffffff?text=N/A",
                   email: emp.emailCorporativo || "Sin correo electrónico",
@@ -1345,7 +1308,6 @@
             sanitizedNodes
           );
           populateSelect("centro-costos-select", "centroCosto", sanitizedNodes);
-          populateSelect("area-select", "area", sanitizedNodes);
           populateSelect("departamento-select", "departamento", sanitizedNodes);
 
           // 4.1 Intentar procesar (en caso de que el 'userId' ya haya llegado)
@@ -1927,8 +1889,9 @@
 
           // --- ¡LÓGICA PARA CAMBIAR DE VISTA! ---
           // 1. Inicializar Select2 en todos los selects
+          // Inicializa los selects de FILTROS (con buscador)
           $(
-            "#linea-negocio-select, #centro-costos-select, #area-select, #departamento-select"
+            "#linea-negocio-select, #centro-costos-select, #departamento-select"
           ).select2({
             width: "240px",
           });
@@ -2230,7 +2193,6 @@
 
             // 1. Limpiar Centro de Costo y Departamento
             $("#centro-costos-select").val("todos");
-            $("#area-select").val("todos");     // ✅ Nuevo: Limpiamos Area
             $("#departamento-select").val("todos");
 
             // 2. Repoblar Centro de Costo (basado en la línea)
@@ -2245,8 +2207,6 @@
             );
             // 3. Notificar a Select2 del cambio en Costo
             $("#centro-costos-select").trigger("change.select2");
-            $("#area-select").trigger("change.select2"); // ✅ Notificar limpieza
-            $("#departamento-select").trigger("change.select2");
 
             // --- 4. ¡LÓGICA DE AUTO-SELECCIÓN! ---
             if (sortedCostos.length === 1) {
@@ -2266,13 +2226,17 @@
               );
 
               // Nodos para Depto (basado en Línea, pero Costo="todos")
-              // const nodosParaDeptos =
-              //   selectedLinea === "todos"
-              //     ? sourceNodes
-              //     : sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
-              
-              populateSelect("area-select", "area", nodosParaCostos);
-              $("#area-select").trigger("change.select2");
+              const nodosParaDeptos =
+                selectedLinea === "todos"
+                  ? sourceNodes
+                  : sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
+
+              populateSelect(
+                "departamento-select",
+                "departamento",
+                nodosParaDeptos
+              );
+              $("#departamento-select").trigger("change.select2"); // Notificar a Select2
 
               // Aplicar el filtro (Línea=Seleccionada, Costo=todos, Depto=todos)
               aplicarFiltrosJerarquicos();
@@ -2282,7 +2246,7 @@
             }
           });
 
-          /* ✅ 3. Listener para CENTRO DE COSTO */
+          // 3. Listener para CENTRO DE COSTO
           $("#centro-costos-select").on("change", function () {
             console.log("Filtro Maestro: Centro de Costo cambió.");
             const selectedLinea = $("#linea-negocio-select").val();
@@ -2293,38 +2257,36 @@
                 : allNodes;
 
             // 1. Limpiar Departamento
-            $("#area-select").val("todos"); // ✅ Limpiamos siguiente nivel
             $("#departamento-select").val("todos");
 
             // 2. Repoblar SOLO el SIGUIENTE filtro: Departamento (basado en línea Y costo)
-            let nodosParaAreas = sourceNodes;
+            let nodosParaDeptos = sourceNodes;
             if (selectedLinea !== "todos") {
-              nodosParaAreas = nodosParaAreas.filter(
+              nodosParaDeptos = nodosParaDeptos.filter(
                 (n) => n.lineaNegocio === selectedLinea
               );
             }
             if (selectedCosto !== "todos") {
-              nodosParaAreas = nodosParaAreas.filter(
+              nodosParaDeptos = nodosParaDeptos.filter(
                 (n) => n.centroCosto === selectedCosto
               );
             }
 
-            const sortedAreas = populateSelect(
-              "area-select",
-              "area",
-              nodosParaAreas
+            const sortedDeptos = populateSelect(
+              "departamento-select",
+              "departamento",
+              nodosParaDeptos
             );
 
             // 3. Notificar a Select2
-            $("#area-select").trigger("change.select2");
             $("#departamento-select").trigger("change.select2");
 
             // --- 4. ¡LÓGICA DE AUTO-SELECCIÓN! ---
-            if (sortedAreas.length === 1) {
-              // Hay solo 1 area, auto-seleccionar Y DISPARAR SU 'CHANGE'.
+            if (sortedDeptos.length === 1) {
+              // Hay solo 1 depto, auto-seleccionar Y DISPARAR SU 'CHANGE'.
               // El handler de Depto se encargará de aplicar el filtro.
-              console.log("Auto-seleccionando Área:", sortedAreas[0]);
-              $("#area-select").val(sortedAreas[0]).trigger("change");
+              console.log("Auto-seleccionando Departamento:", sortedDeptos[0]);
+              $("#departamento-select").val(sortedDeptos[0]).trigger("change");
             } else {
               // Hay múltiples deptos (o 0), así que la cascada se detiene aquí.
               // Aplicamos el filtro nosotros mismos.
@@ -2334,50 +2296,13 @@
             }
           });
 
-          /* AREA */
-          // ✅ 4. NUEVO Listener para ÁREA
-          $("#area-select").on("change", function () {
-              const selectedLinea = $("#linea-negocio-select").val();
-              const selectedCosto = $("#centro-costos-select").val();
-              const selectedArea = $(this).val();
-              
-              const sourceNodes = document.getElementById("modo-select").value === "Cargo" ? allCargoNodes : allNodes;
-
-              // 1. Limpiar Departamento
-              $("#departamento-select").val("todos");
-
-              // 2. Filtrar nodos para obtener DEPARTAMENTOS
-              let nodosParaDeptos = sourceNodes;
-              if (selectedLinea !== "todos") nodosParaDeptos = nodosParaDeptos.filter(n => n.lineaNegocio === selectedLinea);
-              if (selectedCosto !== "todos") nodosParaDeptos = nodosParaDeptos.filter(n => n.centroCosto === selectedCosto);
-              if (selectedArea !== "todos")  nodosParaDeptos = nodosParaDeptos.filter(n => n.area === selectedArea);
-
-              // 3. Poblar DEPARTAMENTO
-              const sortedDeptos = populateSelect("departamento-select", "departamento", nodosParaDeptos);
-
-              // 4. Notificar
-              $("#departamento-select").trigger("change.select2");
-
-              // 5. Auto-selección de Departamento
-              if (sortedDeptos.length === 1) {
-                  console.log("Auto-seleccionando Departamento:", sortedDeptos[0]);
-                  $("#departamento-select").val(sortedDeptos[0]).trigger("change");
-              } else {
-                  aplicarFiltrosJerarquicos();
-                  actualizarEstadoFiltros();
-              }
-          });
-
-          ///////////////////
-
-          /* DEPARTAMENTO */
-          // 5. Listener para DEPARTAMENTO (el más simple)
+          // 4. Listener para DEPARTAMENTO (el más simple)
           $("#departamento-select").on("change", function () {
             aplicarFiltrosJerarquicos();
             actualizarEstadoFiltros(); // 👈 IMPORTANTE
           });
 
-          // 6. Listener para MODO (Persona/Cargo)
+          // 5. Listener para MODO (Persona/Cargo)
           $("#modo-select").on("change", function () {
             // Limpia el input de búsqueda cada vez que se cambia el modo
             if (chart && chart.searchUI && chart.searchUI.input) {
@@ -2387,7 +2312,6 @@
             const filtrosGuardados = {
               linea: $("#linea-negocio-select").val(),
               costo: $("#centro-costos-select").val(),
-              area: $("#area-select").val(), // ✅ NUEVO: Guardar Área
               depto: $("#departamento-select").val(),
               niveles: $("#nivel-select").val(), // ✅ GUARDAR NIVELES (Array)
             };
@@ -2438,27 +2362,12 @@
                 filtrosGuardados.costo = "todos"; // Forzar a 'todos' si no se encontró
               }
 
-              // 2c. Poblar y restaurar ÁREA (basado en Costo) ✅ NUEVO BLOQUE
-              // Primero filtramos los nodos según el costo restaurado
-              const nodosParaAreas = filtrosGuardados.costo === "todos"
-                  ? nodosParaCostos // Vienen del paso anterior (filtrados por línea)
-                  : nodosParaCostos.filter((n) => n.centroCosto === filtrosGuardados.costo);
-              
-              populateSelect("area-select", "area", nodosParaAreas);
-              
-              // Intentar restaurar el valor seleccionado
-              if ($("#area-select option[value='" + filtrosGuardados.area + "']").length > 0) {
-                  $("#area-select").val(filtrosGuardados.area);
-              } else {
-                  filtrosGuardados.area = "todos"; // Reset si no existe
-              }
-
-              // 2d. Poblar y restaurar DEPTO (basado en área)
+              // 2c. Poblar y restaurar DEPTO (basado en línea Y costo restaurados)
               const nodosParaDeptos =
-                filtrosGuardados.area === "todos"
-                  ? nodosParaAreas // Nodos ya filtrados por línea
-                  : nodosParaAreas.filter(
-                      (n) => n.area === filtrosGuardados.area
+                filtrosGuardados.costo === "todos"
+                  ? nodosParaCostos // Nodos ya filtrados por línea
+                  : nodosParaCostos.filter(
+                      (n) => n.centroCosto === filtrosGuardados.costo
                     );
               populateSelect(
                 "departamento-select",
@@ -2476,15 +2385,15 @@
                 $("#departamento-select").val(filtrosGuardados.depto);
               }
 
-              // 2e. ✅ RESTAURAR NIVEL
+              // 2d. ✅ RESTAURAR NIVEL
               if (filtrosGuardados.niveles) {
                 $("#nivel-select").val(filtrosGuardados.niveles);
               }
 
-              // 2f. Notificar a Select2 de los cambios
+              // 2e. Notificar a Select2 de los cambios
               $(".control-select").trigger("change.select2");
 
-              // 2g. Aplicar los filtros restaurados
+              // 2f. Aplicar los filtros restaurados
               aplicarFiltrosJerarquicos();
 
               statusDiv.style.display = "none";
@@ -2640,7 +2549,7 @@
       async function loadAndRenderCargoChart(apiUrl, filtrosGuardados = null) {
         // Objeto por defecto si no se pasan filtros
         if (!filtrosGuardados) {
-          filtrosGuardados = { linea: "todos", costo: "todos", area: "todos", depto: "todos" };
+          filtrosGuardados = { linea: "todos", costo: "todos", depto: "todos" };
         }
 
         // Esta función repobla y restaura los filtros para la vista de Cargo
@@ -2648,7 +2557,6 @@
           const sourceNodes = allCargoNodes; // Fuente de datos para Cargo
           console.log("Restaurando filtros para vista Cargo..."); // 1. Poblar y restaurar LÍNEA
 
-          // 1. Linea
           populateSelect("linea-negocio-select", "lineaNegocio", sourceNodes);
           $("#linea-negocio-select").val(filtrosGuardados.linea); // 2. Poblar y restaurar COSTO
 
@@ -2673,16 +2581,8 @@
             $("#centro-costos-select").val(filtrosGuardados.costo);
           } else {
             filtrosGuardados.costo = "todos"; // Forzar a 'todos' si no se encontró
-          } 
+          } // 3. Poblar y restaurar DEPTO
 
-          // 3. ✅ Área (NUEVO)
-          const nodosParaAreas = filtrosGuardados.costo === "todos" ? nodosParaCostos : nodosParaCostos.filter((n) => n.centroCosto === filtrosGuardados.costo);
-          populateSelect("area-select", "area", nodosParaAreas);
-          if ($("#area-select option[value='" + filtrosGuardados.area + "']").length > 0) {
-             $("#area-select").val(filtrosGuardados.area);
-          } else { filtrosGuardados.area = "todos"; }
-
-          // 4. Poblar y restaurar DEPTO
           const nodosParaDeptos =
             filtrosGuardados.costo === "todos"
               ? nodosParaCostos
@@ -2790,8 +2690,6 @@
                   // Es un array de empleados
                   listaEmpleados = cargo.Empleado;
                   primerEmpleado = cargo.Empleado[0];
-                  console.log("Lista de Empleados para cargo", id, listaEmpleados);
-                  console.log(primerEmpleado);
                   cargoPersonaDisplay =
                     listaEmpleados.length === 1
                       ? `${listaEmpleados[0].nombre || ""} ${
@@ -2855,10 +2753,6 @@
                   (primerEmpleado
                     ? primerEmpleado.nombreCentroCosto
                     : cargo.nombreCentroCosto) || "N/A",
-                area:
-                  (primerEmpleado
-                    ? cargo.nombreArea
-                    : cargo.nombreArea) || "N/A", // NUEVO
                 departamento:
                   (primerEmpleado
                     ? primerEmpleado.nombreDepartamento
