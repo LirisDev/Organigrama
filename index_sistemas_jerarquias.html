@@ -543,18 +543,17 @@
       /* FUNCION PARA HABILITAR/DESHABILITAR FILTROS */
       function actualizarEstadoFiltros() {
         const selectIds =
-          "#linea-negocio-select, #centro-costos-select, #area-select, #departamento-select";
+          "#linea-negocio-select, #centro-costos-select, #proposito-select";
         const $nivel = $("#nivel-select");
 
         // 1. Verificar valores de los filtros principales
         const linea = $("#linea-negocio-select").val();
         const costo = $("#centro-costos-select").val();
-        const area = $("#area-select").val(); // <--- Nuevo
+        const prop = $("#proposito-select").val(); // <--- Nuevo
 
         // ¿Hay algún filtro activo? (Es decir, algo distinto a "todos")
         const hayFiltrosActivos =
-          linea !== "todos" || costo !== "todos" || area !== "todos" || depto !== "todos";
-
+          linea !== "todos" || costo !== "todos" || prop !== "todos";
         // 2. Lógica de Permisos de Usuario (Global)
         if (usuarioPuedeVerTodo) {
           console.log("🔐 Permiso Global: SI");
@@ -617,9 +616,9 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        //*
+        /*
         if (!receivedUserId) {
-          //receivedUserId = "interno\\1207026814"; //Auxiliar
+          //receivedUserId = "interno\\ldominguez"; //Auxiliar
           receivedUserId = "interno\\dromero"; //Asistente de desarrollo
           console.log("Usando usuario interno\\dromero para pruebas");
         } //*/
@@ -1144,9 +1143,9 @@
                   // Importante para que los filtros jerárquicos no fallen
                   // departamento: emp.nombreDepartamento || "N/A",
                   // area: emp.nombreArea || "N/A",
-                  proposito: emp.nombreProposito || "N/A",
-                  lineaNegocio: emp.nombreLineaNegocio || "N/A",
-                  centroCosto: emp.nombreCentroCosto || "N/A",
+                  proposito: emp.nombreProposito || "N/A",        //TODO: Cambio por campos de la lstPosiciones
+                  lineaNegocio: emp.nombreLineaNegocio2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
+                  centroCosto: emp.nombreCentroCosto2 || "N/A",   //TODO: Cambio por campos de la lstPosiciones
 
                   // Campos de empleado que deben estar nulos
                   userid: null,
@@ -1169,8 +1168,8 @@
                     emp.codigoPosicionReporta ||
                     "Código de posición que reporta no definido",
                   // Importante para los filtros jerárquicos
-                  lineaNegocio: emp.nombreLineaNegocio || "N/A",
-                  centroCosto: emp.nombreCentroCosto || "N/A",
+                  lineaNegocio: emp.nombreLineaNegocio2 || "N/A",  //TODO: Cambio por campos de la lstPosiciones
+                  centroCosto: emp.nombreCentroCosto2 || "N/A",    //TODO: Cambio por campos de la lstPosiciones
                   // area: emp.nombreArea || "N/A",
                   // departamento: emp.nombreDepartamento || "N/A", //
                   proposito: emp.nombreProposito || "N/A",
@@ -2336,7 +2335,7 @@
                     : cargo.nombreDepartamento) || "N/A",
                 //cargoDepto: cargo.codigoPosicion,//cargo.nombreDepartamento || "N/A", //WIP: prueba para sabeer codPosicion de la gente
 
-                // Campos para los filtros
+                // Campos para los filtros,   
                 lineaNegocio:
                   (primerEmpleado
                     ? primerEmpleado.nombreLineaNegocio
