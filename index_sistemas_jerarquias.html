@@ -435,6 +435,12 @@
         this.data = this.instance.get(nodeId);
         if (!this.data) return;
 
+        // Si el nodo tiene el tag "group" o "fantasma", NO mostramos el modal.
+        // Solo retornamos y dejamos que el evento 'click' del chart maneje la expansión.
+        if (this.data.tags && (this.data.tags.includes("group") || this.data.tags.includes("fantasma"))) {
+            return;
+        }
+
         // Resetea la imagen ANTES de cualquier lógica.
         this.imgEl.style.display = "none";
         this.imgEl.src = "";
@@ -934,24 +940,138 @@
           allChildren: true,
         };
 
-        // 4. Un mapa para buscar nodos por ID
-        const nodeMap = new Map(sourceNodes.map((node) => [node.id, node]));
-        const nodesToShow = new Map();
+        // 2. Crear Mapa Global (Necesario para "trepar" por el árbol completo)
+        const fullNodeMap = new Map(sourceNodes.map(n => [n.id, n]));
+// 1. Candidatos Estrictos
+        const candidates = sourceNodes.filter(n =>
+            n.lineaNegocio === selectedLinea &&
+            n.centroCosto === selectedCosto &&
+            n.proposito === selectedProposito
+        );
 
-        // 5. Recorrer nodos y filtrar estricto
-        for (const node of sourceNodes) {
-          
-          // Validación estricta (debe coincidir exactamente)
-          const lineaMatch = node.lineaNegocio === selectedLinea;
-          const costosMatch = node.centroCosto === selectedCosto;
-          const propositoMatch = node.proposito === selectedProposito;
+        if (candidates.length === 0) {
+            chart.load([]);
+            loaderOverlay.classList.remove("visible");
+            return;
+        }
 
-          // Solo mostramos si cumple LOS TRES criterios exactos
-          if (lineaMatch && costosMatch && propositoMatch) {
-            let currentNode = node;
-            // Añadimos el nodo y todos sus ancestros para mantener la estructura del árbol
-            while (currentNode) {
+        const candidateIds = new Set(candidates.map(n => n.id));
+
+        // 2. Identificar Jefe Principal
+        candidates.sort((a, b) => (a.order || 99) - (b.order || 99));
+        const mainBoss = candidates[0]; 
+
+        // 3. Clasificación
+        const finalNodesMap = new Map();
+        const servicesToGroup = [];
+
+        // Helpers de linaje (igual que antes)
+        //const fullNodeMap = new Map(sourceNodes.map(n => [n.id, n]));
+        const isDescendantOfMainBoss = (nodeId) => {
+            let curr = fullNodeMap.get(nodeId);
+            while (curr && curr.pid) {
+                if (curr.pid === mainBoss.id) return true;
+                curr = fullNodeMap.get(curr.pid);
+            }
+            return false;
+        };
+        const findNearestVisibleAncestor = (nodeId) => {
+            let curr = fullNodeMap.get(nodeId);
+            while (curr && curr.pid) {
+                if (candidateIds.has(curr.pid)) return curr.pid;
+                if (curr.pid === mainBoss.id) return mainBoss.id;
+                curr = fullNodeMap.get(curr.pid);
+            }
+            return mainBoss.id;
+        };
+
+        for (const node of candidates) {
+            if (node.id === mainBoss.id) {
+                const rootNode = Object.assign({}, node);
+                rootNode.pid = null; 
+                finalNodesMap.set(rootNode.id, rootNode);
+                continue;
+            }
+
+            if (isDescendantOfMainBoss(node.id)) {
+                // Es Local
+                const visualParentId = findNearestVisibleAncestor(node.id);
+                const localNode = Object.assign({}, node);
+                localNode.pid = visualParentId;
+                finalNodesMap.set(localNode.id, localNode);
+            } else {
+                // Es Servicio (No desciende del jefe principal)
+                servicesToGroup.push(node);
+            }
+        }
+
+        // 4. CREACIÓN DE GRUPOS CON NODO FANTASMA
+        if (servicesToGroup.length > 0) {
+            
+            // A. Crear el Nodo Fantasma (El "Enchufe")
+            const ghostId = `GHOST_${mainBoss.id}`;
+            const ghostNode = {
+                id: ghostId,
+                pid: mainBoss.id, // El fantasma cuelga del jefe
+                tags: ["fantasma", "assistant", "assistant-branch"], // Assistant para salir al lado
+                name: "" 
+            };
+            finalNodesMap.set(ghostId, ghostNode);
+
+            // B. Agrupar empleados
+            const groupsMap = {}; 
+            servicesToGroup.forEach(emp => {
+                const groupName = emp.departamento || "SERVICIOS ADICIONALES"; 
+                if (!groupsMap[groupName]) groupsMap[groupName] = [];
+                groupsMap[groupName].push(emp);
+            });
+
+            // C. Crear nodos de Grupo y colgarlos del Fantasma
+            Object.keys(groupsMap).forEach(groupName => {
+                const employees = groupsMap[groupName];
+                const groupId = `GRP_${groupName.replace(/[^a-zA-Z0-9]/g, '')}_${Math.floor(Math.random()*1000)}`;
+
+                // Nodo Grupo
+                const groupNode = {
+                    id: groupId,
+                    pid: ghostId, // <--- SE CONECTA AL FANTASMA, NO AL JEFE
+                    nombre: groupName,  
+                    title: `${employees.length} Colaboradores`,
+                    tags: ["group"], // Ya no necesita 'assistant', es hijo normal del fantasma
+                    templateName: "group"
+                };
+                
+                finalNodesMap.set(groupId, groupNode);
+
+                // Empleados dentro del grupo
+                employees.forEach(emp => {
+                    const empClone = Object.assign({}, emp);
+                    empClone.pid = null;
+                    empClone.stpid = groupId;
+                    finalNodesMap.set(empClone.id, empClone);
+                });
+            });
+        }
+
+        // 5. Carga Final
+        const finalNodesArray = Array.from(finalNodesMap.values());
+        chart.config.collapse = { level: 3, allChildren: true };
+
+        if (finalNodesArray.length > 0) {
+            chart.load(finalNodesArray);
+        } else {
+            chart.load([]);
+        }
+        loaderOverlay.classList.remove("visible");
+
+      }
+
+      // --- Función Auxiliar para añadir ancestros (recursiva hacia arriba) ---
+      function addNodeAndAncestors(node, nodesToShow, nodeMap) {
+          let currentNode = node;
+          while (currentNode) {
               if (nodesToShow.has(currentNode.id)) break;
+              
               nodesToShow.set(currentNode.id, currentNode);
 
               if (currentNode.pid && nodeMap.has(currentNode.pid)) {
@@ -959,21 +1079,7 @@
               } else {
                 currentNode = null;
               }
-            }
           }
-        }
-
-        // 6. Cargar datos filtrados
-        filteredNodes = Array.from(nodesToShow.values());
-        
-        if (filteredNodes.length > 0) {
-          chart.load(filteredNodes);
-        } else {
-          // Opcional: Manejo de estado vacío visual
-          chart.load([]); // Gráfico vacío si no hay coincidencias
-        }
-        
-        loaderOverlay.classList.remove("visible");
       }
 
       /* FUNCION PARA GENERAR URL DE LOS MANUALES */
@@ -1141,7 +1247,7 @@
                   codPosicion_R: emp.codigoPosicionReporta || "N/A",
 
                   // Importante para que los filtros jerárquicos no fallen
-                  // departamento: emp.nombreDepartamento || "N/A",
+                  departamento: emp.nombreDepartamento || "N/A",
                   // area: emp.nombreArea || "N/A",
                   proposito: emp.nombreProposito || "N/A",        //TODO: Cambio por campos de la lstPosiciones
                   lineaNegocio: emp.nombreLineaNegocio2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
@@ -1171,7 +1277,7 @@
                   lineaNegocio: emp.nombreLineaNegocio2 || "N/A",  //TODO: Cambio por campos de la lstPosiciones
                   centroCosto: emp.nombreCentroCosto2 || "N/A",    //TODO: Cambio por campos de la lstPosiciones
                   // area: emp.nombreArea || "N/A",
-                  // departamento: emp.nombreDepartamento || "N/A", //
+                  departamento: emp.nombreDepartamento || "N/A", //
                   proposito: emp.nombreProposito || "N/A",
 
 
@@ -1309,6 +1415,34 @@
           // '</div>' +
           // '</foreignObject>';
 
+          // 1. Template Fantasma (Invisible)
+          OrgChart.templates.ghost = Object.assign({}, OrgChart.templates.ana);
+          OrgChart.templates.ghost.size = [0, 0]; // Tamaño cero para que no ocupe espacio
+          OrgChart.templates.ghost.node = '';      // Sin cuadro
+          OrgChart.templates.ghost.plus = '';      // Sin botón +
+          OrgChart.templates.ghost.minus = '';     // Sin botón -
+
+          // TEMPLATE GROUP
+          OrgChart.templates.group.link = 
+              `<path stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} {xb},{yb} {xc},{yc} L{xd},{yd}" />`;
+          OrgChart.templates.group.nodeMenuButton = '';
+          OrgChart.templates.group.min = Object.assign({}, OrgChart.templates.group);
+          OrgChart.templates.group.min.imgs = `{val}`;
+          OrgChart.templates.group.min.img_0 = ``;
+          OrgChart.templates.group.min.description = 
+              `<text data-width="230" data-text-overflow="multiline" style="font-size: 14px;" fill="#aeaeae" x="125" y="100" text-anchor="middle">{val}</text>`;
+
+              
+          //Lineas punteadas
+          // stroke-dasharray="6, 3" crea el efecto discontinuo
+          OrgChart.templates.ghost.link = 
+              '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
+
+          // 2. Template de Grupo
+          OrgChart.templates.group.link = 
+              '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
+          OrgChart.VERTICAL_CHILDREN_ASSISTANT = true;
+
           // --- 2.1 DEFINIR BINDINGS (MAPEOS) ---
           // (Mueve tu binding de persona aquí para tener ambos)
           const personaBinding = {
@@ -1375,6 +1509,26 @@
             "sub-level-8": { subLevels: 8, levelSeparation: 20 },
             "sub-level-9": { subLevels: 9, levelSeparation: 20 },
             "sub-level-10": { subLevels: 10, levelSeparation: 20 },
+            // 1. Tag para el NODO GRUPO (La caja contenedora)
+            "group": {
+                template: "group", // Usamos el template nativo de grupo
+            },
+            
+            // 2. Configuración para los HIJOS dentro del grupo (opcional, para layout)
+            "support-team-group": {
+                subTreeConfig: {
+                    columns: 2, // Mostrar en 2 columnas dentro del grupo
+                    layout: OrgChart.layout.treeLeftOffset // O treeRightOffset
+                }
+            },
+            "fantasma": { template: "ghost" },
+            "assistant-branch": {
+                // Esto hace que lo que cuelgue del fantasma se alinee bonito a la izquierda/derecha
+                subTreeConfig: {
+                    layout: OrgChart.layout.treeRightOffset // O treeLeftOffset según prefieras
+                }
+            },
+            // 3. Tag para los nodos filtro (puntos pequeños)
             filter: {
               template: "dot",
             },
@@ -1609,6 +1763,19 @@
 
           /////////////////////////
           chart = new OrgChart(treeDiv, chartConfig);
+
+          // Expande y minimiza los nodos de grupo
+          chart.on('click', function (sender, args) {
+              if (args.node.tags.indexOf("group") != -1) {
+                  if (args.node.min) {
+                      sender.maximize(args.node.id);
+                  }
+                  else {
+                      sender.minimize(args.node.id);
+                  }
+                  return false;
+              }
+          });
 
           //FUNCIONES PARA QUE LA IA UTILICE
           // TODO: REVISAR QUE FUNCIONES SERÍAN UTILES IMPLEMENTAR
