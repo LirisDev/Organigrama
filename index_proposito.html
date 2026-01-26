@@ -435,12 +435,6 @@
         this.data = this.instance.get(nodeId);
         if (!this.data) return;
 
-        // Si el nodo tiene el tag "group" o "fantasma", NO mostramos el modal.
-        // Solo retornamos y dejamos que el evento 'click' del chart maneje la expansión.
-        if (this.data.tags && (this.data.tags.includes("group") || this.data.tags.includes("fantasma"))) {
-            return;
-        }
-
         // Resetea la imagen ANTES de cualquier lógica.
         this.imgEl.style.display = "none";
         this.imgEl.src = "";
@@ -753,7 +747,7 @@
           // (Solo si el chart ya existe)
           if (chart) {
             console.log(
-              "Auto-filtrando el organigrama para el usuario... ",
+              "ℹ️ Auto-filtrando el organigrama para el usuario... ",
               empleadoLogueado.userid,
               " en modo: ",
               currentMode
@@ -919,206 +913,45 @@
       }
 
       ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
-     function aplicarFiltrosJerarquicos() {
+      function aplicarFiltrosJerarquicos() {
+        // 1. Validar que el chart esté listo
         if (!chart) return;
 
         const currentMode = document.getElementById("modo-select").value;
         const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
-        
-        if (!sourceNodes.length) { chart.load([]); return; }
 
-        // 1. Obtener filtros
+        console.log(`Aplicando filtros jerárquicos en modo '${currentMode}' con ${sourceNodes.length} nodos fuente.`);
+        if (!sourceNodes.length) return; // No hay datos que filtrar
+
+        // 2. Leer los valores
         const selectedLinea = $("#linea-negocio-select").val();
         const selectedCosto = $("#centro-costos-select").val();
         const selectedProposito = $("#proposito-select").val();
 
-        if (!selectedLinea || !selectedCosto || !selectedProposito) {
-             chart.load([]); return;
-        }
-
-        console.log(`Filtrando: L:${selectedLinea} | C:${selectedCosto} | P:${selectedProposito}`);
-
-        // 2. Mapa Global
-        const fullNodeMap = new Map(sourceNodes.map(n => [n.id, n]));
-
-        // 3. NÚCLEO: Coincidencia exacta
-        const exactMatches = sourceNodes.filter(n => 
-            n.lineaNegocio === selectedLinea && 
-            n.centroCosto === selectedCosto &&
-            n.proposito === selectedProposito
-        );
-
-        if (exactMatches.length === 0) {
-            chart.load([]);
-            loaderOverlay.classList.remove("visible");
-            return;
-        }
-
-        // 4. RECONSTRUCCIÓN DE JERARQUÍA (Local/Filtrada)
-        const finalNodesMap = new Map();
-        
-        const addNodeWithAncestors = (node) => {
-            finalNodesMap.set(node.id, node);
-            if (node.pid) {
-                const parentNode = fullNodeMap.get(node.pid);
-                if (parentNode) {
-                    // Solo subimos si es la misma línea (tu regla actual)
-                    const isSameLine = parentNode.lineaNegocio === selectedLinea;
-                    if (isSameLine) {
-                        addNodeWithAncestors(parentNode);
-                    }
-                }
-            }
+        // 3. Configuración de colapso por defecto (ya no hay filtro de niveles)
+        chart.config.collapse = {
+          level: 2, // Puedes ajustar esto a 3 o 99 si quieres ver todo expandido
+          allChildren: true,
         };
 
-        exactMatches.forEach(node => {
-            addNodeWithAncestors(node);
-        });
+        // 4. Un mapa para buscar nodos por ID
+        const nodeMap = new Map(sourceNodes.map((node) => [node.id, node]));
+        const nodesToShow = new Map();
 
-        // 5. IDENTIFICAR AL "LÍDER LOCAL" (Main Boss del filtro actual)
-        const finalNodesList = Array.from(finalNodesMap.values());
-        finalNodesList.sort((a, b) => (a.order || 99) - (b.order || 99));
-        
-        if (finalNodesList.length === 0) { chart.load([]); return; }
+        // 5. Recorrer nodos y filtrar estricto
+        for (const node of sourceNodes) {
+          
+          // Validación estricta (debe coincidir exactamente)
+          const lineaMatch = node.lineaNegocio === selectedLinea;
+          const costosMatch = node.centroCosto === selectedCosto;
+          const propositoMatch = node.proposito === selectedProposito;
 
-        const localMainBoss = finalNodesList[0]; 
-        console.log("Líder Local:", localMainBoss.nombre);
-
-        // ------------------------------------------------------------------
-        // 5.5 NUEVO: RESCATAR JEFES SUPERIORES (Padres del Líder Local)
-        // ------------------------------------------------------------------
-        // Aquí subimos desde el Líder Local hasta el cielo (CEO), sin importar línea.
-        const upperBossesMap = new Map();
-        
-        const addUpperAncestors = (node) => {
-            if (node.pid) {
-                const parentNode = fullNodeMap.get(node.pid);
-                if (parentNode && !finalNodesMap.has(parentNode.id) && !upperBossesMap.has(parentNode.id)) {
-                    // Lo agregamos a un mapa temporal de "Jefes Supremos"
-                    upperBossesMap.set(parentNode.id, parentNode);
-                    // Seguimos subiendo
-                    addUpperAncestors(parentNode);
-                }
-            }
-        };
-        
-        // Ejecutamos la búsqueda hacia arriba desde el líder local
-        addUpperAncestors(localMainBoss);
-        
-        // Unimos los mapas: Nodos Locales + Jefes Supremos
-        const allRenderNodesMap = new Map([...finalNodesMap, ...upperBossesMap]);
-
-        // Buscamos quién es el VERDADERO Root ahora (el jefe más alto de todos)
-        const allRenderList = Array.from(allRenderNodesMap.values());
-        allRenderList.sort((a, b) => (a.order || 99) - (b.order || 99));
-        const absoluteRoot = allRenderList[0]; // Este será el CEO o el Gte General
-
-        // ------------------------------------------------------------------
-
-        // 6. CLASIFICACIÓN FINAL Y RENDERIZADO
-        const nodesToRender = new Map();
-        const servicesToGroup = [];
-
-        // Helper de conexión (verifica si llegamos al Absolute Root)
-        const isConnectedToRoot = (nodeId) => {
-            if (nodeId === absoluteRoot.id) return true;
-            let curr = allRenderNodesMap.get(nodeId);
-            while (curr && curr.pid) {
-                if (curr.pid === absoluteRoot.id) return true;
-                if (allRenderNodesMap.has(curr.pid)) {
-                    curr = allRenderNodesMap.get(curr.pid);
-                } else {
-                    return false;
-                }
-            }
-            return false;
-        };
-
-        for (const node of allRenderList) {
-            // A. El Root Absoluto (Cima de la pirámide)
-            if (node.id === absoluteRoot.id) {
-                const root = Object.assign({}, node);
-                root.pid = null; 
-                nodesToRender.set(root.id, root);
-                continue;
-            }
-
-            // B. Verificar conexión
-            if (isConnectedToRoot(node.id)) {
-                nodesToRender.set(node.id, node);
-            } else {
-                // Es servicio (quedó huérfano de su rama original)
-                servicesToGroup.push(node);
-            }
-        }
-
-        // 7. CREAR GRUPOS (Assistants)
-        if (servicesToGroup.length > 0) {
-            
-            // IMPORTANTE: ¿De quién colgamos los servicios?
-            // Debemos colgarlos del "Líder Local" (localMainBoss), no del CEO,
-            // porque son servicios de ESA área específica.
-            
-            // Verificamos que el localMainBoss esté en el render final
-            const bossForGroups = nodesToRender.has(localMainBoss.id) ? localMainBoss : absoluteRoot;
-
-            const ghostId = `GHOST_${bossForGroups.id}`;
-            const ghostNode = {
-                id: ghostId,
-                pid: bossForGroups.id,
-                tags: ["fantasma", "assistant", "assistant-branch"],
-                name: "" 
-            };
-            nodesToRender.set(ghostId, ghostNode);
-
-            const groupsMap = {}; 
-            servicesToGroup.forEach(emp => {
-                let groupName = emp.departamento || emp.proposito || "SERVICIOS"; 
-                groupName = groupName.trim().toUpperCase();
-                if (!groupsMap[groupName]) groupsMap[groupName] = [];
-                groupsMap[groupName].push(emp);
-            });
-
-            Object.keys(groupsMap).forEach(groupName => {
-                const employees = groupsMap[groupName];
-                const groupId = `GRP_${groupName.replace(/[^a-zA-Z0-9]/g, '')}_${Math.floor(Math.random()*1000)}`;
-
-                const groupNode = {
-                    id: groupId,
-                    pid: ghostId, 
-                    nombre: groupName,  
-                    title: `${employees.length} Colaboradores`,
-                    tags: ["group"], 
-                    templateName: "group"
-                };
-                nodesToRender.set(groupId, groupNode);
-
-                employees.forEach(emp => {
-                    const empClone = Object.assign({}, emp);
-                    empClone.pid = null;
-                    empClone.stpid = groupId;
-                    nodesToRender.set(empClone.id, empClone);
-                });
-            });
-        }
-
-        // 8. Cargar
-        const finalArray = Array.from(nodesToRender.values());
-        chart.config.collapse = { level: 3, allChildren: true };
-        
-        if (finalArray.length > 0) {
-            chart.load(finalArray);
-        } else {
-            chart.load([]);
-        }
-        loaderOverlay.classList.remove("visible");
-      }
-      // --- Función Auxiliar para añadir ancestros (recursiva hacia arriba) ---
-      function addNodeAndAncestors(node, nodesToShow, nodeMap) {
-          let currentNode = node;
-          while (currentNode) {
+          // Solo mostramos si cumple LOS TRES criterios exactos
+          if (lineaMatch && costosMatch && propositoMatch) {
+            let currentNode = node;
+            // Añadimos el nodo y todos sus ancestros para mantener la estructura del árbol
+            while (currentNode) {
               if (nodesToShow.has(currentNode.id)) break;
-              
               nodesToShow.set(currentNode.id, currentNode);
 
               if (currentNode.pid && nodeMap.has(currentNode.pid)) {
@@ -1126,7 +959,21 @@
               } else {
                 currentNode = null;
               }
+            }
           }
+        }
+
+        // 6. Cargar datos filtrados
+        filteredNodes = Array.from(nodesToShow.values());
+        
+        if (filteredNodes.length > 0) {
+          chart.load(filteredNodes);
+        } else {
+          // Opcional: Manejo de estado vacío visual
+          chart.load([]); // Gráfico vacío si no hay coincidencias
+        }
+        
+        loaderOverlay.classList.remove("visible");
       }
 
       /* FUNCION PARA GENERAR URL DE LOS MANUALES */
@@ -1294,7 +1141,7 @@
                   codPosicion_R: emp.codigoPosicionReporta || "N/A",
 
                   // Importante para que los filtros jerárquicos no fallen
-                  departamento: emp.nombreDepartamento || "N/A",
+                  // departamento: emp.nombreDepartamento || "N/A",
                   // area: emp.nombreArea || "N/A",
                   proposito: emp.nombreProposito || "N/A",        //TODO: Cambio por campos de la lstPosiciones
                   lineaNegocio: emp.nombreLineaNegocio2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
@@ -1324,7 +1171,7 @@
                   lineaNegocio: emp.nombreLineaNegocio2 || "N/A",  //TODO: Cambio por campos de la lstPosiciones
                   centroCosto: emp.nombreCentroCosto2 || "N/A",    //TODO: Cambio por campos de la lstPosiciones
                   // area: emp.nombreArea || "N/A",
-                  departamento: emp.nombreDepartamento || "N/A", //
+                  // departamento: emp.nombreDepartamento || "N/A", //
                   proposito: emp.nombreProposito || "N/A",
 
 
@@ -1462,40 +1309,6 @@
           // '</div>' +
           // '</foreignObject>';
 
-          // 1. Template Fantasma (Invisible)
-          OrgChart.templates.ghost = Object.assign({}, OrgChart.templates.ana);
-          OrgChart.templates.ghost.size = [0, 0]; // Tamaño cero para que no ocupe espacio
-          OrgChart.templates.ghost.node = '';      // Sin cuadro
-          OrgChart.templates.ghost.plus = '';      // Sin botón +
-          OrgChart.templates.ghost.minus = '';     // Sin botón -
-
-          // TEMPLATE GROUP
-          OrgChart.templates.group.link = 
-              `<path stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} {xb},{yb} {xc},{yc} L{xd},{yd}" />`;
-          OrgChart.templates.group.nodeMenuButton = '';
-          OrgChart.templates.group.min = Object.assign({}, OrgChart.templates.group);
-          OrgChart.templates.group.min.imgs = `{val}`;
-          OrgChart.templates.group.min.img_0 = ``;
-          OrgChart.templates.group.min.description = 
-              `<text data-width="230" data-text-overflow="multiline" style="font-size: 14px;" fill="#aeaeae" x="125" y="100" text-anchor="middle">{val}</text>`;
-
-              
-          //Lineas punteadas
-          // stroke-dasharray="6, 3" crea el efecto discontinuo
-          OrgChart.templates.ghost.link = 
-              '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
-
-          // 2. Template de Grupo
-          OrgChart.templates.group.link = 
-              '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
-            
-          // 3. Template de Grupo Min
-          OrgChart.templates.group.min.link = 
-              '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
-
-
-              OrgChart.VERTICAL_CHILDREN_ASSISTANT = true;
-
           // --- 2.1 DEFINIR BINDINGS (MAPEOS) ---
           // (Mueve tu binding de persona aquí para tener ambos)
           const personaBinding = {
@@ -1562,26 +1375,6 @@
             "sub-level-8": { subLevels: 8, levelSeparation: 20 },
             "sub-level-9": { subLevels: 9, levelSeparation: 20 },
             "sub-level-10": { subLevels: 10, levelSeparation: 20 },
-            // 1. Tag para el NODO GRUPO (La caja contenedora)
-            "group": {
-                template: "group", // Usamos el template nativo de grupo
-            },
-            
-            // 2. Configuración para los HIJOS dentro del grupo (opcional, para layout)
-            "support-team-group": {
-                subTreeConfig: {
-                    columns: 2, // Mostrar en 2 columnas dentro del grupo
-                    layout: OrgChart.layout.treeLeftOffset // O treeRightOffset
-                }
-            },
-            "fantasma": { template: "ghost" },
-            "assistant-branch": {
-                // Esto hace que lo que cuelgue del fantasma se alinee bonito a la izquierda/derecha
-                subTreeConfig: {
-                    layout: OrgChart.layout.treeRightOffset // O treeLeftOffset según prefieras
-                }
-            },
-            // 3. Tag para los nodos filtro (puntos pequeños)
             filter: {
               template: "dot",
             },
@@ -1691,45 +1484,36 @@
               },
               collapseAll: {
                 icon: collapse_all,
+                //icon: OrgChart.icon.happy(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
                 title: "Colapsar todo",
                 onClick: function () {
-                  // 1. Obtener la lista de nodos que se están viendo ACTUALMENTE
-                  // chart.nodes contiene solo lo que está renderizado
-                  const renderedNodes = chart.nodes;
-                  const renderedIds = Object.keys(renderedNodes);
-
-                  if (renderedIds.length === 0) return;
-
-                  // 2. Buscar al "Jefe Visual" (Root Dinámico)
-                  let dynamicRootId = null;
-                  
-                  for (var i = 0; i < renderedIds.length; i++) {
-                      var id = renderedIds[i];
-                      var node = chart.getNode(id);
-                      
-                      // Definición de Root Dinámico:
-                      // A. El nodo existe
-                      // B. Y (No tiene pid O su pid NO está en la lista de renderizados)
-                      if (node && (!node.pid || !renderedNodes[node.pid])) {
-                          dynamicRootId = node.id;
-                          break; // Encontramos al jefe supremo de esta vista
-                      }
+                  // 1. Detectar el modo actual y la fuente de datos
+                  const currentMode =
+                    document.getElementById("modo-select").value;
+                  const sourceNodes =
+                    currentMode === "Cargo" ? allCargoNodes : allNodes;
+                  if (!sourceNodes || sourceNodes.length === 0) {
+                    console.error(
+                      "CollapseAll: No hay sourceNodes (allNodes o allCargoNodes) disponibles."
+                    );
+                    return;
                   }
+                  // 2. Encontrar el nodo raíz (el que no tiene pid) en la data FUENTE
+                  const rootNode = sourceNodes.find((n) => n.pid === undefined);
+                  if (!rootNode) {
+                    console.error(
+                      "CollapseAll: No se pudo encontrar un nodo raíz (pid === undefined) en sourceNodes."
+                    );
+                    return;
+                  }
+                  const id = rootNode.id; // ¡Este es el ID dinámico! (será '15' o '00001')
 
-                  // Fallback de seguridad: si no encuentra raíz, usa el primer ID disponible
-                  if (!dynamicRootId) dynamicRootId = renderedIds[0];
-
-                  console.log("Colapsando desde la raíz dinámica:", dynamicRootId);
-
-                  // 3. Acción Simple: Cerrar al Jefe
-                  // Al cerrar al jefe principal, todo lo demás se oculta automáticamente.
-                  // Esto es fluido y no requiere iterar arrays gigantes.
-                  var node = chart.getNode(dynamicRootId);
+                  var node = chart.getNode(id);
                   var collapseIds = [];
-                  iterate(chart, node, collapseIds, dynamicRootId);
-                  chart.expandCollapse(dynamicRootId, [], collapseIds); // Colapsa todos los nodos excepto el nodo raíz, en el campo de en medio poner los nodos que tambien van a aparecer
+                  iterate(chart, node, collapseIds, id);
+                  chart.expandCollapse(id, [], collapseIds); // Colapsa todos los nodos excepto el nodo raíz, en el campo de en medio poner los nodos que tambien van a aparecer
                   chart.setScale(1);
-                  chart.center(dynamicRootId, null, true);
+                  chart.center(id, null, true);
                 },
               },
               horizontalLayout: {
@@ -1826,19 +1610,6 @@
           /////////////////////////
           chart = new OrgChart(treeDiv, chartConfig);
 
-          // Expande y minimiza los nodos de grupo
-          chart.on('click', function (sender, args) {
-              if (args.node.tags.indexOf("group") != -1) {
-                  if (args.node.min) {
-                      sender.maximize(args.node.id);
-                  }
-                  else {
-                      sender.minimize(args.node.id);
-                  }
-                  return false;
-              }
-          });
-
           //FUNCIONES PARA QUE LA IA UTILICE
           // TODO: REVISAR QUE FUNCIONES SERÍAN UTILES IMPLEMENTAR
           chart.onAIToolCalls(function (args) {
@@ -1913,30 +1684,24 @@
               // --- Lógica de Expansión Superficial ---
               // Lógica para expandir solo los hijos directos y mantener los nietos colapsados
               if (node && node.childrenIds && node.childrenIds.length > 0) {
-                args.cancel = true; 
+                args.cancel = true; // Cancelar el comportamiento predeterminado de OrgChart.js
 
-                // 1. Preparamos la lista de TODOS los IDs que queremos ver inmediatamente.
-                //    Esto incluye a los hijos directos (Fantasmas/Empleados)
-                //    Y a los hijos de los fantasmas (Grupos).
-                let idsToShow = [...node.childrenIds];
-
-                node.childrenIds.forEach(childId => {
+                // Expande el nodo para mostrar solo sus hijos directos
+                chart.expand(nodeId, node.childrenIds, function () {
+                  // Después de expandir los hijos directos, colapsa los hijos de esos hijos (nietos)
+                  node.childrenIds.forEach((childId) => {
                     const childNode = chart.getNode(childId);
-                    
-                    // Si el hijo es un FANTASMA, agregamos sus hijos (los grupos) a la lista.
-                    // Al pedirle al gráfico que muestre a los grupos, él sabe que 
-                    // TIENE que abrir al fantasma automáticamente.
-                    if (childNode && childNode.tags.includes("fantasma")) {
-                        if (childNode.childrenIds) {
-                            idsToShow.push(...childNode.childrenIds);
-                        }
+                    if (
+                      childNode &&
+                      childNode.childrenIds &&
+                      childNode.childrenIds.length > 0
+                    ) {
+                      chart.collapse(childId, "all");
                     }
+                  });
+                  // Ajusta la vista después de todas las operaciones de expansión/colapso
+                  //chart.fit(); // Ajusta el organigrama a la pantalla
                 });
-
-                // 2. Ejecutamos UNA sola orden de expansión.
-                //    Al pasar los IDs de los nietos (grupos), la librería hace
-                //    un solo cálculo de layout y animación.
-                chart.expand(nodeId, idsToShow);
               } else {
                 // Si el nodo no tiene hijos (es una hoja) o no se aplica la lógica de "solo hijos directos",
                 // permite la expansión predeterminada (que no hará nada visualmente para una hoja)
@@ -1996,7 +1761,7 @@
           // Se dispara DESPUÉS de que la carga inicial Y
           // la animación 'scaleInitial: match.boundary' han terminado.
           chart.on("ready", function () {
-            console.log("Gráfico 100% listo (onReady). Mostrando UI.");
+            console.log("✅ Gráfico 100% listo (onReady). Mostrando UI.");
 
             // 1. Mostrar los filtros
             document.getElementById("custom-filters").classList.add("ui-ready");
