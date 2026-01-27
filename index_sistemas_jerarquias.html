@@ -884,42 +884,48 @@
       }
 
       ///////// * Puebla el <select> con los filtros únicos de los nodos.
+      // PUEBLA EL SELECT Y AGREGA LA OPCIÓN "TODOS"
+// PUEBLA EL SELECT (Condición: "TODOS" solo si hay > 1 opción)
       function populateSelect(selectId, dataField, nodes) {
         const selectElement = document.getElementById(selectId);
-        if (!selectElement) {
-          console.error(`No se encontró el select con ID: ${selectId}`);
-          return;
-        }
+        if (!selectElement) return [];
+
+        selectElement.innerHTML = ""; 
 
         // 1. Obtener valores únicos
         const valueSet = new Set();
         nodes.forEach((node) => {
-          // Usamos [dataField] para acceder a la propiedad dinámicamente
           if (node[dataField] && node[dataField] !== "N/A") {
             valueSet.add(node[dataField]);
           }
         });
 
-        // 2. Ordenar alfabéticamente
         const sortedValues = Array.from(valueSet).sort();
 
-        // 3. Limpiar opciones antiguas (excepto la primera "todos")
-        const firstOption = selectElement.options[0];
-        selectElement.innerHTML = ""; // Limpiar todo
+        // 3. AGREGAR OPCIÓN "TODOS" (CONDICIONAL)
+        // Regla: 
+        // 1. NO en Linea de Negocio
+        // 2. SOLO si hay más de 1 opción disponible (si hay 1, es redundante)
+        if (selectId !== "linea-negocio-select" && sortedValues.length > 1) {
+            const optionTodos = document.createElement("option");
+            optionTodos.value = "todos";
+            optionTodos.textContent = "TODOS";
+            selectElement.appendChild(optionTodos);
+        }
 
-        // 4. Crear y añadir <option>
+        // 4. Crear opciones de datos reales
         sortedValues.forEach((value) => {
           const option = document.createElement("option");
           option.value = value;
           option.textContent = value;
           selectElement.appendChild(option);
         });
-        // Devolvemos las opciones que encontramos
+        
         return sortedValues;
       }
 
       ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
-     function aplicarFiltrosJerarquicos() {
+      function aplicarFiltrosJerarquicos() {
         if (!chart) return;
 
         const currentMode = document.getElementById("modo-select").value;
@@ -942,11 +948,17 @@
         const fullNodeMap = new Map(sourceNodes.map(n => [n.id, n]));
 
         // 3. NÚCLEO: Coincidencia exacta
-        const exactMatches = sourceNodes.filter(n => 
-            n.lineaNegocio === selectedLinea && 
-            n.centroCosto === selectedCosto &&
-            n.proposito === selectedProposito
-        );
+        const exactMatches = sourceNodes.filter(n => {
+            const matchLinea = n.lineaNegocio === selectedLinea;
+            
+            // Corrección para Costo
+            const matchCosto = (selectedCosto === "todos") || (n.centroCosto === selectedCosto);
+            
+            // Si es "todos", devuelve true. Si no, compara.
+            const matchProposito = (selectedProposito === "todos") || (n.proposito === selectedProposito);
+
+            return matchLinea && matchCosto && matchProposito;
+        });
 
         if (exactMatches.length === 0) {
             chart.load([]);
@@ -954,7 +966,7 @@
             return;
         }
 
-        // 4. RECONSTRUCCIÓN DE JERARQUÍA (Local/Filtrada)
+        // 4. RECONSTRUCCIÓN DE JERARQUÍA
         const finalNodesMap = new Map();
         
         const addNodeWithAncestors = (node) => {
@@ -962,7 +974,6 @@
             if (node.pid) {
                 const parentNode = fullNodeMap.get(node.pid);
                 if (parentNode) {
-                    // Solo subimos si es la misma línea (tu regla actual)
                     const isSameLine = parentNode.lineaNegocio === selectedLinea;
                     if (isSameLine) {
                         addNodeWithAncestors(parentNode);
@@ -975,7 +986,7 @@
             addNodeWithAncestors(node);
         });
 
-        // 5. IDENTIFICAR AL "LÍDER LOCAL" (Main Boss del filtro actual)
+        // 5. IDENTIFICAR AL "LÍDER LOCAL"
         const finalNodesList = Array.from(finalNodesMap.values());
         finalNodesList.sort((a, b) => (a.order || 99) - (b.order || 99));
         
@@ -985,33 +996,38 @@
         console.log("Líder Local:", localMainBoss.nombre);
 
         // ------------------------------------------------------------------
-        // 5.5 NUEVO: RESCATAR JEFES SUPERIORES (Padres del Líder Local)
+        // 5.5 NUEVO: RESCATAR JEFES SUPERIORES
         // ------------------------------------------------------------------
-        // Aquí subimos desde el Líder Local hasta el cielo (CEO), sin importar línea.
         const upperBossesMap = new Map();
         
         const addUpperAncestors = (node) => {
             if (node.pid) {
                 const parentNode = fullNodeMap.get(node.pid);
+
+                // --- MODIFICACIÓN SOLICITADA: FRENO EN EL PRESIDENTE ---
+                // Si el propósito NO es "todos" (ej: Sistemas) y el padre es el Presidente...
+                // DETENEMOS LA BÚSQUEDA. No lo agregamos.
+                if (selectedProposito !== "todos" && parentNode && String(parentNode.codPosicion) === "00001") {
+                    return; 
+                }
+                // -------------------------------------------------------
+
                 if (parentNode && !finalNodesMap.has(parentNode.id) && !upperBossesMap.has(parentNode.id)) {
-                    // Lo agregamos a un mapa temporal de "Jefes Supremos"
                     upperBossesMap.set(parentNode.id, parentNode);
-                    // Seguimos subiendo
                     addUpperAncestors(parentNode);
                 }
             }
         };
         
-        // Ejecutamos la búsqueda hacia arriba desde el líder local
         addUpperAncestors(localMainBoss);
         
-        // Unimos los mapas: Nodos Locales + Jefes Supremos
+        // Unimos los mapas
         const allRenderNodesMap = new Map([...finalNodesMap, ...upperBossesMap]);
 
-        // Buscamos quién es el VERDADERO Root ahora (el jefe más alto de todos)
+        // Buscamos quién es el VERDADERO Root ahora
         const allRenderList = Array.from(allRenderNodesMap.values());
         allRenderList.sort((a, b) => (a.order || 99) - (b.order || 99));
-        const absoluteRoot = allRenderList[0]; // Este será el CEO o el Gte General
+        const absoluteRoot = allRenderList[0]; 
 
         // ------------------------------------------------------------------
 
@@ -1019,7 +1035,11 @@
         const nodesToRender = new Map();
         const servicesToGroup = [];
 
-        // Helper de conexión (verifica si llegamos al Absolute Root)
+        // Detección de Caso Especial (Corporativo + Todos)
+        const isCorpTodos = (selectedLinea === "CORPORATIVO" && 
+                             selectedCosto === "CORPORATIVO" && 
+                             selectedProposito === "todos");
+
         const isConnectedToRoot = (nodeId) => {
             if (nodeId === absoluteRoot.id) return true;
             let curr = allRenderNodesMap.get(nodeId);
@@ -1035,7 +1055,6 @@
         };
 
         for (const node of allRenderList) {
-            // A. El Root Absoluto (Cima de la pirámide)
             if (node.id === absoluteRoot.id) {
                 const root = Object.assign({}, node);
                 root.pid = null; 
@@ -1043,25 +1062,25 @@
                 continue;
             }
 
-            // B. Verificar conexión
             if (isConnectedToRoot(node.id)) {
                 nodesToRender.set(node.id, node);
             } else {
-                // Es servicio (quedó huérfano de su rama original)
-                servicesToGroup.push(node);
+                // Si está desconectado:
+                if (isCorpTodos) {
+                    // EXCEPCIÓN: Conectar al Presidente en modo TODOS
+                    const forcedNode = Object.assign({}, node);
+                    forcedNode.pid = absoluteRoot.id;
+                    nodesToRender.set(forcedNode.id, forcedNode);
+                } else {
+                    // Normal: Es servicio
+                    servicesToGroup.push(node);
+                }
             }
         }
 
-        // 7. CREAR GRUPOS (Assistants)
+        // 7. CREAR GRUPOS
         if (servicesToGroup.length > 0) {
-            
-            // IMPORTANTE: ¿De quién colgamos los servicios?
-            // Debemos colgarlos del "Líder Local" (localMainBoss), no del CEO,
-            // porque son servicios de ESA área específica.
-            
-            // Verificamos que el localMainBoss esté en el render final
             const bossForGroups = nodesToRender.has(localMainBoss.id) ? localMainBoss : absoluteRoot;
-
             const ghostId = `GHOST_${bossForGroups.id}`;
             const ghostNode = {
                 id: ghostId,
@@ -1082,11 +1101,10 @@
             Object.keys(groupsMap).forEach(groupName => {
                 const employees = groupsMap[groupName];
                 const groupId = `GRP_${groupName.replace(/[^a-zA-Z0-9]/g, '')}_${Math.floor(Math.random()*1000)}`;
-
                 const groupNode = {
                     id: groupId,
                     pid: ghostId, 
-                    nombre: groupName,  
+                    name: groupName,  
                     title: `${employees.length} Colaboradores`,
                     tags: ["group"], 
                     templateName: "group"
@@ -1113,6 +1131,7 @@
         }
         loaderOverlay.classList.remove("visible");
       }
+      
       // --- Función Auxiliar para añadir ancestros (recursiva hacia arriba) ---
       function addNodeAndAncestors(node, nodesToShow, nodeMap) {
           let currentNode = node;
@@ -1220,7 +1239,8 @@
                 emp &&
                 //emp.codigoPosicion != null &&
                 emp.codigoPosicion != "00006" &&
-                emp.codigoPosicion != "00001" &&
+                //emp.codigoPosicion != "00001" &&
+                emp.codigoPosicion != "00942" && //TODO: quitar
                 emp.codigoPosicionReporta != "00424" &&
                 emp.puesto != null
               //!(emp.codigoPosicionReporta === "00003" && emp.vacante === "1")
@@ -1360,9 +1380,7 @@
             "lineaNegocio",
             sanitizedNodes
           );
-          populateSelect("centro-costos-select", "centroCosto", sanitizedNodes);
-          populateSelect("area-select", "area", sanitizedNodes);
-          populateSelect("departamento-select", "departamento", sanitizedNodes);
+          //populateSelect("centro-costos-select", "centroCosto", sanitizedNodes);
 
           // 4.1 Intentar procesar (en caso de que el 'userId' ya haya llegado)
           //procesarLoginDeUsuario();
@@ -2055,18 +2073,21 @@
             const selectedLinea = $(this).val();
             const sourceNodes = document.getElementById("modo-select").value === "Cargo" ? allCargoNodes : allNodes;
 
-            // Filtrar nodos que pertenecen a esta Línea
+            // Filtrar nodos de esta Línea
             const nodosDeLinea = sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
 
-            // Poblar Centro de Costos con los nodos resultantes
+            // Poblar Centro de Costos con las opciones VÁLIDAS para esta línea
             const opcionesCostos = populateSelect("centro-costos-select", "centroCosto", nodosDeLinea);
             
-            // Auto-seleccionar el primero siempre (ya que no hay "Todos")
-            if (opcionesCostos.length > 0) {
-               // Si venimos de un login de usuario, intentamos mantener su selección, si no, el primero
-               $("#centro-costos-select").val(opcionesCostos[0]).trigger("change"); 
+            // --- LÓGICA DE SELECCIÓN AUTOMÁTICA ---
+            if (opcionesCostos.length > 1) {
+                // Hay muchas opciones -> populateSelect agregó "TODOS" -> Lo seleccionamos
+                $("#centro-costos-select").val("todos").trigger("change");
+            } else if (opcionesCostos.length === 1) {
+                // Solo hay 1 opción -> "TODOS" no existe -> Seleccionamos la única
+                $("#centro-costos-select").val(opcionesCostos[0]).trigger("change");
             } else {
-               $("#centro-costos-select").val(null).trigger("change"); // Limpiar si no hay
+                $("#centro-costos-select").val(null).trigger("change");
             }
           });
 
@@ -2076,30 +2097,33 @@
             const selectedCosto = $(this).val();
             const sourceNodes = document.getElementById("modo-select").value === "Cargo" ? allCargoNodes : allNodes;
 
-            // Filtrar nodos por Línea Y Costo
+            // Filtrar nodos (Manejo correcto del comodín "todos")
+            // Si selectedCosto es "todos", traemos a toda la línea. Si no, filtramos específico.
             const nodosDeCosto = sourceNodes.filter((n) => 
                 n.lineaNegocio === selectedLinea && 
-                n.centroCosto === selectedCosto
+                ((selectedCosto === "todos") || (n.centroCosto === selectedCosto))
             );
 
-            // Poblar Propósito
+            // Poblar Propósito con las opciones VÁLIDAS para este costo
             const opcionesProposito = populateSelect("proposito-select", "proposito", nodosDeCosto);
 
-            // Auto-seleccionar el primero
-            if (opcionesProposito.length > 0) {
+            // --- LÓGICA DE SELECCIÓN AUTOMÁTICA ---
+            if (opcionesProposito.length > 1) {
+               // Hay muchos -> Seleccionar TODOS
+               $("#proposito-select").val("todos").trigger("change");
+            } else if (opcionesProposito.length === 1) {
+               // Solo 1 -> Seleccionar el único
                $("#proposito-select").val(opcionesProposito[0]).trigger("change");
             } else {
-               // Si no hay propósitos, disparamos el filtro final aquí para que no se quede vacío el gráfico
+               // Si no hay propósitos (raro), aplicamos filtro para limpiar
                aplicarFiltrosJerarquicos(); 
             }
           });
 
-          // 3. LISTENER: PROPÓSITO (El último eslabón)
+          // 3. LISTENER: PROPÓSITO
           $("#proposito-select").on("change", function () {
-             // Al cambiar el último nivel, simplemente aplicamos el filtro al gráfico
              aplicarFiltrosJerarquicos();
           });
-
 
           // 6. Listener para MODO (Persona/Cargo)
           $("#modo-select").on("change", function () {
@@ -2350,6 +2374,7 @@
             // Detectamos 'mousedown' en el contenedor del gráfico (#tree)
           });
 
+          procesarLoginDeUsuario();
           //   statusDiv.style.display = "none"; // Ocultar "Cargando..."
           loaderOverlay.classList.remove("visible");
         } catch (error) {
