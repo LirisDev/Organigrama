@@ -622,7 +622,7 @@
         }
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
-        /*
+        //*
         if (!receivedUserId) {
           //receivedUserId = "interno\\ldominguez"; //Auxiliar
           receivedUserId = "interno\\dromero"; //Asistente de desarrollo
@@ -1007,7 +1007,7 @@
                 // --- MODIFICACIÓN SOLICITADA: FRENO EN EL PRESIDENTE ---
                 // Si el propósito NO es "todos" (ej: Sistemas) y el padre es el Presidente...
                 // DETENEMOS LA BÚSQUEDA. No lo agregamos.
-                if (selectedProposito !== "todos" && parentNode && String(parentNode.codPosicion) === "00001") {
+                if (selectedLinea !== "CORPORATIVO" && parentNode && String(parentNode.codPosicion) === "00001") {
                     return; 
                 }
                 // -------------------------------------------------------
