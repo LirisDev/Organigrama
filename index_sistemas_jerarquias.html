@@ -145,6 +145,17 @@
       let rangeScaleElement = document.getElementById("range_scale");
       let txtScaleElement = document.getElementById("txt_scale");
 
+      const CABEZAS_NEGOCIO_TEMP = {
+          "BALANCEADO":   "00005", // <--- Ej: "00451"
+          "CARNICERIA":   "00097", // "00097" o "00003",
+          "CARNICOS":     "00003",
+          "CORPORATIVO":  "00001", 
+          "DERIVADOS":    "01002", 
+          "MARKETING":    "00671", 
+          "PECUARIOS":    "00003", 
+          "RETAIL":       "00671"  
+      };
+
       const apiCargoUrl =
         "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_cargo";    //TODO: APUNTA A QA
 
@@ -607,6 +618,30 @@
         }
       }
 
+      // =========================================================
+      // 2. FUNCIÓN RECURSIVA (Para llenar los árboles dentro de los grupos)
+      // =========================================================
+      function addDescendantsToView(rootNode, allNodesMap, renderMap) {
+          const children = [];
+          // Buscar hijos en el mapa global
+          allNodesMap.forEach(node => {
+              if (node.pid === rootNode.id) {
+                  children.push(node);
+              }
+          });
+
+          children.forEach(child => {
+              if (!renderMap.has(child.id)) {
+                  // El hijo NO lleva stpid, se dibuja normal colgando del padre
+                  const childClone = Object.assign({}, child);
+                  childClone.stpid = null; 
+                  renderMap.set(childClone.id, childClone);
+                  
+                  // Recursividad: buscar los hijos de este hijo (nietos, bisnietos...)
+                  addDescendantsToView(childClone, allNodesMap, renderMap);
+              }
+          });
+      }
       // El nuevo icono de "Contraer Todo" (flechas hacia adentro)
       let collapse_all = `<svg fill="#7A7A7A" width="800px" height="800px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg">
               <path d="M11.493 8.757l-3.454-3.453-2.665 2.665 3.454 3.453-2.59 2.59 7.797 0.004-0.017-7.784-2.525 2.525zM23.172 11.422l3.454-3.453-2.665-2.665-3.454 3.453-2.525-2.525-0.017 7.784 7.797-0.004-2.59-2.59zM8.828 20.578l-3.454 3.453 2.665 2.665 3.454-3.453 2.526 2.525 0.017-7.784-7.797 0.004 2.589 2.59zM25.762 17.988l-7.797-0.004 0.017 7.784 2.525-2.525 3.454 3.453 2.665-2.665-3.454-3.453 2.59-2.59z"></path>
@@ -617,9 +652,7 @@
        */
       function procesarLoginDeUsuario() {
         // Si aún no tenemos los datos, no hacer nada.
-        if (!isDataReady) {
-          return;
-        }
+        if (!isDataReady) return;
 
         // 1.1 Harcodeado para pruebas (//TODO:¡Eliminar en producción!)
         /*
@@ -634,12 +667,10 @@
         //    los datos de permiso (puesto y codPosicion_R)
         let personaDataCompleta = null;
         if (receivedUserId) {
-          // Solo si hemos recibido un ID
-          personaDataCompleta = allNodes.find(
-            (n) => n.userid && n.userid.toLowerCase() === receivedUserId
-          );
+          personaDataCompleta = allNodes.find(n => n.userid && n.userid.toLowerCase() === receivedUserId);
         }
 
+        // 3. Definir Permisos (Tu lógica actual)
         if (personaDataCompleta) {
           const puesto = (personaDataCompleta.puesto || "").toLowerCase();
           // Usamos 'codPosicion_R' de la API de Persona
@@ -668,11 +699,7 @@
           usuarioPuedeVerTodo = false;
         }
 
-        if (usuarioPuedeVerTodo) {
-          console.log("🔐 Permiso Concedido: Ver Todo");
-        } else {
-          console.log("🔐 Permiso Denegado: Vista Restringida");
-        }
+        console.log("🔐 Permiso Global:", usuarioPuedeVerTodo ? "VER TODO" : "RESTRINGIDO");
         // --- 🔐 FIN LÓGICA DE PERMISOS ---
 
         // Asegurarnos de usar la fuente de datos correcta según el modo
@@ -686,93 +713,36 @@
 
         // Ahora funciona para ambos modos porque 'userid' está en la raíz
         if (currentMode === "Persona") {
-          // --- Búsqueda en Vista por Persona (como antes) ---
-          empleadoLogueado = sourceNodes.find((nodo) => {
-            return nodo.userid && nodo.userid.toLowerCase() === receivedUserId;
-          });
+            empleadoLogueado = sourceNodes.find(n => n.userid && n.userid.toLowerCase() === receivedUserId);
         } else {
-          // --- Búsqueda en Vista por Cargo (NUEVA LÓGICA) ---
-          empleadoLogueado = sourceNodes.find((nodo) => {
-            // nodo.listaEmpleados es el array que creamos en el map
-            if (!nodo.listaEmpleados || nodo.listaEmpleados.length === 0) {
-              return false; // Cargo vacante o sin empleados
-            }
-
-            // Usamos .some() para ver si CUALQUIERA de los empleados en la lista coincide
-            return nodo.listaEmpleados.some(
-              (emp) => emp.userid && emp.userid.toLowerCase() === receivedUserId
-            );
-          });
+            empleadoLogueado = sourceNodes.find(n => n.listaEmpleados && n.listaEmpleados.some(e => e.userid === receivedUserId));
         }
 
-        // Evitamos que se ejecute múltiples veces
-        //receivedUserId = null;
+        // 5. DETERMINAR VALOR INICIAL
+        // Por defecto "todos" para no forzar nada si no encontramos al usuario
+        let valorInicial = "todos"; 
 
-        if (empleadoLogueado) {
-          console.log(
-            "🎉 ¡Encontrado! Información completa:",
-            empleadoLogueado
-          );
-
-          // --- ¡LÓGICA DE CASCADA INICIAL! ---
-          // --- ¡LÓGICA DE CASCADA INICIAL (AJUSTADA)! ---
-          
-          // 1. Poblar Línea de Negocio (Nivel 1)
-          const opcionesLinea = populateSelect("linea-negocio-select", "lineaNegocio", sourceNodes);
-          
-          let lineaInicial = opcionesLinea[0]; // Por defecto el primero
-
-          // Si hay usuario logueado, intentamos usar su línea
-          if (empleadoLogueado && empleadoLogueado.lineaNegocio && empleadoLogueado.lineaNegocio !== "N/A") {
-             if(opcionesLinea.includes(empleadoLogueado.lineaNegocio)) {
-                 lineaInicial = empleadoLogueado.lineaNegocio;
+        // Si encontramos al usuario y tiene línea, USAMOS SU LÍNEA
+        if (empleadoLogueado && empleadoLogueado.lineaNegocio && empleadoLogueado.lineaNegocio !== "N/A") {
+             // Verificamos que esa opción exista en el select
+             if ($("#linea-negocio-select option[value='" + empleadoLogueado.lineaNegocio + "']").length > 0) {
+                 valorInicial = empleadoLogueado.lineaNegocio;
              }
-          }
-
-          // Esto disparará el 'change' de Línea -> que llenará Costos -> que llenará Propósito -> que filtrará el gráfico
-          if(lineaInicial) {
-              $("#linea-negocio-select").val(lineaInicial).trigger("change");
-              
-              // Pequeño timeout para dar tiempo a que los selects se pueblen en cascada 
-              // y luego intentamos seleccionar los valores específicos del usuario si existen
-              if(empleadoLogueado) {
-                  setTimeout(() => {
-                      if(empleadoLogueado.centroCosto) {
-                          $("#centro-costos-select").val(empleadoLogueado.centroCosto).trigger("change");
-                      }
-                      // Anidamos otro timeout para el tercer nivel
-                      setTimeout(() => {
-                          if(empleadoLogueado.proposito) {
-                              $("#proposito-select").val(empleadoLogueado.proposito).trigger("change");
-                          }
-                      }, 50);
-                  }, 50);
-              }
-          }
-          // 10. DISPARAR FILTRO FINAL
-          // (Solo si el chart ya existe)
-          if (chart) {
-            console.log(
-              "Auto-filtrando el organigrama para el usuario... ",
-              empleadoLogueado.userid,
-              " en modo: ",
-              currentMode
-            );
-            aplicarFiltrosJerarquicos();
-          }
-        } else {
-          console.warn(
-            `⚠️ No se pudo encontrar al usuario '${receivedUserId}' en 'allNodes'.`
-          );
-          // Si no se encuentra, filtramos por "todos"
-          if (chart) {
-            aplicarFiltrosJerarquicos();
-          }
         }
-        //    DESPUÉS de que la cascada haya terminado de poblarlos.
-        actualizarEstadoFiltros();
-      }
+        
+        console.log("⚡ Auto-Iniciando vista en:", valorInicial);
 
+        // 6. PREPARAR UI (Ocultar lo que no sirve)
+        $("#centro-costos-select").next(".select2-container").hide();
+        $("#proposito-select").next(".select2-container").hide();
+        $("#modo-select").next(".select2-container").hide();
+        
+        actualizarEstadoFiltros(); 
+
+        // 7. ¡DISPARO FINAL! 
+        // Selecciona el valor y fuerza la ejecución INMEDIATA del gráfico
+        $("#linea-negocio-select").val(valorInicial).trigger("change");
+      }
       // --- Función Sanitize (para evitar bucles infinitos) ---
       function sanitizeCircularReferences(nodes) {
         const nodeMap = new Map();
@@ -885,14 +855,12 @@
 
       ///////// * Puebla el <select> con los filtros únicos de los nodos.
       // PUEBLA EL SELECT Y AGREGA LA OPCIÓN "TODOS"
-// PUEBLA EL SELECT (Condición: "TODOS" solo si hay > 1 opción)
+      // PUEBLA EL SELECT (Condición: "TODOS" solo si hay > 1 opción)
       function populateSelect(selectId, dataField, nodes) {
         const selectElement = document.getElementById(selectId);
         if (!selectElement) return [];
-
         selectElement.innerHTML = ""; 
 
-        // 1. Obtener valores únicos
         const valueSet = new Set();
         nodes.forEach((node) => {
           if (node[dataField] && node[dataField] !== "N/A") {
@@ -902,18 +870,13 @@
 
         const sortedValues = Array.from(valueSet).sort();
 
-        // 3. AGREGAR OPCIÓN "TODOS" (CONDICIONAL)
-        // Regla: 
-        // 1. NO en Linea de Negocio
-        // 2. SOLO si hay más de 1 opción disponible (si hay 1, es redundante)
-        if (selectId !== "linea-negocio-select" && sortedValues.length > 1) {
-            const optionTodos = document.createElement("option");
-            optionTodos.value = "todos";
-            optionTodos.textContent = "TODOS";
-            selectElement.appendChild(optionTodos);
-        }
+        // 1. SIEMPRE AGREGAR "TODOS" (Para poder ver el mapa completo)
+        const optionTodos = document.createElement("option");
+        optionTodos.value = "todos";
+        optionTodos.textContent = "TODOS";
+        selectElement.appendChild(optionTodos);
 
-        // 4. Crear opciones de datos reales
+        // 2. Opciones normales
         sortedValues.forEach((value) => {
           const option = document.createElement("option");
           option.value = value;
@@ -922,6 +885,110 @@
         });
         
         return sortedValues;
+      }
+
+
+      function renderOrganigramaGrupos() {
+        if (!chart) return;
+        
+        const selectedLineaRaw = $("#linea-negocio-select").val();
+        if (!selectedLineaRaw) return; // Protección si es nulo
+
+        const selectedLinea = selectedLineaRaw.trim(); // Quitar espacios extra
+        console.log("🚀 Generando Estructura de Grupos. Filtro:", selectedLinea);
+        
+        const currentMode = document.getElementById("modo-select").value;
+        const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
+        
+        if (!sourceNodes || sourceNodes.length === 0) { 
+            console.warn("⚠️ No hay nodos fuente para renderizar.");
+            chart.load([]); 
+            return; 
+        }
+
+        const sourceMap = new Map(sourceNodes.map(n => [n.id, n]));
+        const nodesToRender = new Map();
+
+        // ---------------------------------------------------------
+        // A. GRUPO CORPORATIVO (Raíz)
+        // ---------------------------------------------------------
+        const groupCorpId = "GRP_CORPORATIVO";
+        nodesToRender.set(groupCorpId, {
+            id: groupCorpId, pid: null, nombre: "CORPORATIVO", title: "Holding", tags: ["group"], templateName: "group"
+        });
+
+        // ---------------------------------------------------------
+        // B. LLENAR CORPORATIVO (Antonio + Staff)
+        // ---------------------------------------------------------
+        const corpNodes = sourceNodes.filter(n => n.lineaNegocio && n.lineaNegocio.trim().toUpperCase() === "CORPORATIVO");
+        let antonioNode = corpNodes.find(n => String(n.codPosicion) === "00001" || n.CodEmpleado == 1) || corpNodes[0];
+
+        if (antonioNode) {
+            const corpIds = new Set(corpNodes.map(n => n.id));
+            corpNodes.forEach(node => {
+                const renderNode = Object.assign({}, node);
+                
+                // ANTONIO: Va DENTRO de la caja (stpid)
+                if (node.id === antonioNode.id) {
+                    renderNode.pid = null; renderNode.stpid = groupCorpId; 
+                } 
+                // RESTO: Cuelgan normal
+                else {
+                    renderNode.stpid = null; 
+                    renderNode.pid = (node.pid && corpIds.has(node.pid)) ? node.pid : antonioNode.id;
+                }
+                nodesToRender.set(renderNode.id, renderNode);
+            });
+        }
+
+        // ---------------------------------------------------------
+        // C. PROCESAR LÍNEAS DE NEGOCIO (Usando la Tabla Temporal)
+        // ---------------------------------------------------------
+        let lineasACrear = [];
+        // Obtenemos las claves de nuestra tabla temporal (BALANCEADO, RETAIL, etc.)
+        const todasLasLineas = Object.keys(CABEZAS_NEGOCIO_TEMP); 
+
+        if (selectedLinea === "todos") {
+            lineasACrear = todasLasLineas;
+        } else if (selectedLinea !== "CORPORATIVO") {
+            if (todasLasLineas.includes(selectedLinea)) {
+                lineasACrear = [selectedLinea];
+            }
+        }
+
+        lineasACrear.forEach(lineName => {
+            // 1. Crear la Caja del Grupo
+            const groupId = `GRP_${lineName.replace(/\s/g, '')}`; 
+            nodesToRender.set(groupId, {
+                id: groupId, pid: groupCorpId, nombre: lineName, title: "Línea de Negocio", tags: ["group"], templateName: "group"
+            });
+
+            // 2. Buscar al Jefe usando la TABLA TEMPORAL
+            const codigoJefe = CABEZAS_NEGOCIO_TEMP[lineName];
+            
+            if (codigoJefe) {
+                // Buscamos al empleado real en la data
+                const jefeNode = sourceNodes.find(n => String(n.codPosicion) === codigoJefe);
+                
+                if (jefeNode) {
+                    // 3. Meter al Jefe en la Caja
+                    const renderJefe = Object.assign({}, jefeNode);
+                    renderJefe.stpid = groupId; // <--- DENTRO DE SU CAJA
+                    nodesToRender.set(renderJefe.id, renderJefe);
+
+                    // 4. Traer a todo su equipo (Recursivo)
+                    addDescendantsToView(renderJefe, sourceMap, nodesToRender);
+                }
+            }
+        });
+
+        // ---------------------------------------------------------
+        // D. CARGAR
+        // ---------------------------------------------------------
+        const finalArray = Array.from(nodesToRender.values());
+        chart.config.collapse = { level: 2, allChildren: true }; 
+        chart.load(finalArray);
+        loaderOverlay.classList.remove("visible");
       }
 
       ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
@@ -1086,7 +1153,7 @@
                 id: ghostId,
                 pid: bossForGroups.id,
                 tags: ["fantasma", "assistant", "assistant-branch"],
-                name: "" 
+                nombre: "" 
             };
             nodesToRender.set(ghostId, ghostNode);
 
@@ -1240,7 +1307,7 @@
                 //emp.codigoPosicion != null &&
                 emp.codigoPosicion != "00006" &&
                 //emp.codigoPosicion != "00001" &&
-                //emp.codigoPosicion != "00942" && //TODO: quitar
+                emp.codigoPosicion != "00942" && //TODO: quitar
                 emp.codigoPosicionReporta != "00424" &&
                 emp.puesto != null
               //!(emp.codigoPosicionReporta === "00003" && emp.vacante === "1")
@@ -1849,9 +1916,14 @@
               if (args.node.tags.indexOf("group") != -1) {
                   if (args.node.min) {
                       sender.maximize(args.node.id);
+                      chart.center(args.node.id, null, true)
+                      //chart.config.collapse = { level: 2, allChildren: true };
+                      chart.fit()
                   }
                   else {
                       sender.minimize(args.node.id);
+                      chart.setScale(1);
+                      chart.center(args.node.id, null, true)
                   }
                   return false;
               }
@@ -2055,7 +2127,7 @@
           });
 
           console.log("Select2 inicializado por primera vez.");
-          procesarLoginDeUsuario();
+          //procesarLoginDeUsuario();
 
   // =========================================================
           // NUEVA LÓGICA DE FILTROS ESCALONADOS (OBLIGATORIOS)
@@ -2069,26 +2141,40 @@
           });
 
           // 1. LISTENER: LÍNEA DE NEGOCIO
-          $("#linea-negocio-select").on("change", function () {
-            const selectedLinea = $(this).val();
-            const sourceNodes = document.getElementById("modo-select").value === "Cargo" ? allCargoNodes : allNodes;
+          // $("#linea-negocio-select").on("change", function () {
+          //   const selectedLinea = $(this).val();
+          //   const sourceNodes = document.getElementById("modo-select").value === "Cargo" ? allCargoNodes : allNodes;
 
-            // Filtrar nodos de esta Línea
-            const nodosDeLinea = sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
+          //   // Filtrar nodos de esta Línea
+          //   const nodosDeLinea = sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
 
-            // Poblar Centro de Costos con las opciones VÁLIDAS para esta línea
-            const opcionesCostos = populateSelect("centro-costos-select", "centroCosto", nodosDeLinea);
+          //   // Poblar Centro de Costos con las opciones VÁLIDAS para esta línea
+          //   const opcionesCostos = populateSelect("centro-costos-select", "centroCosto", nodosDeLinea);
             
-            // --- LÓGICA DE SELECCIÓN AUTOMÁTICA ---
-            if (opcionesCostos.length > 1) {
-                // Hay muchas opciones -> populateSelect agregó "TODOS" -> Lo seleccionamos
-                $("#centro-costos-select").val("todos").trigger("change");
-            } else if (opcionesCostos.length === 1) {
-                // Solo hay 1 opción -> "TODOS" no existe -> Seleccionamos la única
-                $("#centro-costos-select").val(opcionesCostos[0]).trigger("change");
-            } else {
-                $("#centro-costos-select").val(null).trigger("change");
-            }
+          //   // --- LÓGICA DE SELECCIÓN AUTOMÁTICA ---
+          //   if (opcionesCostos.length > 1) {
+          //       // Hay muchas opciones -> populateSelect agregó "TODOS" -> Lo seleccionamos
+          //       $("#centro-costos-select").val("todos").trigger("change");
+          //   } else if (opcionesCostos.length === 1) {
+          //       // Solo hay 1 opción -> "TODOS" no existe -> Seleccionamos la única
+          //       $("#centro-costos-select").val(opcionesCostos[0]).trigger("change");
+          //   } else {
+          //       $("#centro-costos-select").val(null).trigger("change");
+          //   }
+          // });
+
+          
+          // 1. LISTENER: LÍNEA DE NEGOCIO (El único que importa ahora)
+          $("#linea-negocio-select").on("change", function () {
+            
+            // OCULTAR visualmente los otros selectores
+            // Select2 crea un contenedor hermano, así que ocultamos ese contenedor
+            $("#centro-costos-select").next(".select2-container").hide();
+            $("#proposito-select").next(".select2-container").hide();
+            $("#modo-select").next(".select2-container").hide();
+
+            // Llamamos a la función constructora
+            renderOrganigramaGrupos();
           });
 
           // 2. LISTENER: CENTRO DE COSTOS
@@ -2375,6 +2461,9 @@
           });
 
           procesarLoginDeUsuario();
+          // Asegurar ocultar filtros secundarios al inicio también
+          $("#centro-costos-select").next(".select2-container").hide();
+          $("#proposito-select").next(".select2-container").hide();
           //   statusDiv.style.display = "none"; // Ocultar "Cargando..."
           loaderOverlay.classList.remove("visible");
         } catch (error) {
