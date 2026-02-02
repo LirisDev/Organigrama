@@ -894,9 +894,8 @@
         const selectedLineaRaw = $("#linea-negocio-select").val();
         if (!selectedLineaRaw) return; 
 
-        // 1. NORMALIZACIÓN ESTRICTA (Todo a Mayúsculas y sin espacios)
         const selectedLinea = selectedLineaRaw.trim().toUpperCase(); 
-        console.log("🚀 Renderizando (Fix: Todos + Duplicados). Filtro:", selectedLinea);
+        console.log("🚀 Renderizando (Fix Duplicados Internos). Filtro:", selectedLinea);
         
         const currentMode = document.getElementById("modo-select").value;
         const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
@@ -906,176 +905,170 @@
         }
 
         const nodesToRender = new Map();
+        const sourceMap = new Map(sourceNodes.map(n => [n.id, n]));
 
-        // =========================================================
-        // A. DEFINIR QUÉ LÍNEAS VAMOS A MOSTRAR
-        // =========================================================
+        // 1. DEFINIR LÍNEAS VISIBLES
         const lineasAMostrar = new Set();
-        
-        // Siempre calculamos las líneas basándonos en la Configuración
-        const todasLasLineasConfig = Object.keys(CABEZAS_NEGOCIO_TEMP).map(k => k.toUpperCase());
+        const configKeys = Object.keys(CABEZAS_NEGOCIO_TEMP); 
 
         if (selectedLinea === "TODOS" || selectedLinea === "TODA LÍNEA DE NEGOCIOS") {
-            todasLasLineasConfig.forEach(k => lineasAMostrar.add(k));
-        } else {
-            // Si seleccionó una específica, la agregamos (si existe en la config o es Corp)
-            if (selectedLinea !== "CORPORATIVO") {
-                lineasAMostrar.add(selectedLinea);
-            }
+            configKeys.forEach(k => lineasAMostrar.add(k.toUpperCase()));
+        } else if (selectedLinea !== "CORPORATIVO") {
+            const keyReal = configKeys.find(k => k.toUpperCase() === selectedLinea);
+            if (keyReal) lineasAMostrar.add(keyReal.toUpperCase());
         }
-        
-        // CORPORATIVO SIEMPRE ESTÁ PRESENTE COMO BASE, PERO LO TRATAMOS APARTE
-        // No lo agregamos a 'lineasAMostrar' para evitar clonaciones, lo manejamos manual.
 
-        // =========================================================
-        // B. CREAR CAJAS (GRUPOS)
-        // =========================================================
+        // 2. CREAR GRUPOS
         const groupCorpId = "GRP_CORPORATIVO";
-        
-        // 1. Caja Corporativo
         nodesToRender.set(groupCorpId, {
             id: groupCorpId, pid: null, nombre: "CORPORATIVO", title: "Holding", tags: ["group"], templateName: "group"
         });
 
-        // 2. Cajas de las Líneas Seleccionadas
         lineasAMostrar.forEach(linea => {
-            if (linea === "CORPORATIVO") return; // Protección extra
-
+            if (linea === "CORPORATIVO") return;
             const groupId = `GRP_${linea.replace(/\s/g, '')}`;
-            const tagLinea = `LINEA_${linea.replace(/\s/g, '_')}`; // Clase CSS
-
+            const tagLinea = `LINEA_${linea.replace(/\s/g, '_')}`;
             nodesToRender.set(groupId, {
-                id: groupId,
-                pid: groupCorpId, // Cuelga visualmente del Corporativo
-                nombre: linea,
-                title: "Línea de Negocio",
-                tags: ["group", tagLinea],
-                templateName: "group"
+                id: groupId, pid: groupCorpId, nombre: linea, title: "Línea de Negocio", tags: ["group", tagLinea], templateName: "group"
             });
         });
 
-        // =========================================================
-        // C. PREPARACIÓN DE DATOS (MAPEOS)
-        // =========================================================
-        // Identificar ID de Antonio
+        // 3. MAPAS DE CONTROL
         const antonioNode = sourceNodes.find(n => String(n.codPosicion) === "00001" || n.CodEmpleado == 1);
         const idAntonio = antonioNode ? antonioNode.id : null;
-
-        // Mapa para redireccionar reportes: { "NOMBRELINEA_IDJEFEORIGINAL" : "ID_NODO_CLON" }
-        const mapRedireccionPadres = {}; 
-
-        // =========================================================
-        // D. FASE 1: CREAR CLONES DE LAS CABEZAS (SOLO PARA LÍNEAS VISIBLES)
-        // =========================================================
+        
+        const mapClonesContextuales = new Map(); // { "LINEA_IDORIGINAL": "ID_CLON" }
+        
+        // --- PRE-REGISTRO DE CABEZAS (Para saber quién es quién) ---
+        const mapCabezasDeLinea = new Map(); // { "LINEA": "ID_NODO_ORIGINAL" }
+        
         lineasAMostrar.forEach(linea => {
-            // ¡CRÍTICO! Si por error "CORPORATIVO" está en la tabla CONFIG, lo saltamos aquí
-            // para no crear un "Clon de Antonio" que duplique al original.
-            if (linea === "CORPORATIVO") return;
-
-            // Buscamos el código de posición en la tabla (usando la clave normalizada si es necesario)
-            // Intentamos buscar la clave exacta en el objeto original
-            let codPosJefe = CABEZAS_NEGOCIO_TEMP[linea] || CABEZAS_NEGOCIO_TEMP[Object.keys(CABEZAS_NEGOCIO_TEMP).find(k => k.toUpperCase() === linea)];
-
+            const keyConfig = configKeys.find(k => k.toUpperCase() === linea);
+            const codPosJefe = CABEZAS_NEGOCIO_TEMP[keyConfig];
             if (codPosJefe) {
                 const nodoOriginal = sourceNodes.find(n => String(n.codPosicion) === codPosJefe);
-                
                 if (nodoOriginal) {
-                    const idClon = `HEAD_${linea.replace(/\s/g, '')}`;
-                    const nodoClon = Object.assign({}, nodoOriginal);
+                    mapCabezasDeLinea.set(linea, nodoOriginal.id);
                     
-                    // CONFIGURAR CLON
-                    nodoClon.id = idClon;
-                    nodoClon.stpid = `GRP_${linea.replace(/\s/g, '')}`; // Entra a su caja
-                    nodoClon.pid = null; // Raíz visual de esa caja
-                    
-                    // REGISTRAR REDIRECCIÓN
-                    // "Si alguien de la línea 'linea' reporta a 'nodoOriginal.id', ahora reportará a 'idClon'"
-                    mapRedireccionPadres[`${linea}_${nodoOriginal.id}`] = idClon;
-
-                    nodesToRender.set(idClon, nodoClon);
-                } else {
-                    console.warn(`No se encontró al jefe con cargo ${codPosJefe} para la línea ${linea}`);
+                    // Si no es Corporativo, creamos el CLON CABEZA ahora mismo
+                    if (linea !== "CORPORATIVO") {
+                        const idClonHead = `HEAD_${linea.replace(/\s/g, '')}_${nodoOriginal.id}`;
+                        const nodoClon = Object.assign({}, nodoOriginal);
+                        nodoClon.id = idClonHead;
+                        nodoClon.stpid = `GRP_${linea.replace(/\s/g, '')}`;
+                        nodoClon.pid = null; 
+                        
+                        mapClonesContextuales.set(`${linea}_${nodoOriginal.id}`, idClonHead);
+                        nodesToRender.set(idClonHead, nodoClon);
+                    }
                 }
             }
         });
 
-        // =========================================================
-        // E. FASE 2: PROCESAR A TODOS LOS EMPLEADOS
-        // =========================================================
+        // 4. FUNCIÓN OBTENER CLON ANCESTRO (Solo para jefes externos)
+        function obtenerClonAncestro(originalId, lineaContexto) {
+            const keyCache = `${lineaContexto}_${originalId}`;
+            if (mapClonesContextuales.has(keyCache)) return mapClonesContextuales.get(keyCache);
+
+            const nodoOriginal = sourceMap.get(originalId);
+            if (!nodoOriginal) return null;
+            if (nodoOriginal.id === idAntonio) return null; 
+
+            // Verificar si este ancestro ES la cabeza de la línea (ya creado)
+            const idCabezaLinea = mapCabezasDeLinea.get(lineaContexto);
+            if (originalId === idCabezaLinea) {
+                 // Debería estar en el mapa, pero por si acaso
+                 return mapClonesContextuales.get(`${lineaContexto}_${originalId}`);
+            }
+
+            // Crear Clon Intermedio (Ancestros Externos)
+            const idClon = `ANCESTRO_${lineaContexto}_${originalId}`;
+            const nodoClon = Object.assign({}, nodoOriginal);
+            nodoClon.id = idClon;
+            nodoClon.stpid = null;
+
+            if (nodoOriginal.pid) {
+                const idPadreClon = obtenerClonAncestro(nodoOriginal.pid, lineaContexto);
+                if (idPadreClon) nodoClon.pid = idPadreClon;
+            }
+
+            mapClonesContextuales.set(keyCache, idClon);
+            nodesToRender.set(idClon, nodoClon);
+            return idClon;
+        }
+
+        // 5. PROCESAR TODOS LOS NODOS (EVITANDO DUPLICADOS)
         sourceNodes.forEach(node => {
-            // Normalizar línea del empleado
             let miLinea = node.lineaNegocio ? node.lineaNegocio.trim().toUpperCase() : "N/A";
 
-            // ¿Debemos mostrar este nodo? 
-            // Mostramos si es CORPORATIVO (siempre) O si su línea está en las visibles
-            const esCorporativo = (miLinea === "CORPORATIVO");
-            const esLineaVisible = lineasAMostrar.has(miLinea);
-
-            if (esCorporativo || esLineaVisible) {
-                
-                // --- FILTRO DE DUPLICADOS VISUALES (OPCIONAL) ---
-                // Si quieres ocultar al Santiago "Original" de la caja Corporativo 
-                // cuando ya estás mostrando su caja de Cárnicos abajo:
-                /* if (esCorporativo && lineasAMostrar.size > 0) {
-                     // Si este nodo es jefe de alguna de las líneas mostradas, NO lo mostramos en Corp.
-                     // (Descomenta esto si quieres ocultar a los gerentes arriba)
-                     // let esJefeDeAlgoAbajo = false;
-                     // lineasAMostrar.forEach(l => { if(CABEZAS_NEGOCIO_TEMP[l] === String(node.codPosicion)) esJefeDeAlgoAbajo = true; });
-                     // if (esJefeDeAlgoAbajo) return; 
-                }
-                */
-
-                // Evitar duplicar al jefe DENTRO de su propia línea (ya creamos el clon arriba)
-                if (!esCorporativo) {
-                    let codJefeLinea = CABEZAS_NEGOCIO_TEMP[miLinea] || CABEZAS_NEGOCIO_TEMP[Object.keys(CABEZAS_NEGOCIO_TEMP).find(k => k.toUpperCase() === miLinea)];
-                    if (String(node.codPosicion) === codJefeLinea) {
-                        return; // Saltamos, ya existe el clon HEAD_...
-                    }
-                }
-
+            // A. CORPORATIVO
+            if (miLinea === "CORPORATIVO") {
                 const renderNode = Object.assign({}, node);
-                renderNode.stpid = null; // Por defecto nadie entra a cajas
+                renderNode.stpid = null;
+                if (idAntonio && node.id === idAntonio) {
+                    renderNode.stpid = groupCorpId;
+                    renderNode.pid = null;
+                }
+                nodesToRender.set(renderNode.id, renderNode);
+            }
 
-                // --- CASO CORPORATIVO ---
-                if (esCorporativo) {
-                    if (idAntonio && node.id === idAntonio) {
-                        renderNode.stpid = groupCorpId; // Solo Antonio entra
-                        renderNode.pid = null;
-                    }
-                    // El resto cuelga normal
-                } 
-                
-                // --- CASO LÍNEAS DE NEGOCIO ---
-                else {
-                    // Intentar redireccionar al CLON del jefe
-                    const claveRedireccion = `${miLinea}_${node.pid}`;
+            // B. OTRAS LÍNEAS VISIBLES
+            else if (lineasAMostrar.has(miLinea)) {
+                // 1. Si soy la cabeza, NO me renderizo (ya está el clon HEAD_...)
+                const idCabeza = mapCabezasDeLinea.get(miLinea);
+                if (node.id === idCabeza) return; 
+
+                // 2. Si NO soy la cabeza, me renderizo como nodo normal
+                const renderNode = Object.assign({}, node);
+                renderNode.stpid = null; 
+
+                // --- CONEXIÓN DE PADRES ---
+                if (node.pid) {
+                    const jefeOriginal = sourceMap.get(node.pid);
                     
-                    if (mapRedireccionPadres[claveRedireccion]) {
-                        renderNode.pid = mapRedireccionPadres[claveRedireccion];
+                    // ¿Mi jefe es de mi misma línea?
+                    const lineaJefe = jefeOriginal ? jefeOriginal.lineaNegocio.trim().toUpperCase() : "N/A";
+
+                    if (lineaJefe === miLinea) {
+                        // CASO: Jefe Interno (Ej: Maria Eugenia reporta a Juan Jose, ambos Marketing)
+                        // Si mi jefe es la cabeza, uso su clon HEAD.
+                        // Si mi jefe es normal, uso su ID original (porque él se renderizó en este mismo bucle).
+                        
+                        if (node.pid === idCabeza) {
+                             // Conectar al HEAD clonado
+                             const keyHead = `${miLinea}_${node.pid}`;
+                             if (mapClonesContextuales.has(keyHead)) {
+                                 renderNode.pid = mapClonesContextuales.get(keyHead);
+                             }
+                        } else {
+                            // Conectar al ID original (Juan Jose original)
+                            renderNode.pid = node.pid;
+                        }
+
+                    } else {
+                        // CASO: Jefe Externo (Ej: Reporta a Logística Corp)
+                        // Clonamos al jefe externo
+                        const idJefeClon = obtenerClonAncestro(node.pid, miLinea);
+                        if (idJefeClon) {
+                            renderNode.pid = idJefeClon;
+                        }
                     }
-                    // Si no hay redirección (ej: reporta a un mando medio), mantiene su pid original
-                    // y el árbol se arma solo debajo del clon o del mando medio.
                 }
 
                 nodesToRender.set(renderNode.id, renderNode);
             }
         });
 
-        // =========================================================
         // F. CARGAR
-        // =========================================================
         const finalArray = Array.from(nodesToRender.values());
         console.log(`✅ Renderizando ${finalArray.length} nodos.`);
         
         chart.config.collapse = { level: 2, allChildren: true }; 
         chart.load(finalArray);
-        
-        // Usamos un pequeño timeout para el fit asegurando que el DOM pintó
-        setTimeout(() => { chart.fit(); }, 100);
-        
+        setTimeout(() => { chart.fit(); }, 250);
         loaderOverlay.classList.remove("visible");
       }
-      
+
       ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
       function aplicarFiltrosJerarquicos() {
         if (!chart) return;
