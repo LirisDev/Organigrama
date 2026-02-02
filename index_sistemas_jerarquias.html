@@ -892,102 +892,157 @@
         if (!chart) return;
         
         const selectedLineaRaw = $("#linea-negocio-select").val();
-        if (!selectedLineaRaw) return; // Protección si es nulo
+        if (!selectedLineaRaw) return; 
 
-        const selectedLinea = selectedLineaRaw.trim(); // Quitar espacios extra
-        console.log("🚀 Generando Estructura de Grupos. Filtro:", selectedLinea);
+        // Normalizar texto
+        const selectedLinea = selectedLineaRaw.trim().toUpperCase(); 
+        console.log("🚀 Renderizando (Solo Cabezas en Grupos). Filtro:", selectedLinea);
         
         const currentMode = document.getElementById("modo-select").value;
         const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
         
         if (!sourceNodes || sourceNodes.length === 0) { 
-            console.warn("⚠️ No hay nodos fuente para renderizar.");
-            chart.load([]); 
-            return; 
+            chart.load([]); return; 
         }
 
-        const sourceMap = new Map(sourceNodes.map(n => [n.id, n]));
         const nodesToRender = new Map();
 
-        // ---------------------------------------------------------
-        // A. GRUPO CORPORATIVO (Raíz)
-        // ---------------------------------------------------------
+        // =========================================================
+        // A. DEFINIR QUÉ GRUPOS (CAJAS) VAMOS A MOSTRAR
+        // =========================================================
+        const lineasVisibles = new Set(["CORPORATIVO"]);
+
+        if (selectedLinea === "TODOS" || selectedLinea === "TODA LÍNEA DE NEGOCIOS") {
+            Object.keys(CABEZAS_NEGOCIO_TEMP).forEach(k => lineasVisibles.add(k));
+        } else if (selectedLinea !== "CORPORATIVO") {
+            lineasVisibles.add(selectedLinea);
+        }
+
+        // =========================================================
+        // B. CREAR LOS GRUPOS
+        // =========================================================
         const groupCorpId = "GRP_CORPORATIVO";
+                
+        // 1. Grupo Corporativo
         nodesToRender.set(groupCorpId, {
-            id: groupCorpId, pid: null, nombre: "CORPORATIVO", title: "Holding", tags: ["group"], templateName: "group"
+            id: groupCorpId, 
+            pid: null, 
+            nombre: "CORPORATIVO", 
+            title: "Holding", 
+            tags: ["group"], 
+            templateName: "group"
         });
 
-        // ---------------------------------------------------------
-        // B. LLENAR CORPORATIVO (Antonio + Staff)
-        // ---------------------------------------------------------
-        const corpNodes = sourceNodes.filter(n => n.lineaNegocio && n.lineaNegocio.trim().toUpperCase() === "CORPORATIVO");
-        let antonioNode = corpNodes.find(n => String(n.codPosicion) === "00001" || n.CodEmpleado == 1) || corpNodes[0];
+        // 2. Otros Grupos
+        lineasVisibles.forEach(linea => {
+            if (linea === "CORPORATIVO") return;
+            const groupId = `GRP_${linea.replace(/\s/g, '')}`;
+            const tagLinea = `LINEA_${linea.replace(/\s/g, '_').toUpperCase()}`;
 
-        if (antonioNode) {
-            const corpIds = new Set(corpNodes.map(n => n.id));
-            corpNodes.forEach(node => {
+            nodesToRender.set(groupId, {
+                id: groupId,
+                pid: groupCorpId, // Cuelga de la caja Corporativo
+                nombre: linea,
+                title: "Línea de Negocio",
+                tags: ["group", tagLinea],
+                templateName: "group"
+            });
+        });
+
+        // =========================================================
+        // C. PROCESAR PERSONAS (CLONACIÓN Y ASIGNACIÓN)
+        // =========================================================
+        
+        // 1. Identificar ID real de Antonio (Corporativo)
+        const antonioNode = sourceNodes.find(n => String(n.codPosicion) === "00001" || n.CodEmpleado == 1);
+        const idAntonio = antonioNode ? antonioNode.id : null;
+
+        // 2. Mapa de redirección de padres (para conectar empleados a los clones)
+        const mapRedireccionPadres = {}; 
+
+        // 3. PASO CLAVE: CREAR CLONES DE LAS CABEZAS DE LÍNEA
+        // Esto asegura que Santiago (Pecuarios) o el Gerente Retail (Marketing) aparezcan
+        // como la raíz visual dentro de su caja, sin afectar su posición en Corporativo.
+        
+        lineasVisibles.forEach(linea => {
+            if (linea === "CORPORATIVO") return;
+
+            const codPosJefe = CABEZAS_NEGOCIO_TEMP[linea];
+            if (codPosJefe) {
+                const nodoOriginal = sourceNodes.find(n => String(n.codPosicion) === codPosJefe);
+                
+                if (nodoOriginal) {
+                    const idClon = `HEAD_${linea.replace(/\s/g, '')}`; // ID único para el clon
+                    const nodoClon = Object.assign({}, nodoOriginal);
+                    
+                    nodoClon.id = idClon;
+                    // EL ÚNICO QUE TIENE STPID ES LA CABEZA
+                    nodoClon.stpid = `GRP_${linea.replace(/\s/g, '')}`; 
+                    nodoClon.pid = null; // Para que se vea arriba dentro de su grupo
+                    
+                    // Guardamos la referencia: Quien reportaba al original, ahora reporta al clon (en esta línea)
+                    mapRedireccionPadres[`${linea}_${nodoOriginal.id}`] = idClon;
+
+                    nodesToRender.set(idClon, nodoClon);
+                }
+            }
+        });
+
+        // 4. PASO FINAL: PROCESAR EL RESTO DEL PERSONAL
+        sourceNodes.forEach(node => {
+            let miLinea = node.lineaNegocio ? node.lineaNegocio.trim().toUpperCase() : "N/A";
+
+            if (lineasVisibles.has(miLinea)) {
+                
+                // Evitamos duplicar al jefe dentro de su propia línea si ya creamos el clon
+                const codJefeLinea = CABEZAS_NEGOCIO_TEMP[miLinea];
+                if (miLinea !== "CORPORATIVO" && String(node.codPosicion) === codJefeLinea) {
+                    return; // Ya lo procesamos como clon arriba
+                }
+
                 const renderNode = Object.assign({}, node);
                 
-                // ANTONIO: Va DENTRO de la caja (stpid)
-                if (node.id === antonioNode.id) {
-                    renderNode.pid = null; renderNode.stpid = groupCorpId; 
+                // --- REGLA DE ORO: NADIE MÁS TIENE STPID ---
+                renderNode.stpid = null; 
+
+                // --- MANEJO ESPECIAL CORPORATIVO ---
+                if (miLinea === "CORPORATIVO") {
+                    // Solo Antonio entra a la caja Corporativa
+                    if (idAntonio && node.id === idAntonio) {
+                        renderNode.stpid = groupCorpId;
+                        renderNode.pid = null;
+                    } 
+                    // El resto de corporativo se queda con stpid = null y su pid original
+                    // (Se dibujarán colgando de Antonio o de sus jefes)
                 } 
-                // RESTO: Cuelgan normal
+                // --- MANEJO OTRAS LÍNEAS ---
                 else {
-                    renderNode.stpid = null; 
-                    renderNode.pid = (node.pid && corpIds.has(node.pid)) ? node.pid : antonioNode.id;
+                    // Redirección de padre: Si reportaba al jefe original, ahora reporta al Clon
+                    const claveRedireccion = `${miLinea}_${node.pid}`;
+                    if (mapRedireccionPadres[claveRedireccion]) {
+                        renderNode.pid = mapRedireccionPadres[claveRedireccion];
+                    }
                 }
+
                 nodesToRender.set(renderNode.id, renderNode);
-            });
-        }
-
-        // ---------------------------------------------------------
-        // C. PROCESAR LÍNEAS DE NEGOCIO (Usando la Tabla Temporal)
-        // ---------------------------------------------------------
-        let lineasACrear = [];
-        // Obtenemos las claves de nuestra tabla temporal (BALANCEADO, RETAIL, etc.)
-        const todasLasLineas = Object.keys(CABEZAS_NEGOCIO_TEMP); 
-
-        if (selectedLinea === "todos") {
-            lineasACrear = todasLasLineas;
-        } else if (selectedLinea !== "CORPORATIVO") {
-            if (todasLasLineas.includes(selectedLinea)) {
-                lineasACrear = [selectedLinea];
-            }
-        }
-
-        lineasACrear.forEach(lineName => {
-            // 1. Crear la Caja del Grupo
-            const groupId = `GRP_${lineName.replace(/\s/g, '')}`; 
-            nodesToRender.set(groupId, {
-                id: groupId, pid: groupCorpId, nombre: lineName, title: "Línea de Negocio", tags: ["group"], templateName: "group"
-            });
-
-            // 2. Buscar al Jefe usando la TABLA TEMPORAL
-            const codigoJefe = CABEZAS_NEGOCIO_TEMP[lineName];
-            
-            if (codigoJefe) {
-                // Buscamos al empleado real en la data
-                const jefeNode = sourceNodes.find(n => String(n.codPosicion) === codigoJefe);
-                
-                if (jefeNode) {
-                    // 3. Meter al Jefe en la Caja
-                    const renderJefe = Object.assign({}, jefeNode);
-                    renderJefe.stpid = groupId; // <--- DENTRO DE SU CAJA
-                    nodesToRender.set(renderJefe.id, renderJefe);
-
-                    // 4. Traer a todo su equipo (Recursivo)
-                    addDescendantsToView(renderJefe, sourceMap, nodesToRender);
-                }
             }
         });
 
-        // ---------------------------------------------------------
+        // =========================================================
         // D. CARGAR
-        // ---------------------------------------------------------
+        // =========================================================
         const finalArray = Array.from(nodesToRender.values());
+        
+        console.log(`✅ Renderizando ${finalArray.length} nodos.`);
+        
+        // Ajuste importante: Nivel 2 colapsa hijos, pero muestra las cabezas principales
         chart.config.collapse = { level: 2, allChildren: true }; 
         chart.load(finalArray);
+
+        // 2. ¡EL TRUCO DE CENTRADO! 
+        // fit() ajusta el zoom para que se vea todo el mapa centrado en pantalla.
+        chart.fit();
+
         loaderOverlay.classList.remove("visible");
       }
 
@@ -1563,6 +1618,8 @@
           OrgChart.templates.group.min.img_0 = ``;
           OrgChart.templates.group.min.description = 
               `<text data-width="230" data-text-overflow="multiline" style="font-size: 14px;" fill="#aeaeae" x="125" y="100" text-anchor="middle">{val}</text>`;
+          // OrgChart.templates.group.field_0 = 
+          //     '<text style="font-size: 20px; font-weight: bold;" fill="#039BE5" text-anchor="middle">{val}</text>';
 
               
           //Lineas punteadas
@@ -1570,13 +1627,14 @@
           OrgChart.templates.ghost.link = 
               '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
 
+          //LINEAS PUNTEADAS
           // 2. Template de Grupo
-          OrgChart.templates.group.link = 
-              '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
+          // OrgChart.templates.group.link = 
+          //     '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
             
-          // 3. Template de Grupo Min
-          OrgChart.templates.group.min.link = 
-              '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
+          // // 3. Template de Grupo Min
+          // OrgChart.templates.group.min.link = 
+          //     '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
 
 
               OrgChart.VERTICAL_CHILDREN_ASSISTANT = true;
@@ -1778,43 +1836,45 @@
                 icon: collapse_all,
                 title: "Colapsar todo",
                 onClick: function () {
-                  // 1. Obtener la lista de nodos que se están viendo ACTUALMENTE
-                  // chart.nodes contiene solo lo que está renderizado
+                  // 1. Obtener nodos renderizados
                   const renderedNodes = chart.nodes;
                   const renderedIds = Object.keys(renderedNodes);
 
                   if (renderedIds.length === 0) return;
 
-                  // 2. Buscar al "Jefe Visual" (Root Dinámico)
-                  let dynamicRootId = null;
-                  
+                  // 2. Buscar TODAS las "Cabezas Visuales" (Roots)
+                  // En la nueva lógica, tanto el Presidente como los Gerentes de Línea tienen pid: null
+                  let dynamicRoots = [];
+
                   for (var i = 0; i < renderedIds.length; i++) {
                       var id = renderedIds[i];
                       var node = chart.getNode(id);
-                      
-                      // Definición de Root Dinámico:
+
+                      // Condición:
                       // A. El nodo existe
-                      // B. Y (No tiene pid O su pid NO está en la lista de renderizados)
-                      if (node && (!node.pid || !renderedNodes[node.pid])) {
-                          dynamicRootId = node.id;
-                          break; // Encontramos al jefe supremo de esta vista
+                      // B. No tiene padre visual (pid es null) -> Esto identifica a las cabezas de cada caja
+                      // C. NO es un nodo de tipo "group" (para no cerrar la caja gris, solo a la persona)
+                      if (node && !node.pid && node.tags.indexOf("group") === -1) {
+                          dynamicRoots.push(node.id);
                       }
                   }
 
-                  // Fallback de seguridad: si no encuentra raíz, usa el primer ID disponible
-                  if (!dynamicRootId) dynamicRootId = renderedIds[0];
+                  // 3. Iterar sobre cada cabeza encontrada y colapsar su descendencia
+                  dynamicRoots.forEach(rootId => {
+                      var node = chart.getNode(rootId);
+                      var collapseIds = [];
+                      
+                      // Usamos tu función 'iterate' existente para buscar hijos recursivamente
+                      iterate(chart, node, collapseIds, rootId);
 
-                  console.log("Colapsando desde la raíz dinámica:", dynamicRootId);
+                      // Si tiene hijos que colapsar, ejecutamos la orden
+                      if (collapseIds.length > 0) {
+                          chart.expandCollapse(rootId, [], collapseIds);
+                      }
+                  });
 
-                  // 3. Acción Simple: Cerrar al Jefe
-                  // Al cerrar al jefe principal, todo lo demás se oculta automáticamente.
-                  // Esto es fluido y no requiere iterar arrays gigantes.
-                  var node = chart.getNode(dynamicRootId);
-                  var collapseIds = [];
-                  iterate(chart, node, collapseIds, dynamicRootId);
-                  chart.expandCollapse(dynamicRootId, [], collapseIds); // Colapsa todos los nodos excepto el nodo raíz, en el campo de en medio poner los nodos que tambien van a aparecer
-                  chart.setScale(1);
-                  chart.center(dynamicRootId, null, true);
+                  // 4. Ajustar la vista al final
+                  chart.fit(); 
                 },
               },
               horizontalLayout: {
@@ -1917,7 +1977,13 @@
                   if (args.node.min) {
                       sender.maximize(args.node.id);
                       chart.center(args.node.id, null, true)
-                      //chart.config.collapse = { level: 2, allChildren: true };
+                      chart.config.collapse = { level: 2, allChildren: true };
+                      const nodeData = sender.get(args.node.id);
+
+                      console.log("--- 🖱️ GRUPO CLICKEADO ---");
+                      console.log(nodeData);
+                      console.log("--------------------------");
+
                       chart.fit()
                   }
                   else {

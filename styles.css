@@ -1249,3 +1249,63 @@ div[data-ctrl-search] {
     width: 96% !important; /* Aprovechamos un poco más del ancho */
   }
 }
+
+
+/* ==========================================================================
+  Colores para las líneas de negocio
+   ========================================================================== */
+
+/* Estilo Base para grupos */
+.node.group rect {
+    stroke-width: 3px;
+    fill-opacity: 0.1; /* Fondo transparente */
+}
+
+/* CORPORATIVO (Gris/Azul oscuro) */
+[data-n-id="GRP_CORPORATIVO"] rect {
+    stroke: #2c3e50 !important;
+    fill: #2c3e50 !important;
+}
+
+/* BALANCEADO (Naranja) */
+[data-n-id="GRP_BALANCEADO"] rect {
+    stroke: #88470e !important;
+    fill: #88470e !important;
+}
+
+/* CARNICERIA (Azul) */
+[data-n-id="GRP_CARNICERIA"] rect {
+    stroke: #e67e22 !important;
+    fill: #e67e22 !important;
+}
+
+/* CÁRNICOS (Rojo) */
+[data-n-id="GRP_CARNICOS"] rect {
+    stroke: #c0392b !important;
+    fill: #c0392b !important;
+}
+
+/* DERIVADOS (Amarillo) */
+[data-n-id="GRP_DERIVADOS"] rect {
+    stroke: #e9dc21 !important;
+    fill: #e9dc21 !important;
+}
+
+/* MARKETING (Morado) */
+[data-n-id="GRP_MARKETING"] rect {
+    stroke: #8e44ad !important;
+    fill: #8e44ad !important;
+}
+
+/* PECUARIOS (Verde Claro) */
+[data-n-id="GRP_PECUARIOS"] rect {
+    stroke: #2dee3d !important;
+    fill: #2dee3d !important;
+}
+
+/* RETAIL (Verde) */
+[data-n-id="GRP_RETAIL"] rect {
+    stroke: #27ae60 !important;
+    fill: #27ae60 !important;
+}
+
