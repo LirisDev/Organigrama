@@ -646,6 +646,7 @@
       let collapse_all = `<svg fill="#7A7A7A" width="800px" height="800px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg">
               <path d="M11.493 8.757l-3.454-3.453-2.665 2.665 3.454 3.453-2.59 2.59 7.797 0.004-0.017-7.784-2.525 2.525zM23.172 11.422l3.454-3.453-2.665-2.665-3.454 3.453-2.525-2.525-0.017 7.784 7.797-0.004-2.59-2.59zM8.828 20.578l-3.454 3.453 2.665 2.665 3.454-3.453 2.526 2.525 0.017-7.784-7.797 0.004 2.589 2.59zM25.762 17.988l-7.797-0.004 0.017 7.784 2.525-2.525 3.454 3.453 2.665-2.665-3.454-3.453 2.59-2.59z"></path>
             </svg>`;
+      
       /**
        * Intenta buscar al empleado. Solo se ejecutará
        * si 'receivedUserId' Y 'allNodes' están listos.
@@ -723,12 +724,16 @@
         let valorInicial = "todos"; 
 
         // Si encontramos al usuario y tiene línea, USAMOS SU LÍNEA
+        console.log(empleadoLogueado)
         if (empleadoLogueado && empleadoLogueado.lineaNegocio && empleadoLogueado.lineaNegocio !== "N/A") {
              // Verificamos que esa opción exista en el select
              if ($("#linea-negocio-select option[value='" + empleadoLogueado.lineaNegocio + "']").length > 0) {
                  valorInicial = empleadoLogueado.lineaNegocio;
              }
         }
+        valorInicial = "todos";         // TODO: quitar si quieren que se filtre incialmente por la linea de negocio de quien entra
+        usuarioPuedeVerTodo = true; // TODO: quitar si quieren que se filtre incialmente por la linea de negocio de quien entra
+
         
         console.log("⚡ Auto-Iniciando vista en:", valorInicial);
 
@@ -855,7 +860,6 @@
 
       ///////// * Puebla el <select> con los filtros únicos de los nodos.
       // PUEBLA EL SELECT Y AGREGA LA OPCIÓN "TODOS"
-      // PUEBLA EL SELECT (Condición: "TODOS" solo si hay > 1 opción)
       function populateSelect(selectId, dataField, nodes) {
         const selectElement = document.getElementById(selectId);
         if (!selectElement) return [];
@@ -887,7 +891,6 @@
         return sortedValues;
       }
 
-
       function renderOrganigramaGrupos() {
         if (!chart) return;
         
@@ -907,34 +910,6 @@
         const nodesToRender = new Map();
         const sourceMap = new Map(sourceNodes.map(n => [n.id, n]));
 
-        // // =========================================================
-        // // 0. CALCULAR CONTEOS POR LÍNEA (¡NUEVO!)
-        // // =========================================================
-        // const countsByLinea = {};
-        
-        // // Inicializamos contadores en 0
-        // Object.keys(CABEZAS_NEGOCIO_TEMP).forEach(k => countsByLinea[k.toUpperCase()] = 0);
-        // countsByLinea["CORPORATIVO"] = 0;
-
-        // // Contamos a todos los empleados activos (no vacantes si prefieres)
-        // sourceNodes.forEach(node => {
-        //     if (node.tags && node.tags.includes("vacante")) return; // Opcional: No contar vacantes //TODO: preguntar si se deben contar las vacantes
-
-        //     let linea = node.lineaNegocio ? node.lineaNegocio.trim().toUpperCase() : "N/A";
-            
-        //     // Normalizar claves raras si es necesario
-        //     // Si la línea existe en nuestro objeto de contadores, sumamos
-        //     if (countsByLinea.hasOwnProperty(linea)) {
-        //         countsByLinea[linea]++;
-        //     } else {
-        //         // Intento de búsqueda flexible si viene con espacios o diferente
-        //         const key = Object.keys(countsByLinea).find(k => k === linea);
-        //         if (key) countsByLinea[key]++;
-        //     }
-        // });
-        
-        // console.log("Conteos calculados:", countsByLinea);
-
         // 1. DEFINIR LÍNEAS VISIBLES
         const lineasAMostrar = new Set();
         const configKeys = Object.keys(CABEZAS_NEGOCIO_TEMP); 
@@ -945,38 +920,6 @@
             const keyReal = configKeys.find(k => k.toUpperCase() === selectedLinea);
             if (keyReal) lineasAMostrar.add(keyReal.toUpperCase());
         }
-
-        // =========================================================
-        // 2. LÓGICA DE CONTEO ACUMULADO (RECURSIVO)
-        // =========================================================
-        // Para que el globo muestre el total real (98), necesitamos saber
-        // cuánta gente cuelga de cada "Cabeza de Línea".
-        
-        // const countsByLinea = {};
-        // // Inicializar contadores en 0
-        // configKeys.forEach(k => countsByLinea[k.toUpperCase()] = 0);
-        // // Asegurar que CORPORATIVO existe
-        // countsByLinea["CORPORATIVO"] = 0;
-
-        // sourceNodes.forEach(node => {
-        //     // Opcional: Ignorar vacantes en el conteo del globo
-        //     // Si quieres contar vacantes, comenta la siguiente línea:
-        //     //if (node.tags && node.tags.includes("vacante")) return; 
-
-        //     // Normalizamos la línea de negocio del nodo
-        //     let lineaNode = node.lineaNegocio ? node.lineaNegocio.trim().toUpperCase() : "N/A";
-            
-        //     // Si la línea está en nuestro mapa, sumamos 1
-        //     if (countsByLinea.hasOwnProperty(lineaNode)) {
-        //         countsByLinea[lineaNode]++;
-        //     } else {
-        //         // Búsqueda flexible por si hay diferencias mínimas
-        //         const key = Object.keys(countsByLinea).find(k => k === lineaNode);
-        //         if (key) countsByLinea[key]++;
-        //     }
-        // });
-
-        // console.log("📊 Conteos Reales por Grupo:", countsByLinea);
 
         // 2. CREAR GRUPOS
         const groupCorpId = "GRP_CORPORATIVO";
@@ -1121,9 +1064,7 @@
 
         // =========================================================
         // 6. CONTEO VISUAL FINAL (LA SOLUCIÓN)
-        // =========================================================
-        // Recorremos los nodos que YA decidimos renderizar y contamos dónde están.
-        
+        // =========================================================        
         const visualCounts = {};
         // Inicializar
         configKeys.forEach(k => visualCounts[k.toUpperCase()] = 0);
@@ -1174,7 +1115,7 @@
         // 7. ACTUALIZAR LOS NODOS DE GRUPO CON EL CONTEO
         // Corporativo
         const nodoCorp = nodesToRender.get(groupCorpId);
-        if (nodoCorp) nodoCorp.counter = String(visualCounts["CORPORATIVO"]);
+        if (nodoCorp) nodoCorp.conteo = String(visualCounts["CORPORATIVO"]);
 
         // Líneas
         lineasAMostrar.forEach(linea => {
@@ -1184,7 +1125,7 @@
                 // Buscamos la clave original para sacar el conteo del mapa visualCounts
                 const key = Object.keys(visualCounts).find(k => k.replace(/\s/g, '') === linea.replace(/\s/g, ''));
                 if (key) {
-                    nodoGrupo.counter = String(visualCounts[key]);
+                    nodoGrupo.conteo = String(visualCounts[key]);
                 }
             }
         });
@@ -1193,7 +1134,7 @@
         const finalArray = Array.from(nodesToRender.values());
         console.log(`✅ Renderizando ${finalArray.length} nodos.`);
         
-        chart.config.collapse = { level: 2, allChildren: true }; 
+        //chart.config.collapse = { level: 2, allChildren: true }; 
         chart.load(finalArray);
         setTimeout(() => { chart.fit(); }, 250);
         loaderOverlay.classList.remove("visible");
@@ -1397,7 +1338,7 @@
 
         // 8. Cargar
         const finalArray = Array.from(nodesToRender.values());
-        chart.config.collapse = { level: 3, allChildren: true };
+        //chart.config.collapse = { level: 3, allChildren: true };
         
         if (finalArray.length > 0) {
             chart.load(finalArray);
@@ -1515,20 +1456,8 @@
                 //emp.codigoPosicion != null &&
                 emp.codigoPosicion != "00006" &&
                 //emp.codigoPosicion != "00001" &&
-                //emp.codigoPosicion != "00942" && //TODO: quitar
-                //emp.codigoPosicion != "00505" && //TODO: quitar
-                //emp.codigoPosicionReporta != "00424" &&
                 emp.puesto != null
               //!(emp.codigoPosicionReporta === "00003" && emp.vacante === "1")
-              /*&&
-                        String(emp.codigoPosicion).trim() !== "00006" &&
-                        // Filtramos solo el departamento de Sistemas y Directorio
-                        (emp.nombreDepartamento === "SISTEMAS" || emp.nombreDepartamento === "DIRECTORIO" 
-                            || emp.nombreDepartamento === "IMPORTACIONES" || emp.nombreDepartamento === "LEGAL" 
-                            || emp.nombreDepartamento === "PROCESOS Y PROYECTOS" 
-                            //|| emp.nombreDepartamento === null
-                            || (emp.nombreDepartamento === "FINANZAS" && emp.nombreCentroCosto === "DERIVADOS"))
-                        */
             )
             .map((emp) => {
               const isVacant = emp.vacante === "1";
@@ -1840,14 +1769,10 @@
           //     '<text style="font-size: 20px; font-weight: bold;" fill="#039BE5" text-anchor="middle">{val}</text>';
 
           // =========================================================
-          // TEMPLATE GRUPO: AÑADIR CONTADOR INFERIOR
+          // GLOBO CONTADOR (ESQUINA SUPERIOR DERECHA DINÁMICA)
           // =========================================================
-          // Definimos un nuevo campo 'counter' para el grupo
-          OrgChart.templates.group.miGlobo = 
-            `<g transform="translate(240, 10)">
-                <circle r="15" fill="#ffca28" stroke="#ffffff" stroke-width="2"></circle>
-                <text text-anchor="middle" y="5" fill="#000000" font-size="10px" font-weight="bold">{val}</text>
-            </g>`;
+          OrgChart.templates.group.miGlobo = '{val}';          
+
           OrgChart.templates.group.counter = 
               '<g transform="translate({cx}, {h})">' + 
                   // La píldora naranja (centrada en 0,0 relativo a la posición translate)
@@ -1885,7 +1810,8 @@
             field_0: "nombre",
             field_1: "puesto",
             img_0: "img",
-            miGlobo: "counter" // <--- //TODO: Descomentar para mostrar el contador
+            conteo: "conteo", // <--- //TODO: Descomentar para mostrar el contador
+            miGlobo: "conteo" 
             //column: "order" // jerarquía
           };
 
@@ -1950,7 +1876,7 @@
             "group": {
                 template: "group", // Usamos el template nativo de grupo
                 nodeBinding: {
-                    miGlobo: "totalCount" 
+                    conteo: "conteo" 
                 }
               },
             
@@ -2052,15 +1978,16 @@
                 func: OrgChart.anim.inCirc, // Prueba con outSin o outBack para una sensación más suave
                 duration: 400 // Aumenta la duración a 400ms (o más, como 500ms)
             }, */
-            /* 
+             
             collapse:{
-                level: 2,
+                level: 1,
                 allChildren: true
             },
+            //*
             expand: {
-                nodes: [4281], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos 
+                nodes: ["GRP_CORPORATIVO"], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos 
                 allChildren: true // Expande todos los hijos del nodo 4281
-            }, */
+            }, //*/
             controls: {
               svg_export: { title: "Exportar a SVG" },
               //png_preview: { title: 'Preview PNG' },
@@ -2215,13 +2142,32 @@
           /////////////////////////
           chart = new OrgChart(treeDiv, chartConfig);
 
+          // 2. Usamos el evento para construir el SVG dinámicamente
+          chart.on('field', function(sender, args) {
+              if (args.name == "conteo") {
+                  if (args.value) {
+                      var x = args.node.w; // Ancho dinámico del nodo
+                      var y = 0;           // Esquina superior
+                      // Reemplazamos el valor por el bloque SVG completo
+                      args.value = `
+                          <g transform="translate(${x}, ${y})">
+                            <g transform="translate(-15, 15)">
+                              <circle r="25" fill="#e67e22" stroke="#ffffff" stroke-width="2"></circle>
+                              <text text-anchor="middle" y="5" fill="#ffffff" font-size="14px" font-weight="bold">${args.value}</text>
+                            </g>
+                          </g>`;
+                  } else {
+                      args.value = ""; // Si no hay info, no mostramos nada
+                  }
+              }
+          });
           // Expande y minimiza los nodos de grupo
           chart.on('click', function (sender, args) {
               if (args.node.tags.indexOf("group") != -1) {
                   if (args.node.min) {
                       sender.maximize(args.node.id);
                       chart.center(args.node.id, null, true)
-                      chart.config.collapse = { level: 2, allChildren: true };
+                      //chart.config.collapse = { level: 2, allChildren: true };
                       const nodeData = sender.get(args.node.id);
 
                       console.log("--- 🖱️ GRUPO CLICKEADO ---");
