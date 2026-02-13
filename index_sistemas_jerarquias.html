@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
@@ -52,9 +52,7 @@
           </div>
           <div class="details-info-line">
             <span class="details-info-label">Área:</span>
-            <span class="details-info-value" data-field="area"
-              >[area]</span
-            >
+            <span class="details-info-value" data-field="area">[area]</span>
           </div>
           <div class="details-info-line">
             <span class="details-info-label">Departamento:</span>
@@ -85,23 +83,36 @@
     <div class="org-container">
       <header id="custom-filters">
         <div>
-          <select id="linea-negocio-select" class="control-select">
-            </select>
+          <select id="linea-negocio-select" class="control-select"></select>
 
-          <select id="centro-costos-select" class="control-select">
-          </select>
+          <select id="centro-costos-select" class="control-select"></select>
 
-          <select id="proposito-select" class="control-select">
-          </select>
+          <select id="proposito-select" class="control-select"></select>
 
           <select id="modo-select" class="control-select">
             <option value="Persona">VISTA POR PERSONA</option>
             <option value="Cargo">VISTA POR CARGO</option>
           </select>
 
-          <button id="btn-download-app-manual" class="control-btn" title="Descargar Manual de Usuario">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <button
+            id="btn-download-app-manual"
+            class="control-btn"
+            title="Descargar Manual de Usuario"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+              ></path>
               <polyline points="14 2 14 8 20 8"></polyline>
               <line x1="12" y1="18" x2="12" y2="12"></line>
               <line x1="9" y1="15" x2="12" y2="18"></line>
@@ -145,19 +156,20 @@
       let rangeScaleElement = document.getElementById("range_scale");
       let txtScaleElement = document.getElementById("txt_scale");
 
+      // CONFIGURACIÓN MAESTRA
       const CABEZAS_NEGOCIO_TEMP = {
-          "BALANCEADO":   "00005", // <--- Ej: "00451"
-          "CARNICERIA":   "00097", // "00097" o "00003",
-          "CARNICOS":     "00003",
-          "CORPORATIVO":  "00001", 
-          "DERIVADOS":    "01002", 
-          "MARKETING":    "00671", 
-          "PECUARIOS":    "00003", 
-          "RETAIL":       "00671"  
+        CORPORATIVO: { id: "00001", order: 1, reportFuncional: null }, // El presi no reporta a nadie funcionalmente
+        BALANCEADO: { id: "00023", order: 2, reportFuncional: "12" }, // reporta al Gerente General  (Santiago Saab - ID "12")
+        CARNICERIA: { id: "00097", order: 3, reportFuncional: "12" }, // "00097" o "00003",
+        CARNICOS: { id: "00003", order: 4, reportFuncional: "12" },
+        PECUARIOS: { id: "01047", order: 5, reportFuncional: "12" },
+        DERIVADOS: { id: "01102", order: 6, reportFuncional: "15" }, // reporta al Presidente (Antonio "15")
+        MARKETING: { id: "01049", order: 7, reportFuncional: "15" }, // "00671",
+        RETAIL: { id: "00671", order: 8, reportFuncional: "15" },
       };
 
       const apiCargoUrl =
-        "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_cargo";    //TODO: APUNTA A QA
+        "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_cargo"; //TODO: APUNTA A QA
 
       // --- CÓDIGO PARA BLOQUEAR ZOOM DEL NAVEGADOR (ESCRITORIO) ---
       // 1. Bloquea el zoom con la rueda del ratón (Ctrl + Rueda)
@@ -169,7 +181,7 @@
             event.preventDefault(); // Cancela el evento (el zoom)
           }
         },
-        { passive: false }
+        { passive: false },
       ); // 'passive: false' es necesario para permitir el preventDefault
 
       // 2. Bloquea el zoom con el teclado (Ctrl + '+' y Ctrl + '-')
@@ -236,7 +248,7 @@
         // Botones
         this.btnFunciones = this.form.querySelector("#btn-manual-funciones");
         this.btnProcedimientos = this.form.querySelector(
-          "#btn-manual-procedimientos"
+          "#btn-manual-procedimientos",
         );
         this.btnUsuario = this.form.querySelector("#btn-manual-usuario");
         this.btnCerrar = this.form.querySelector("#btn-cerrar-detalles");
@@ -267,7 +279,7 @@
 
           // 3. Encontrar la data completa de ese empleado
           const empData = this.data.listaEmpleados.find(
-            (e) => e.codigoEmpleado === empId
+            (e) => e.codigoEmpleado === empId,
           );
           if (!empData) return;
 
@@ -297,7 +309,7 @@
             window.open(url, "_blank");
           } else {
             alert(
-              "No hay un Manual de Funciones configurado para este usuario."
+              "No hay un Manual de Funciones configurado para este usuario.",
             );
           }
         });
@@ -308,7 +320,7 @@
             window.open(url, "_blank");
           } else {
             alert(
-              "No hay un Manual de Procedimientos configurado para este usuario."
+              "No hay un Manual de Procedimientos configurado para este usuario.",
             );
           }
         });
@@ -349,8 +361,8 @@
         let infoHtml = ""; // Empezamos con un string vacío
 
         // Añadir Email (solo si existe y no es 'N/A')
-        if (personData.email && personData.email !== 'N/A') {
-            infoHtml += `
+        if (personData.email && personData.email !== "N/A") {
+          infoHtml += `
             <div class="details-info-line">
                 <span class="details-info-label">Email:</span>
                 <span class="details-info-value" data-field="email">${
@@ -448,8 +460,12 @@
 
         // Si el nodo tiene el tag "group" o "fantasma", NO mostramos el modal.
         // Solo retornamos y dejamos que el evento 'click' del chart maneje la expansión.
-        if (this.data.tags && (this.data.tags.includes("group") || this.data.tags.includes("fantasma"))) {
-            return;
+        if (
+          this.data.tags &&
+          (this.data.tags.includes("group") ||
+            this.data.tags.includes("fantasma"))
+        ) {
+          return;
         }
 
         // Resetea la imagen ANTES de cualquier lógica.
@@ -622,30 +638,31 @@
       // 2. FUNCIÓN RECURSIVA (Para llenar los árboles dentro de los grupos)
       // =========================================================
       function addDescendantsToView(rootNode, allNodesMap, renderMap) {
-          const children = [];
-          // Buscar hijos en el mapa global
-          allNodesMap.forEach(node => {
-              if (node.pid === rootNode.id) {
-                  children.push(node);
-              }
-          });
+        const children = [];
+        // Buscar hijos en el mapa global
+        allNodesMap.forEach((node) => {
+          if (node.pid === rootNode.id) {
+            children.push(node);
+          }
+        });
 
-          children.forEach(child => {
-              if (!renderMap.has(child.id)) {
-                  // El hijo NO lleva stpid, se dibuja normal colgando del padre
-                  const childClone = Object.assign({}, child);
-                  childClone.stpid = null; 
-                  renderMap.set(childClone.id, childClone);
-                  
-                  // Recursividad: buscar los hijos de este hijo (nietos, bisnietos...)
-                  addDescendantsToView(childClone, allNodesMap, renderMap);
-              }
-          });
+        children.forEach((child) => {
+          if (!renderMap.has(child.id)) {
+            // El hijo NO lleva stpid, se dibuja normal colgando del padre
+            const childClone = Object.assign({}, child);
+            childClone.stpid = null;
+            renderMap.set(childClone.id, childClone);
+
+            // Recursividad: buscar los hijos de este hijo (nietos, bisnietos...)
+            addDescendantsToView(childClone, allNodesMap, renderMap);
+          }
+        });
       }
       // El nuevo icono de "Contraer Todo" (flechas hacia adentro)
       let collapse_all = `<svg fill="#7A7A7A" width="800px" height="800px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg">
               <path d="M11.493 8.757l-3.454-3.453-2.665 2.665 3.454 3.453-2.59 2.59 7.797 0.004-0.017-7.784-2.525 2.525zM23.172 11.422l3.454-3.453-2.665-2.665-3.454 3.453-2.525-2.525-0.017 7.784 7.797-0.004-2.59-2.59zM8.828 20.578l-3.454 3.453 2.665 2.665 3.454-3.453 2.526 2.525 0.017-7.784-7.797 0.004 2.589 2.59zM25.762 17.988l-7.797-0.004 0.017 7.784 2.525-2.525 3.454 3.453 2.665-2.665-3.454-3.453 2.59-2.59z"></path>
             </svg>`;
+
       /**
        * Intenta buscar al empleado. Solo se ejecutará
        * si 'receivedUserId' Y 'allNodes' están listos.
@@ -667,7 +684,9 @@
         //    los datos de permiso (puesto y codPosicion_R)
         let personaDataCompleta = null;
         if (receivedUserId) {
-          personaDataCompleta = allNodes.find(n => n.userid && n.userid.toLowerCase() === receivedUserId);
+          personaDataCompleta = allNodes.find(
+            (n) => n.userid && n.userid.toLowerCase() === receivedUserId,
+          );
         }
 
         // 3. Definir Permisos (Tu lógica actual)
@@ -699,7 +718,10 @@
           usuarioPuedeVerTodo = false;
         }
 
-        console.log("🔐 Permiso Global:", usuarioPuedeVerTodo ? "VER TODO" : "RESTRINGIDO");
+        console.log(
+          "🔐 Permiso Global:",
+          usuarioPuedeVerTodo ? "VER TODO" : "RESTRINGIDO",
+        );
         // --- 🔐 FIN LÓGICA DE PERMISOS ---
 
         // Asegurarnos de usar la fuente de datos correcta según el modo
@@ -713,36 +735,56 @@
 
         // Ahora funciona para ambos modos porque 'userid' está en la raíz
         if (currentMode === "Persona") {
-            empleadoLogueado = sourceNodes.find(n => n.userid && n.userid.toLowerCase() === receivedUserId);
+          empleadoLogueado = sourceNodes.find(
+            (n) => n.userid && n.userid.toLowerCase() === receivedUserId,
+          );
         } else {
-            empleadoLogueado = sourceNodes.find(n => n.listaEmpleados && n.listaEmpleados.some(e => e.userid === receivedUserId));
+          empleadoLogueado = sourceNodes.find(
+            (n) =>
+              n.listaEmpleados &&
+              n.listaEmpleados.some((e) => e.userid === receivedUserId),
+          );
         }
 
         // 5. DETERMINAR VALOR INICIAL
         // Por defecto "todos" para no forzar nada si no encontramos al usuario
-        let valorInicial = "todos"; 
+        let valorInicial = "todos";
 
         // Si encontramos al usuario y tiene línea, USAMOS SU LÍNEA
-        if (empleadoLogueado && empleadoLogueado.lineaNegocio && empleadoLogueado.lineaNegocio !== "N/A") {
-             // Verificamos que esa opción exista en el select
-             if ($("#linea-negocio-select option[value='" + empleadoLogueado.lineaNegocio + "']").length > 0) {
-                 valorInicial = empleadoLogueado.lineaNegocio;
-             }
+        console.log(empleadoLogueado);
+        if (
+          empleadoLogueado &&
+          empleadoLogueado.lineaNegocio &&
+          empleadoLogueado.lineaNegocio !== "N/A"
+        ) {
+          // Verificamos que esa opción exista en el select
+          if (
+            $(
+              "#linea-negocio-select option[value='" +
+                empleadoLogueado.lineaNegocio +
+                "']",
+            ).length > 0
+          ) {
+            valorInicial = empleadoLogueado.lineaNegocio;
+          }
         }
-        
+        valorInicial = "todos"; // TODO: quitar si quieren que se filtre incialmente por la linea de negocio de quien entra
+        usuarioPuedeVerTodo = true; // TODO: quitar si quieren que se filtre incialmente por la linea de negocio de quien entra
+
         console.log("⚡ Auto-Iniciando vista en:", valorInicial);
 
         // 6. PREPARAR UI (Ocultar lo que no sirve)
         $("#centro-costos-select").next(".select2-container").hide();
         $("#proposito-select").next(".select2-container").hide();
         $("#modo-select").next(".select2-container").hide();
-        
-        actualizarEstadoFiltros(); 
 
-        // 7. ¡DISPARO FINAL! 
+        actualizarEstadoFiltros();
+
+        // 7. ¡DISPARO FINAL!
         // Selecciona el valor y fuerza la ejecución INMEDIATA del gráfico
         $("#linea-negocio-select").val(valorInicial).trigger("change");
       }
+
       // --- Función Sanitize (para evitar bucles infinitos) ---
       function sanitizeCircularReferences(nodes) {
         const nodeMap = new Map();
@@ -751,7 +793,7 @@
           else {
             console.warn(
               "Sanitizing: Omitiendo nodo inválido durante creación de mapa:",
-              node
+              node,
             );
           }
         });
@@ -771,7 +813,7 @@
             // 1. Detectar bucle en esta traza
             if (pathVisited.has(currentId)) {
               console.warn(
-                `¡Bucle detectado! Traza desde ${startNode.id} encontró un ciclo al volver a ${currentId}. Rompiendo enlace ${currentId} -> ${parentId}`
+                `¡Bucle detectado! Traza desde ${startNode.id} encontró un ciclo al volver a ${currentId}. Rompiendo enlace ${currentId} -> ${parentId}`,
               );
               currentNode.pid = undefined; // Romper
               loopsBroken++;
@@ -790,7 +832,7 @@
             if (!currentNode) {
               console.error(
                 "Sanitizing: Error inesperado al obtener el padre",
-                parentId
+                parentId,
               );
               break;
             }
@@ -804,7 +846,7 @@
       /* Aplica tags de subnivel (sub-level-X) usando la lógica: (order - orderPadre - 1) */
       function aplicarSubnivelesRelativos(nodos) {
         console.log(
-          "Iniciando post-procesamiento de subniveles RELATIVOS AL PADRE..."
+          "Iniciando post-procesamiento de subniveles RELATIVOS AL PADRE...",
         );
 
         // 1. Crear un mapa para buscar el 'order' de cualquier nodo por su ID
@@ -855,11 +897,10 @@
 
       ///////// * Puebla el <select> con los filtros únicos de los nodos.
       // PUEBLA EL SELECT Y AGREGA LA OPCIÓN "TODOS"
-      // PUEBLA EL SELECT (Condición: "TODOS" solo si hay > 1 opción)
       function populateSelect(selectId, dataField, nodes) {
         const selectElement = document.getElementById(selectId);
         if (!selectElement) return [];
-        selectElement.innerHTML = ""; 
+        selectElement.innerHTML = "";
 
         const valueSet = new Set();
         nodes.forEach((node) => {
@@ -883,207 +924,396 @@
           option.textContent = value;
           selectElement.appendChild(option);
         });
-        
+
         return sortedValues;
       }
 
-
       function renderOrganigramaGrupos() {
         if (!chart) return;
-        
-        const selectedLineaRaw = $("#linea-negocio-select").val();
-        if (!selectedLineaRaw) return; 
 
-        // 1. NORMALIZACIÓN ESTRICTA (Todo a Mayúsculas y sin espacios)
-        const selectedLinea = selectedLineaRaw.trim().toUpperCase(); 
-        console.log("🚀 Renderizando (Fix: Todos + Duplicados). Filtro:", selectedLinea);
-        
+        const selectedLineaRaw = $("#linea-negocio-select").val();
+        if (!selectedLineaRaw) return;
+
+        const selectedLinea = selectedLineaRaw.trim().toUpperCase();
+        console.log(
+          "🚀 Renderizando (Fix Duplicados Internos). Filtro:",
+          selectedLinea,
+        );
+
         const currentMode = document.getElementById("modo-select").value;
         const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
-        
-        if (!sourceNodes || sourceNodes.length === 0) { 
-            chart.load([]); return; 
+
+        if (!sourceNodes || sourceNodes.length === 0) {
+          chart.load([]);
+          return;
         }
 
         const nodesToRender = new Map();
+        const sourceMap = new Map(sourceNodes.map((n) => [n.id, n]));
 
-        // =========================================================
-        // A. DEFINIR QUÉ LÍNEAS VAMOS A MOSTRAR
-        // =========================================================
+        // 1. DEFINIR LÍNEAS VISIBLES
         const lineasAMostrar = new Set();
-        
-        // Siempre calculamos las líneas basándonos en la Configuración
-        const todasLasLineasConfig = Object.keys(CABEZAS_NEGOCIO_TEMP).map(k => k.toUpperCase());
+        const configKeys = Object.keys(CABEZAS_NEGOCIO_TEMP);
 
-        if (selectedLinea === "TODOS" || selectedLinea === "TODA LÍNEA DE NEGOCIOS") {
-            todasLasLineasConfig.forEach(k => lineasAMostrar.add(k));
-        } else {
-            // Si seleccionó una específica, la agregamos (si existe en la config o es Corp)
-            if (selectedLinea !== "CORPORATIVO") {
-                lineasAMostrar.add(selectedLinea);
-            }
+        if (
+          selectedLinea === "TODOS" ||
+          selectedLinea === "TODA LÍNEA DE NEGOCIOS"
+        ) {
+          configKeys.forEach((k) => lineasAMostrar.add(k.toUpperCase()));
+        } else if (selectedLinea !== "CORPORATIVO") {
+          const keyReal = configKeys.find(
+            (k) => k.toUpperCase() === selectedLinea,
+          );
+          if (keyReal) lineasAMostrar.add(keyReal.toUpperCase());
         }
-        
-        // CORPORATIVO SIEMPRE ESTÁ PRESENTE COMO BASE, PERO LO TRATAMOS APARTE
-        // No lo agregamos a 'lineasAMostrar' para evitar clonaciones, lo manejamos manual.
 
-        // =========================================================
-        // B. CREAR CAJAS (GRUPOS)
-        // =========================================================
+        // 2. CREAR GRUPOS (Con orden)
         const groupCorpId = "GRP_CORPORATIVO";
-        
-        // 1. Caja Corporativo
+        const orderCorp = CABEZAS_NEGOCIO_TEMP["CORPORATIVO"]
+          ? CABEZAS_NEGOCIO_TEMP["CORPORATIVO"].order
+          : 0;
         nodesToRender.set(groupCorpId, {
-            id: groupCorpId, pid: null, nombre: "CORPORATIVO", title: "Holding", tags: ["group"], templateName: "group"
+          id: groupCorpId,
+          pid: null,
+          nombre: "CORPORATIVO",
+          title: "Holding",
+          tags: ["group"],
+          templateName: "group",
+          order: orderCorp,
         });
 
-        // 2. Cajas de las Líneas Seleccionadas
-        lineasAMostrar.forEach(linea => {
-            if (linea === "CORPORATIVO") return; // Protección extra
-
-            const groupId = `GRP_${linea.replace(/\s/g, '')}`;
-            const tagLinea = `LINEA_${linea.replace(/\s/g, '_')}`; // Clase CSS
-
-            nodesToRender.set(groupId, {
-                id: groupId,
-                pid: groupCorpId, // Cuelga visualmente del Corporativo
-                nombre: linea,
-                title: "Línea de Negocio",
-                tags: ["group", tagLinea],
-                templateName: "group"
-            });
+        lineasAMostrar.forEach((linea) => {
+          if (linea === "CORPORATIVO") return;
+          const groupId = `GRP_${linea.replace(/\s/g, "")}`;
+          const tagLinea = `LINEA_${linea.replace(/\s/g, "_")}`;
+          const orderLinea = CABEZAS_NEGOCIO_TEMP[linea].order || { order: 99 };
+          nodesToRender.set(groupId, {
+            id: groupId,
+            pid: groupCorpId,
+            nombre: linea,
+            title: "Línea de Negocio",
+            tags: ["group", tagLinea],
+            templateName: "group",
+            order: orderLinea,
+          });
         });
 
-        // =========================================================
-        // C. PREPARACIÓN DE DATOS (MAPEOS)
-        // =========================================================
-        // Identificar ID de Antonio
-        const antonioNode = sourceNodes.find(n => String(n.codPosicion) === "00001" || n.CodEmpleado == 1);
+        // 3. MAPAS Y CLONES
+        const antonioNode = sourceNodes.find(
+          (n) => String(n.codPosicion) === "00001" || n.CodEmpleado == 1,
+        );
         const idAntonio = antonioNode ? antonioNode.id : null;
 
-        // Mapa para redireccionar reportes: { "NOMBRELINEA_IDJEFEORIGINAL" : "ID_NODO_CLON" }
-        const mapRedireccionPadres = {}; 
+        const mapClonesContextuales = new Map(); // { "LINEA_IDORIGINAL": "ID_CLON" }
 
-        // =========================================================
-        // D. FASE 1: CREAR CLONES DE LAS CABEZAS (SOLO PARA LÍNEAS VISIBLES)
-        // =========================================================
-        lineasAMostrar.forEach(linea => {
-            // ¡CRÍTICO! Si por error "CORPORATIVO" está en la tabla CONFIG, lo saltamos aquí
-            // para no crear un "Clon de Antonio" que duplique al original.
-            if (linea === "CORPORATIVO") return;
+        // --- PRE-REGISTRO DE CABEZAS (Para saber quién es quién) ---
+        const mapCabezasDeLinea = new Map(); // { "LINEA": "ID_NODO_ORIGINAL" }
 
-            // Buscamos el código de posición en la tabla (usando la clave normalizada si es necesario)
-            // Intentamos buscar la clave exacta en el objeto original
-            let codPosJefe = CABEZAS_NEGOCIO_TEMP[linea] || CABEZAS_NEGOCIO_TEMP[Object.keys(CABEZAS_NEGOCIO_TEMP).find(k => k.toUpperCase() === linea)];
+        // A. Cloneas HEAD
+        lineasAMostrar.forEach((linea) => {
+          const keyConfig = configKeys.find((k) => k.toUpperCase() === linea);
+          const codPosJefe = CABEZAS_NEGOCIO_TEMP[keyConfig]
+            ? CABEZAS_NEGOCIO_TEMP[keyConfig].id
+            : null;
+          if (codPosJefe) {
+            const nodoOriginal = sourceNodes.find(
+              (n) => String(n.codPosicion) === codPosJefe,
+            );
+            if (nodoOriginal) {
+              mapCabezasDeLinea.set(linea, nodoOriginal.id);
 
-            if (codPosJefe) {
-                const nodoOriginal = sourceNodes.find(n => String(n.codPosicion) === codPosJefe);
-                
-                if (nodoOriginal) {
-                    const idClon = `HEAD_${linea.replace(/\s/g, '')}`;
-                    const nodoClon = Object.assign({}, nodoOriginal);
-                    
-                    // CONFIGURAR CLON
-                    nodoClon.id = idClon;
-                    nodoClon.stpid = `GRP_${linea.replace(/\s/g, '')}`; // Entra a su caja
-                    nodoClon.pid = null; // Raíz visual de esa caja
-                    
-                    // REGISTRAR REDIRECCIÓN
-                    // "Si alguien de la línea 'linea' reporta a 'nodoOriginal.id', ahora reportará a 'idClon'"
-                    mapRedireccionPadres[`${linea}_${nodoOriginal.id}`] = idClon;
+              // Si no es Corporativo, creamos el CLON CABEZA ahora mismo
+              if (linea !== "CORPORATIVO") {
+                const idClonHead = `HEAD_${linea.replace(/\s/g, "")}_${nodoOriginal.id}`;
+                const nodoClon = Object.assign({}, nodoOriginal);
+                nodoClon.id = idClonHead;
+                nodoClon.stpid = `GRP_${linea.replace(/\s/g, "")}`;
+                nodoClon.pid = null;
 
-                    nodesToRender.set(idClon, nodoClon);
+                mapClonesContextuales.set(
+                  `${linea}_${nodoOriginal.id}`,
+                  idClonHead,
+                );
+                nodesToRender.set(idClonHead, nodoClon);
+              }
+            }
+          }
+        });
+
+        // B. Ancestros (Tu función existente)
+        function obtenerClonAncestro(originalId, lineaContexto) {
+          const keyCache = `${lineaContexto}_${originalId}`;
+          if (mapClonesContextuales.has(keyCache))
+            return mapClonesContextuales.get(keyCache);
+
+          const nodoOriginal = sourceMap.get(originalId);
+          if (!nodoOriginal) return null;
+          if (nodoOriginal.id === idAntonio) return null;
+
+          // Verificar si este ancestro ES la cabeza de la línea (ya creado)
+          const idCabezaLinea = mapCabezasDeLinea.get(lineaContexto);
+          if (originalId === idCabezaLinea) {
+            // Debería estar en el mapa, pero por si acaso
+            return mapClonesContextuales.get(`${lineaContexto}_${originalId}`);
+          }
+
+          // Crear Clon Intermedio (Ancestros Externos)
+          const idClon = `ANCESTRO_${lineaContexto}_${originalId}`;
+          const nodoClon = Object.assign({}, nodoOriginal);
+          nodoClon.id = idClon;
+          nodoClon.stpid = null;
+
+          if (nodoOriginal.pid) {
+            const idPadreClon = obtenerClonAncestro(
+              nodoOriginal.pid,
+              lineaContexto,
+            );
+            if (idPadreClon) nodoClon.pid = idPadreClon;
+          }
+
+          mapClonesContextuales.set(keyCache, idClon);
+          nodesToRender.set(idClon, nodoClon);
+          return idClon;
+        }
+
+        // C. Procesar Nodos (Tu lógica existente)
+        sourceNodes.forEach((node) => {
+          let miLinea = node.lineaNegocio
+            ? node.lineaNegocio.trim().toUpperCase()
+            : "N/A";
+
+          // A. CORPORATIVO
+          if (miLinea === "CORPORATIVO") {
+            const renderNode = Object.assign({}, node);
+            renderNode.stpid = null;
+            if (idAntonio && node.id === idAntonio) {
+              renderNode.stpid = groupCorpId;
+              renderNode.pid = null;
+            }
+            nodesToRender.set(renderNode.id, renderNode);
+          }
+
+          // B. OTRAS LÍNEAS VISIBLES
+          else if (lineasAMostrar.has(miLinea)) {
+            // 1. Si soy la cabeza, NO me renderizo (ya está el clon HEAD_...)
+            const idCabeza = mapCabezasDeLinea.get(miLinea);
+            if (node.id === idCabeza) return;
+
+            // 2. Si NO soy la cabeza, me renderizo como nodo normal
+            const renderNode = Object.assign({}, node);
+            renderNode.stpid = null;
+
+            // --- CONEXIÓN DE PADRES ---
+            if (node.pid) {
+              const jefeOriginal = sourceMap.get(node.pid);
+
+              // ¿Mi jefe es de mi misma línea?
+              const lineaJefe = jefeOriginal
+                ? jefeOriginal.lineaNegocio.trim().toUpperCase()
+                : "N/A";
+
+              if (lineaJefe === miLinea) {
+                // CASO: Jefe Interno (Ej: Maria Eugenia reporta a Juan Jose, ambos Marketing)
+                // Si mi jefe es la cabeza, uso su clon HEAD.
+                // Si mi jefe es normal, uso su ID original (porque él se renderizó en este mismo bucle).
+
+                if (node.pid === idCabeza) {
+                  // Conectar al HEAD clonado
+                  const keyHead = `${miLinea}_${node.pid}`;
+                  if (mapClonesContextuales.has(keyHead)) {
+                    renderNode.pid = mapClonesContextuales.get(keyHead);
+                  }
                 } else {
-                    console.warn(`No se encontró al jefe con cargo ${codPosJefe} para la línea ${linea}`);
+                  // Conectar al ID original (Juan Jose original)
+                  renderNode.pid = node.pid;
                 }
+              } else {
+                // CASO: Jefe Externo (Ej: Reporta a Logística Corp)
+                // Clonamos al jefe externo
+                const idJefeClon = obtenerClonAncestro(node.pid, miLinea);
+                if (idJefeClon) {
+                  renderNode.pid = idJefeClon;
+                }
+              }
             }
+
+            nodesToRender.set(renderNode.id, renderNode);
+          }
         });
 
         // =========================================================
-        // E. FASE 2: PROCESAR A TODOS LOS EMPLEADOS
+        // 6. CONTEO VISUAL FINAL (Para el globo)
         // =========================================================
-        sourceNodes.forEach(node => {
-            // Normalizar línea del empleado
-            let miLinea = node.lineaNegocio ? node.lineaNegocio.trim().toUpperCase() : "N/A";
+        const visualCounts = {};
+        // Inicializar
+        configKeys.forEach((k) => (visualCounts[k.toUpperCase()] = 0));
+        visualCounts["CORPORATIVO"] = 0;
 
-            // ¿Debemos mostrar este nodo? 
-            // Mostramos si es CORPORATIVO (siempre) O si su línea está en las visibles
-            const esCorporativo = (miLinea === "CORPORATIVO");
-            const esLineaVisible = lineasAMostrar.has(miLinea);
+        nodesToRender.forEach((node) => {
+          // Ignoramos grupos, fantasmas y vacantes
+          //if (node.tags && (node.tags.includes("group") || node.tags.includes("fantasma") || node.tags.includes("vacante"))) return;
 
-            if (esCorporativo || esLineaVisible) {
-                
-                // --- FILTRO DE DUPLICADOS VISUALES (OPCIONAL) ---
-                // Si quieres ocultar al Santiago "Original" de la caja Corporativo 
-                // cuando ya estás mostrando su caja de Cárnicos abajo:
-                /* if (esCorporativo && lineasAMostrar.size > 0) {
-                     // Si este nodo es jefe de alguna de las líneas mostradas, NO lo mostramos en Corp.
-                     // (Descomenta esto si quieres ocultar a los gerentes arriba)
-                     // let esJefeDeAlgoAbajo = false;
-                     // lineasAMostrar.forEach(l => { if(CABEZAS_NEGOCIO_TEMP[l] === String(node.codPosicion)) esJefeDeAlgoAbajo = true; });
-                     // if (esJefeDeAlgoAbajo) return; 
-                }
-                */
+          let visualLine = "N/A";
 
-                // Evitar duplicar al jefe DENTRO de su propia línea (ya creamos el clon arriba)
-                if (!esCorporativo) {
-                    let codJefeLinea = CABEZAS_NEGOCIO_TEMP[miLinea] || CABEZAS_NEGOCIO_TEMP[Object.keys(CABEZAS_NEGOCIO_TEMP).find(k => k.toUpperCase() === miLinea)];
-                    if (String(node.codPosicion) === codJefeLinea) {
-                        return; // Saltamos, ya existe el clon HEAD_...
-                    }
-                }
+          // 1. ¿Es un CLON DE CABEZA? (Ej: Juan José en Marketing)
+          if (node.id.startsWith("HEAD_")) {
+            // Formato: HEAD_MARKETING_123. Extraemos "MARKETING"
+            const parts = node.id.split("_");
+            visualLine = parts[1]; // Nombre de la línea limpio
+          }
+          // 2. ¿Es un ANCESTRO CLONADO? (Ej: Jefe Logística en Cárnicos)
+          else if (node.id.startsWith("ANCESTRO_")) {
+            // Formato: ANCESTRO_CARNICOS_456. Extraemos "CARNICOS"
+            const parts = node.id.split("_");
+            visualLine = parts[1]; // Nombre de la línea limpio
+          }
+          // 3. ¿Está explícitamente DENTRO de un grupo? (Ej: Antonio en GRP_CORPORATIVO)
+          else if (node.stpid && node.stpid.startsWith("GRP_")) {
+            visualLine = node.stpid.replace("GRP_", "");
+          }
+          // 4. ¿Es un empleado normal? (Usa su línea de negocio original)
+          else {
+            visualLine = node.lineaNegocio
+              ? node.lineaNegocio.trim().toUpperCase()
+              : "N/A";
+            // Limpiamos espacios para que coincida con las claves (Ej: " CARNICOS" -> "CARNICOS")
+            visualLine = visualLine.replace(/\s/g, "");
+          }
 
-                const renderNode = Object.assign({}, node);
-                renderNode.stpid = null; // Por defecto nadie entra a cajas
+          // Normalizar la clave para sumar al contador correcto
+          // Buscamos qué clave de config coincide con lo que encontramos
+          const matchedKey = Object.keys(visualCounts).find(
+            (k) => k.replace(/\s/g, "") === visualLine,
+          );
 
-                // --- CASO CORPORATIVO ---
-                if (esCorporativo) {
-                    if (idAntonio && node.id === idAntonio) {
-                        renderNode.stpid = groupCorpId; // Solo Antonio entra
-                        renderNode.pid = null;
-                    }
-                    // El resto cuelga normal
-                } 
-                
-                // --- CASO LÍNEAS DE NEGOCIO ---
-                else {
-                    // Intentar redireccionar al CLON del jefe
-                    const claveRedireccion = `${miLinea}_${node.pid}`;
-                    
-                    if (mapRedireccionPadres[claveRedireccion]) {
-                        renderNode.pid = mapRedireccionPadres[claveRedireccion];
-                    }
-                    // Si no hay redirección (ej: reporta a un mando medio), mantiene su pid original
-                    // y el árbol se arma solo debajo del clon o del mando medio.
-                }
+          if (matchedKey) {
+            visualCounts[matchedKey]++;
+          } else if (visualLine === "CORPORATIVO") {
+            visualCounts["CORPORATIVO"]++;
+          }
+        });
 
-                nodesToRender.set(renderNode.id, renderNode);
+        console.log("📊 Conteos Visuales Finales:", visualCounts);
+
+        // 7. ACTUALIZAR GRUPOS (Conteo y Orden)
+        // Corporativo
+        const nodoCorp = nodesToRender.get(groupCorpId);
+        if (nodoCorp) nodoCorp.conteo = String(visualCounts["CORPORATIVO"]);
+
+        // Líneas
+        lineasAMostrar.forEach((linea) => {
+          const groupId = `GRP_${linea.replace(/\s/g, "")}`;
+          const nodoGrupo = nodesToRender.get(groupId);
+          if (nodoGrupo) {
+            // Buscamos la clave original para sacar el conteo del mapa visualCounts
+            const key = Object.keys(visualCounts).find(
+              (k) => k.replace(/\s/g, "") === linea.replace(/\s/g, ""),
+            );
+            if (key) {
+              nodoGrupo.conteo = String(visualCounts[key]);
             }
+          }
         });
 
         // =========================================================
-        // F. CARGAR
+        // 8. LÓGICA DE CLINKS (CORREGIDA Y ROBUSTA)
         // =========================================================
+        const misClinks = [];
+
+        // Iteramos sobre los nodos REALES que se van a dibujar
+        nodesToRender.forEach((node) => {
+          // 1. Identificamos si es un nodo "Cabeza de Línea"
+          if (typeof node.id === "string" && node.id.startsWith("HEAD_")) {
+            // 2. Extraemos el nombre de la línea del ID
+            // El formato es: HEAD_NOMBRELINEA_IDORIGINAL
+            const partes = node.id.split("_");
+            const nombreLineaEnId = partes[1]; // Ej: "MARKETING" o "BALANCEADO"
+
+            // 3. Buscamos este nombre en tu configuración global
+            // (Hacemos un find por si acaso haya diferencias de mayúsculas/espacios, aunque el replace ayuda)
+            const configKey = Object.keys(CABEZAS_NEGOCIO_TEMP).find(
+              (key) => key.replace(/\s/g, "") === nombreLineaEnId,
+            );
+
+            if (configKey) {
+              const config = CABEZAS_NEGOCIO_TEMP[configKey];
+
+              // 4. Si esta línea tiene un reporte funcional definido...
+              if (config && config.reportFuncional) {
+                // Verificamos que el nodo destino (el jefe funcional) exista en el gráfico actual
+                if (nodesToRender.has(config.reportFuncional)) {
+                  misClinks.push({
+                    from: node.id, // Usamos el ID real del nodo iterado (Correcto)
+                    to: config.reportFuncional, // El ID destino desde tu config (Ej: "12" o "15")
+                    label: "", // Sin etiqueta para limpiar
+                    template: "orange",
+                  });
+                }
+              }
+            }
+          }
+        });
+
+        // Inyectamos a la configuración
+        chart.config.clinks = misClinks;
+
+        OrgChart.CLINK_CURVE = -0.5; //1.5;
+
+        // 9. CARGAR
         const finalArray = Array.from(nodesToRender.values());
         console.log(`✅ Renderizando ${finalArray.length} nodos.`);
-        
-        chart.config.collapse = { level: 2, allChildren: true }; 
+
+        calcularDescendenciaManual(finalArray);
+
+        // --- ASIGNACIÓN DE TEMPLATES ---
+        finalArray.forEach((node) => {
+          // Si es un grupo o fantasma, no tocamos su template
+          if (
+            node.tags &&
+            (node.tags.includes("group") || node.tags.includes("fantasma"))
+          )
+            return;
+
+          const directos = node._directos || 0;
+          const total = node._total || 0;
+
+          if (directos > 0) {
+            if (directos === total) {
+              // Fin de línea
+              if (directos === 1) {
+                node.tags.push("fichaSingle"); // Usará template fichaSingle
+                // OJO: En la v7 de Balkan a veces hay que setear 'templateName' si no usas tags
+                // Pero intentemos primero sobrescribir la propiedad template si Balkan te deja
+              } else {
+                node.tags.push("fichaGroup");
+              }
+            } else {
+              // Complejo
+              node.tags.push("fichaComplex");
+            }
+          } else {
+            // Sin hijos, usa el default (sin botón)
+          }
+        });
+
         chart.load(finalArray);
-        
-        // Usamos un pequeño timeout para el fit asegurando que el DOM pintó
-        setTimeout(() => { chart.fit(); }, 100);
-        
+        setTimeout(() => {
+          chart.fit();
+        }, 250);
         loaderOverlay.classList.remove("visible");
       }
-      
+
       ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
       function aplicarFiltrosJerarquicos() {
         if (!chart) return;
 
         const currentMode = document.getElementById("modo-select").value;
         const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
-        
-        if (!sourceNodes.length) { chart.load([]); return; }
+
+        if (!sourceNodes.length) {
+          chart.load([]);
+          return;
+        }
 
         // 1. Obtener filtros
         const selectedLinea = $("#linea-negocio-select").val();
@@ -1091,95 +1321,114 @@
         const selectedProposito = $("#proposito-select").val();
 
         if (!selectedLinea || !selectedCosto || !selectedProposito) {
-             chart.load([]); return;
+          chart.load([]);
+          return;
         }
 
-        console.log(`Filtrando: L:${selectedLinea} | C:${selectedCosto} | P:${selectedProposito}`);
+        console.log(
+          `Filtrando: L:${selectedLinea} | C:${selectedCosto} | P:${selectedProposito}`,
+        );
 
         // 2. Mapa Global
-        const fullNodeMap = new Map(sourceNodes.map(n => [n.id, n]));
+        const fullNodeMap = new Map(sourceNodes.map((n) => [n.id, n]));
 
         // 3. NÚCLEO: Coincidencia exacta
-        const exactMatches = sourceNodes.filter(n => {
-            const matchLinea = n.lineaNegocio === selectedLinea;
-            
-            // Corrección para Costo
-            const matchCosto = (selectedCosto === "todos") || (n.centroCosto === selectedCosto);
-            
-            // Si es "todos", devuelve true. Si no, compara.
-            const matchProposito = (selectedProposito === "todos") || (n.proposito === selectedProposito);
+        const exactMatches = sourceNodes.filter((n) => {
+          const matchLinea = n.lineaNegocio === selectedLinea;
 
-            return matchLinea && matchCosto && matchProposito;
+          // Corrección para Costo
+          const matchCosto =
+            selectedCosto === "todos" || n.centroCosto === selectedCosto;
+
+          // Si es "todos", devuelve true. Si no, compara.
+          const matchProposito =
+            selectedProposito === "todos" || n.proposito === selectedProposito;
+
+          return matchLinea && matchCosto && matchProposito;
         });
 
         if (exactMatches.length === 0) {
-            chart.load([]);
-            loaderOverlay.classList.remove("visible");
-            return;
+          chart.load([]);
+          loaderOverlay.classList.remove("visible");
+          return;
         }
 
         // 4. RECONSTRUCCIÓN DE JERARQUÍA
         const finalNodesMap = new Map();
-        
+
         const addNodeWithAncestors = (node) => {
-            finalNodesMap.set(node.id, node);
-            if (node.pid) {
-                const parentNode = fullNodeMap.get(node.pid);
-                if (parentNode) {
-                    const isSameLine = parentNode.lineaNegocio === selectedLinea;
-                    if (isSameLine) {
-                        addNodeWithAncestors(parentNode);
-                    }
-                }
+          finalNodesMap.set(node.id, node);
+          if (node.pid) {
+            const parentNode = fullNodeMap.get(node.pid);
+            if (parentNode) {
+              const isSameLine = parentNode.lineaNegocio === selectedLinea;
+              if (isSameLine) {
+                addNodeWithAncestors(parentNode);
+              }
             }
+          }
         };
 
-        exactMatches.forEach(node => {
-            addNodeWithAncestors(node);
+        exactMatches.forEach((node) => {
+          addNodeWithAncestors(node);
         });
 
         // 5. IDENTIFICAR AL "LÍDER LOCAL"
         const finalNodesList = Array.from(finalNodesMap.values());
         finalNodesList.sort((a, b) => (a.order || 99) - (b.order || 99));
-        
-        if (finalNodesList.length === 0) { chart.load([]); return; }
 
-        const localMainBoss = finalNodesList[0]; 
+        if (finalNodesList.length === 0) {
+          chart.load([]);
+          return;
+        }
+
+        const localMainBoss = finalNodesList[0];
         console.log("Líder Local:", localMainBoss.nombre);
 
         // ------------------------------------------------------------------
         // 5.5 NUEVO: RESCATAR JEFES SUPERIORES
         // ------------------------------------------------------------------
         const upperBossesMap = new Map();
-        
+
         const addUpperAncestors = (node) => {
-            if (node.pid) {
-                const parentNode = fullNodeMap.get(node.pid);
+          if (node.pid) {
+            const parentNode = fullNodeMap.get(node.pid);
 
-                // --- MODIFICACIÓN SOLICITADA: FRENO EN EL PRESIDENTE ---
-                // Si el propósito NO es "todos" (ej: Sistemas) y el padre es el Presidente...
-                // DETENEMOS LA BÚSQUEDA. No lo agregamos.
-                if (selectedLinea !== "CORPORATIVO" && parentNode && String(parentNode.codPosicion) === "00001") {
-                    return; 
-                }
-                // -------------------------------------------------------
-
-                if (parentNode && !finalNodesMap.has(parentNode.id) && !upperBossesMap.has(parentNode.id)) {
-                    upperBossesMap.set(parentNode.id, parentNode);
-                    addUpperAncestors(parentNode);
-                }
+            // --- MODIFICACIÓN SOLICITADA: FRENO EN EL PRESIDENTE ---
+            // Si el propósito NO es "todos" (ej: Sistemas) y el padre es el Presidente...
+            // DETENEMOS LA BÚSQUEDA. No lo agregamos.
+            if (
+              selectedLinea !== "CORPORATIVO" &&
+              parentNode &&
+              String(parentNode.codPosicion) === "00001"
+            ) {
+              return;
             }
+            // -------------------------------------------------------
+
+            if (
+              parentNode &&
+              !finalNodesMap.has(parentNode.id) &&
+              !upperBossesMap.has(parentNode.id)
+            ) {
+              upperBossesMap.set(parentNode.id, parentNode);
+              addUpperAncestors(parentNode);
+            }
+          }
         };
-        
+
         addUpperAncestors(localMainBoss);
-        
+
         // Unimos los mapas
-        const allRenderNodesMap = new Map([...finalNodesMap, ...upperBossesMap]);
+        const allRenderNodesMap = new Map([
+          ...finalNodesMap,
+          ...upperBossesMap,
+        ]);
 
         // Buscamos quién es el VERDADERO Root ahora
         const allRenderList = Array.from(allRenderNodesMap.values());
         allRenderList.sort((a, b) => (a.order || 99) - (b.order || 99));
-        const absoluteRoot = allRenderList[0]; 
+        const absoluteRoot = allRenderList[0];
 
         // ------------------------------------------------------------------
 
@@ -1188,116 +1437,169 @@
         const servicesToGroup = [];
 
         // Detección de Caso Especial (Corporativo + Todos)
-        const isCorpTodos = (selectedLinea === "CORPORATIVO" && 
-                             selectedCosto === "CORPORATIVO" && 
-                             selectedProposito === "todos");
+        const isCorpTodos =
+          selectedLinea === "CORPORATIVO" &&
+          selectedCosto === "CORPORATIVO" &&
+          selectedProposito === "todos";
 
         const isConnectedToRoot = (nodeId) => {
-            if (nodeId === absoluteRoot.id) return true;
-            let curr = allRenderNodesMap.get(nodeId);
-            while (curr && curr.pid) {
-                if (curr.pid === absoluteRoot.id) return true;
-                if (allRenderNodesMap.has(curr.pid)) {
-                    curr = allRenderNodesMap.get(curr.pid);
-                } else {
-                    return false;
-                }
+          if (nodeId === absoluteRoot.id) return true;
+          let curr = allRenderNodesMap.get(nodeId);
+          while (curr && curr.pid) {
+            if (curr.pid === absoluteRoot.id) return true;
+            if (allRenderNodesMap.has(curr.pid)) {
+              curr = allRenderNodesMap.get(curr.pid);
+            } else {
+              return false;
             }
-            return false;
+          }
+          return false;
         };
 
         for (const node of allRenderList) {
-            if (node.id === absoluteRoot.id) {
-                const root = Object.assign({}, node);
-                root.pid = null; 
-                nodesToRender.set(root.id, root);
-                continue;
-            }
+          if (node.id === absoluteRoot.id) {
+            const root = Object.assign({}, node);
+            root.pid = null;
+            nodesToRender.set(root.id, root);
+            continue;
+          }
 
-            if (isConnectedToRoot(node.id)) {
-                nodesToRender.set(node.id, node);
+          if (isConnectedToRoot(node.id)) {
+            nodesToRender.set(node.id, node);
+          } else {
+            // Si está desconectado:
+            if (isCorpTodos) {
+              // EXCEPCIÓN: Conectar al Presidente en modo TODOS
+              const forcedNode = Object.assign({}, node);
+              forcedNode.pid = absoluteRoot.id;
+              nodesToRender.set(forcedNode.id, forcedNode);
             } else {
-                // Si está desconectado:
-                if (isCorpTodos) {
-                    // EXCEPCIÓN: Conectar al Presidente en modo TODOS
-                    const forcedNode = Object.assign({}, node);
-                    forcedNode.pid = absoluteRoot.id;
-                    nodesToRender.set(forcedNode.id, forcedNode);
-                } else {
-                    // Normal: Es servicio
-                    servicesToGroup.push(node);
-                }
+              // Normal: Es servicio
+              servicesToGroup.push(node);
             }
+          }
         }
 
         // 7. CREAR GRUPOS
         if (servicesToGroup.length > 0) {
-            const bossForGroups = nodesToRender.has(localMainBoss.id) ? localMainBoss : absoluteRoot;
-            const ghostId = `GHOST_${bossForGroups.id}`;
-            const ghostNode = {
-                id: ghostId,
-                pid: bossForGroups.id,
-                tags: ["fantasma", "assistant", "assistant-branch"],
-                nombre: "" 
+          const bossForGroups = nodesToRender.has(localMainBoss.id)
+            ? localMainBoss
+            : absoluteRoot;
+          const ghostId = `GHOST_${bossForGroups.id}`;
+          const ghostNode = {
+            id: ghostId,
+            pid: bossForGroups.id,
+            tags: ["fantasma", "assistant", "assistant-branch"],
+            nombre: "",
+          };
+          nodesToRender.set(ghostId, ghostNode);
+
+          const groupsMap = {};
+          servicesToGroup.forEach((emp) => {
+            let groupName = emp.departamento || emp.proposito || "SERVICIOS";
+            groupName = groupName.trim().toUpperCase();
+            if (!groupsMap[groupName]) groupsMap[groupName] = [];
+            groupsMap[groupName].push(emp);
+          });
+
+          Object.keys(groupsMap).forEach((groupName) => {
+            const employees = groupsMap[groupName];
+            const groupId = `GRP_${groupName.replace(/[^a-zA-Z0-9]/g, "")}_${Math.floor(Math.random() * 1000)}`;
+            const groupNode = {
+              id: groupId,
+              pid: ghostId,
+              nombre: groupName,
+              title: `${employees.length} Colaboradores`,
+              tags: ["group"],
+              templateName: "group",
             };
-            nodesToRender.set(ghostId, ghostNode);
+            nodesToRender.set(groupId, groupNode);
 
-            const groupsMap = {}; 
-            servicesToGroup.forEach(emp => {
-                let groupName = emp.departamento || emp.proposito || "SERVICIOS"; 
-                groupName = groupName.trim().toUpperCase();
-                if (!groupsMap[groupName]) groupsMap[groupName] = [];
-                groupsMap[groupName].push(emp);
+            employees.forEach((emp) => {
+              const empClone = Object.assign({}, emp);
+              empClone.pid = null;
+              empClone.stpid = groupId;
+              nodesToRender.set(empClone.id, empClone);
             });
-
-            Object.keys(groupsMap).forEach(groupName => {
-                const employees = groupsMap[groupName];
-                const groupId = `GRP_${groupName.replace(/[^a-zA-Z0-9]/g, '')}_${Math.floor(Math.random()*1000)}`;
-                const groupNode = {
-                    id: groupId,
-                    pid: ghostId, 
-                    nombre: groupName,  
-                    title: `${employees.length} Colaboradores`,
-                    tags: ["group"], 
-                    templateName: "group"
-                };
-                nodesToRender.set(groupId, groupNode);
-
-                employees.forEach(emp => {
-                    const empClone = Object.assign({}, emp);
-                    empClone.pid = null;
-                    empClone.stpid = groupId;
-                    nodesToRender.set(empClone.id, empClone);
-                });
-            });
+          });
         }
 
         // 8. Cargar
         const finalArray = Array.from(nodesToRender.values());
-        chart.config.collapse = { level: 3, allChildren: true };
-        
+        //chart.config.collapse = { level: 3, allChildren: true };
+
         if (finalArray.length > 0) {
-            chart.load(finalArray);
+          chart.load(finalArray);
         } else {
-            chart.load([]);
+          chart.load([]);
         }
         loaderOverlay.classList.remove("visible");
       }
-      
+
       // --- Función Auxiliar para añadir ancestros (recursiva hacia arriba) ---
       function addNodeAndAncestors(node, nodesToShow, nodeMap) {
-          let currentNode = node;
-          while (currentNode) {
-              if (nodesToShow.has(currentNode.id)) break;
-              
-              nodesToShow.set(currentNode.id, currentNode);
+        let currentNode = node;
+        while (currentNode) {
+          if (nodesToShow.has(currentNode.id)) break;
 
-              if (currentNode.pid && nodeMap.has(currentNode.pid)) {
-                currentNode = nodeMap.get(currentNode.pid);
-              } else {
-                currentNode = null;
-              }
+          nodesToShow.set(currentNode.id, currentNode);
+
+          if (currentNode.pid && nodeMap.has(currentNode.pid)) {
+            currentNode = nodeMap.get(currentNode.pid);
+          } else {
+            currentNode = null;
           }
+        }
+      }
+
+      // Función recursiva para calcular hijos y nietos
+      function calcularDescendenciaManual(nodes) {
+        // 1. Convertir array a mapa para acceso rápido
+        const map = {};
+        nodes.forEach((n) => (map[n.id] = n));
+
+        // 2. Agrupar hijos por padre
+        const childrenMap = {};
+        nodes.forEach((n) => {
+          if (n.pid) {
+            if (!childrenMap[n.pid]) childrenMap[n.pid] = [];
+            childrenMap[n.pid].push(n.id);
+          }
+        });
+
+        // 3. Función recursiva para contar
+        function getTotals(nodeId) {
+          let total = 0;
+          const children = childrenMap[nodeId] || [];
+          // Guardamos los directos
+          if (map[nodeId]) map[nodeId]._directos = children.length;
+
+          // Sumamos recursivamente
+          total += children.length;
+          children.forEach((childId) => {
+            total += getTotals(childId) - (map[childId]._directos || 0); // Ajuste matemático simple: sumamos la rama completa
+            // Corrección simplificada:
+            // El total de un nodo es la suma de (1 + total de descendientes) de cada hijo.
+            // Pero para hacerlo fácil:
+          });
+          return total;
+        }
+
+        // RE-CALCULO MÁS ROBUSTO Y SIMPLE
+        // Iteramos al revés (desde el nivel más bajo hacia arriba) o recursivo simple
+        const getDeepCount = (nid) => {
+          const kids = childrenMap[nid] || [];
+          let sum = 0;
+          kids.forEach((kidId) => {
+            sum += 1 + getDeepCount(kidId); // 1 (el hijo) + sus descendientes
+          });
+          return sum;
+        };
+
+        nodes.forEach((node) => {
+          node._directos = (childrenMap[node.id] || []).length;
+          node._total = getDeepCount(node.id);
+        });
       }
 
       /* FUNCION PARA GENERAR URL DE LOS MANUALES */
@@ -1325,7 +1627,7 @@
 
         //return `http://192.168.127.162/rhh/visor.html?Carpeta=${encodeURIComponent(
         return `https://soporte.liris.com.ec/rhh/visor.html?Carpeta=${encodeURIComponent(
-          carpeta
+          carpeta,
         )}&CodEmp=${codEmp || ""}&DepartMyProcessId=${depParam}`;
       }
 
@@ -1344,7 +1646,7 @@
           const response = await fetch(apiUrl);
           if (!response.ok)
             throw new Error(
-              `Error HTTP ${response.status}: ${response.statusText}`
+              `Error HTTP ${response.status}: ${response.statusText}`,
             );
           console.log(`API respondió (${response.status}). Procesando...`);
           const apiResponse = await response.json();
@@ -1353,7 +1655,7 @@
             : null;
           if (!Array.isArray(flatApiData))
             throw new Error(
-              "Formato inválido. No se encontró array en 'Persona'."
+              "Formato inválido. No se encontró array en 'Persona'.",
             );
           if (flatApiData.length === 0) {
             loaderText.innerText = "API OK, pero no hay datos.";
@@ -1369,7 +1671,7 @@
                 emp &&
                 emp.codigoPosicion != null &&
                 emp.vacante !== "1" &&
-                emp.codigoEmpleado
+                emp.codigoEmpleado,
             )
             .forEach((emp) => {
               const positionId = String(emp.codigoPosicion).trim();
@@ -1381,7 +1683,7 @@
               }
             });
           console.log(
-            `Mapa Posición->Empleado creado con ${positionToEmployeeMap.size} entradas.`
+            `Mapa Posición->Empleado creado con ${positionToEmployeeMap.size} entradas.`,
           );
 
           // 3. Transformación (Lógica Híbrida: IDs de Empleado + IDs de Posición para vacantes)
@@ -1392,20 +1694,8 @@
                 //emp.codigoPosicion != null &&
                 emp.codigoPosicion != "00006" &&
                 //emp.codigoPosicion != "00001" &&
-                emp.codigoPosicion != "00942" && //TODO: quitar
-                emp.codigoPosicion != "00505" && //TODO: quitar
-                emp.codigoPosicionReporta != "00424" &&
-                emp.puesto != null
+                emp.puesto != null,
               //!(emp.codigoPosicionReporta === "00003" && emp.vacante === "1")
-              /*&&
-                        String(emp.codigoPosicion).trim() !== "00006" &&
-                        // Filtramos solo el departamento de Sistemas y Directorio
-                        (emp.nombreDepartamento === "SISTEMAS" || emp.nombreDepartamento === "DIRECTORIO" 
-                            || emp.nombreDepartamento === "IMPORTACIONES" || emp.nombreDepartamento === "LEGAL" 
-                            || emp.nombreDepartamento === "PROCESOS Y PROYECTOS" 
-                            //|| emp.nombreDepartamento === null
-                            || (emp.nombreDepartamento === "FINANZAS" && emp.nombreCentroCosto === "DERIVADOS"))
-                        */
             )
             .map((emp) => {
               const isVacant = emp.vacante === "1";
@@ -1469,9 +1759,9 @@
                   // Importante para que los filtros jerárquicos no fallen
                   departamento: emp.nombreDepartamento || "N/A",
                   // area: emp.nombreArea || "N/A",
-                  proposito: emp.nombreProposito || "N/A",        //TODO: Cambio por campos de la lstPosiciones
+                  proposito: emp.nombreProposito || "N/A", //TODO: Cambio por campos de la lstPosiciones
                   lineaNegocio: emp.nombreLineaNegocio2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
-                  centroCosto: emp.nombreCentroCosto2 || "N/A",   //TODO: Cambio por campos de la lstPosiciones
+                  centroCosto: emp.nombreCentroCosto2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
 
                   // Campos de empleado que deben estar nulos
                   userid: null,
@@ -1494,12 +1784,11 @@
                     emp.codigoPosicionReporta ||
                     "Código de posición que reporta no definido",
                   // Importante para los filtros jerárquicos
-                  lineaNegocio: emp.nombreLineaNegocio2 || "N/A",  //TODO: Cambio por campos de la lstPosiciones
-                  centroCosto: emp.nombreCentroCosto2 || "N/A",    //TODO: Cambio por campos de la lstPosiciones
+                  lineaNegocio: emp.nombreLineaNegocio2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
+                  centroCosto: emp.nombreCentroCosto2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
                   // area: emp.nombreArea || "N/A",
                   departamento: emp.nombreDepartamento || "N/A", //
                   proposito: emp.nombreProposito || "N/A",
-
 
                   img: emp.foto || "Logo-Liris.png",
                   //"https://via.placeholder.com/60/cccccc/ffffff?text=N/A",
@@ -1531,7 +1820,7 @@
           populateSelect(
             "linea-negocio-select",
             "lineaNegocio",
-            sanitizedNodes
+            sanitizedNodes,
           );
           //populateSelect("centro-costos-select", "centroCosto", sanitizedNodes);
 
@@ -1543,7 +1832,7 @@
           // Plantilla base 'Ficha'
           OrgChart.templates.fichaTemplate = Object.assign(
             {},
-            OrgChart.templates.base
+            OrgChart.templates.base,
           );
           OrgChart.templates.fichaTemplate.size = [250, 110]; // Keep the increased height
           OrgChart.templates.fichaTemplate.editFormHeaderColor = "#F57C00"; // Color del header del editForm
@@ -1580,15 +1869,98 @@
             "</div>" +
             "</foreignObject>";
 
-          OrgChart.templates.fichaTemplate.field_2 =
-            /* ... (botón sin cambios) ... */
-            '<rect x="85" y="88" width="70" height="18" fill="#4285F4" rx="4" ry="4"></rect>' +
-            '<text style="font-size: 10px; cursor: pointer;" fill="#ffffff" x="120" y="100" text-anchor="middle">{val}</text>';
+          // OrgChart.templates.fichaTemplate.field_2 =
+          //   '<rect x="85" y="88" width="70" height="18" fill="#4285F4" rx="4" ry="4"></rect>' +
+          //   '<text style="font-size: 10px; cursor: pointer;" fill="#ffffff" x="120" y="100" text-anchor="middle">{val}</text>';
 
-          OrgChart.templates.fichaTemplate.plus = `<circle cx="15" cy="15" r="15" fill="#ffffff" stroke="#aeaeae" stroke-width="1"></circle>
-                    <text text-anchor="middle" style="font-size: 18px;cursor:pointer;" fill="#757575" x="15" y="22">{children-count}</text>`;
-          OrgChart.templates.fichaTemplate.minus = `<circle cx="15" cy="15" r="15" fill="#ffffff" stroke="#aeaeae" stroke-width="1"></circle>
-                    <text text-anchor="middle" style="font-size: 18px;cursor:pointer;" fill="#757575" x="15" y="22">{children-count}</text>`;
+          // =========================================================
+          // BOTÓN DE EXPANDIR (32px Alto - Todo Naranja)
+          // =========================================================
+          // OrgChart.templates.fichaTemplate.plus =
+          //     // 1. EL FONDO (Rectángulo de 32px de alto)
+          //     '<rect x="-11" y="2" height="32" width="50" rx="7" ry="7" stroke-width="0" fill="#F57C00"></rect>' +
+
+          //     // 2. LÍNEA SEPARADORA (Centrada verticalmente en y=18 para dividir el espacio de 32px)
+          //     '<line x1="-5" y1="18" x2="33" y2="18" stroke-width="0.5" stroke="rgba(255,255,255,0.4)"></line>' +
+
+          //     // -----------------------------------------------------
+          //     // 3. PARTE SUPERIOR: Hijos Directos (Icono Disco)
+          //     // -----------------------------------------------------
+          //     // Coordenadas ajustadas para la mitad superior (y < 18)
+          //     '<circle stroke="#ffffff" stroke-width="1.2" fill="none" cx="6" cy="9" r="1.5"></circle>' +
+          //     '<rect x="3" y="11" rx="0.5" ry="0.5" height="1.5" width="6" stroke-width="0" fill="#ffffff"></rect>' +
+          //     '<line x1="2.5" y1="13" x2="9.5" y2="13" stroke-width="1.2" stroke="#ffffff"></line>' +
+
+          //     // Texto Superior (Alineado en y=13 para centrar visualmente con el icono)
+          //     '<text text-anchor="middle" style="font-size: 9px; cursor:pointer;" font-weight="bold" fill="#ffffff" x="28" y="13">{collapsed-children-count}</text>' +
+
+          //     // -----------------------------------------------------
+          //     // 4. PARTE INFERIOR: Acumulado Total (Icono Grupo)
+          //     // -----------------------------------------------------
+          //     // Icono SVG reducido a 10x10 y posicionado en y=20 (para la mitad inferior)
+          //     '<svg x="-3" y="20" width="10" height="10" viewBox="0 0 15 15" fill="#ffffff">' +
+          //         '<path d="M7.461 2.356c-1.292 0 -2.339 1.223 -2.339 2.731 0 1.046 0.504 1.954 1.243 2.413l-0.858 0.398 -2.282 1.059c-0.221 0.11 -0.331 0.297 -0.331 0.562v2.514c0.018 0.314 0.207 0.607 0.512 0.612h8.12c0.349 -0.03 0.526 -0.312 0.529 -0.612V9.518c0 -0.265 -0.11 -0.452 -0.331 -0.562l-2.2 -1.059 -0.914 -0.433c0.709 -0.469 1.188 -1.358 1.188 -2.377 0 -1.508 -1.047 -2.731 -2.339 -2.731m-3.773 0.96c-0.556 0.021 -0.996 0.262 -1.331 0.645 -0.37 0.461 -0.551 1.009 -0.554 1.554 0.023 0.806 0.383 1.569 1.025 1.968L0.265 8.675C0.088 8.741 0 8.895 0 9.138v2.017c0.014 0.268 0.153 0.492 0.413 0.496h1.704V9.518c0.028 -0.57 0.296 -1.032 0.777 -1.257l1.703 -0.81c0.132 -0.077 0.259 -0.182 0.38 -0.314 -0.702 -1.083 -0.8 -2.381 -0.347 -3.523 -0.294 -0.18 -0.625 -0.296 -0.943 -0.298m7.607 0c-0.364 0.008 -0.7 0.141 -0.975 0.331 0.44 1.152 0.319 2.45 -0.331 3.457 0.143 0.165 0.293 0.292 0.447 0.38l1.637 0.777c0.499 0.274 0.756 0.739 0.761 1.257v2.134h1.753c0.288 -0.025 0.411 -0.255 0.414 -0.496V9.138c0 -0.221 -0.088 -0.375 -0.265 -0.463l-2.53 -1.208c0.656 -0.484 0.986 -1.209 0.992 -1.951 -0.017 -0.588 -0.197 -1.133 -0.554 -1.554 -0.373 -0.405 -0.836 -0.641 -1.348 -0.645"/>' +
+          //     '</svg>' +
+
+          //     // Texto Inferior (Alineado en y=28 para la mitad inferior)
+          //     '<text text-anchor="middle" style="font-size: 9px; cursor:pointer;" font-weight="bold" fill="#ffffff" x="28" y="28">{collapsed-children-total-count}</text>';
+
+          // --- DEFINIMOS LOS 3 ESTILOS DE BOTÓN ---
+
+          // ESTILO A: DOBLE (Para nodos complejos - El que tenías antes)
+          const botonDoble = // 1. EL FONDO (Rectángulo de 32px de alto)
+            '<rect x="-11" y="2" height="32" width="50" rx="7" ry="7" stroke-width="0" fill="#F57C00"></rect>' +
+            '<line x1="-5" y1="18" x2="33" y2="18" stroke-width="0.5" stroke="rgba(255,255,255,0.4)"></line>' +
+            '<circle stroke="#ffffff" stroke-width="1.2" fill="none" cx="6" cy="9" r="1.5"></circle>' +
+            '<rect x="3" y="11" rx="0.5" ry="0.5" height="1.5" width="6" stroke-width="0" fill="#ffffff"></rect>' +
+            '<line x1="2.5" y1="13" x2="9.5" y2="13" stroke-width="1.2" stroke="#ffffff"></line>' +
+            '<text text-anchor="middle" style="font-size: 9px; cursor:pointer;" font-weight="bold" fill="#ffffff" x="28" y="13">{children-count}</text>' +
+            '<svg x="-3" y="20" width="10" height="10" viewBox="0 0 15 15" fill="#ffffff">' +
+            '<path d="M7.461 2.356c-1.292 0 -2.339 1.223 -2.339 2.731 0 1.046 0.504 1.954 1.243 2.413l-0.858 0.398 -2.282 1.059c-0.221 0.11 -0.331 0.297 -0.331 0.562v2.514c0.018 0.314 0.207 0.607 0.512 0.612h8.12c0.349 -0.03 0.526 -0.312 0.529 -0.612V9.518c0 -0.265 -0.11 -0.452 -0.331 -0.562l-2.2 -1.059 -0.914 -0.433c0.709 -0.469 1.188 -1.358 1.188 -2.377 0 -1.508 -1.047 -2.731 -2.339 -2.731m-3.773 0.96c-0.556 0.021 -0.996 0.262 -1.331 0.645 -0.37 0.461 -0.551 1.009 -0.554 1.554 0.023 0.806 0.383 1.569 1.025 1.968L0.265 8.675C0.088 8.741 0 8.895 0 9.138v2.017c0.014 0.268 0.153 0.492 0.413 0.496h1.704V9.518c0.028 -0.57 0.296 -1.032 0.777 -1.257l1.703 -0.81c0.132 -0.077 0.259 -0.182 0.38 -0.314 -0.702 -1.083 -0.8 -2.381 -0.347 -3.523 -0.294 -0.18 -0.625 -0.296 -0.943 -0.298m7.607 0c-0.364 0.008 -0.7 0.141 -0.975 0.331 0.44 1.152 0.319 2.45 -0.331 3.457 0.143 0.165 0.293 0.292 0.447 0.38l1.637 0.777c0.499 0.274 0.756 0.739 0.761 1.257v2.134h1.753c0.288 -0.025 0.411 -0.255 0.414 -0.496V9.138c0 -0.221 -0.088 -0.375 -0.265 -0.463l-2.53 -1.208c0.656 -0.484 0.986 -1.209 0.992 -1.951 -0.017 -0.588 -0.197 -1.133 -0.554 -1.554 -0.373 -0.405 -0.836 -0.641 -1.348 -0.645"/>' +
+            "</svg>" +
+            '<text text-anchor="middle" style="font-size: 9px; cursor:pointer;" font-weight="bold" fill="#ffffff" x="28" y="28">{children-total-count}</text>';
+
+          // ESTILO B: SIMPLE GRUPO (Fin de línea con >1 hijo)
+          const botonGrupo = `
+                  <g transform="matrix(1,0,0,1,-11,2)">
+                      <rect x="0" y="0" height="32" width="50" rx="7" ry="7" fill="#F57C00"></rect>
+                      <path fill="#ffffff" transform="translate(14, 9) scale(0.9)" d="M7.461 2.356c-1.292 0 -2.339 1.223 -2.339 2.731 0 1.046 0.504 1.954 1.243 2.413l-0.858 0.398 -2.282 1.059c-0.221 0.11 -0.331 0.297 -0.331 0.562v2.514c0.018 0.314 0.207 0.607 0.512 0.612h8.12c0.349 -0.03 0.526 -0.312 0.529 -0.612V9.518c0 -0.265 -0.11 -0.452 -0.331 -0.562l-2.2 -1.059 -0.914 -0.433c0.709 -0.469 1.188 -1.358 1.188 -2.377 0 -1.508 -1.047 -2.731 -2.339 -2.731m-3.773 0.96c-0.556 0.021 -0.996 0.262 -1.331 0.645 -0.37 0.461 -0.551 1.009 -0.554 1.554 0.023 0.806 0.383 1.569 1.025 1.968L0.265 8.675C0.088 8.741 0 8.895 0 9.138v2.017c0.014 0.268 0.153 0.492 0.413 0.496h1.704V9.518c0.028 -0.57 0.296 -1.032 0.777 -1.257l1.703 -0.81c0.132 -0.077 0.259 -0.182 0.38 -0.314 -0.702 -1.083 -0.8 -2.381 -0.347 -3.523 -0.294 -0.18 -0.625 -0.296 -0.943 -0.298m7.607 0c-0.364 0.008 -0.7 0.141 -0.975 0.331 0.44 1.152 0.319 2.45 -0.331 3.457 0.143 0.165 0.293 0.292 0.447 0.38l1.637 0.777c0.499 0.274 0.756 0.739 0.761 1.257v2.134h1.753c0.288 -0.025 0.411 -0.255 0.414 -0.496V9.138c0 -0.221 -0.088 -0.375 -0.265 -0.463l-2.53 -1.208c0.656 -0.484 0.986 -1.209 0.992 -1.951 -0.017 -0.588 -0.197 -1.133 -0.554 -1.554 -0.373 -0.405 -0.836 -0.641 -1.348 -0.645"/>
+                      <text text-anchor="middle" style="font-size: 11px; cursor:pointer;" font-weight="bold" fill="#ffffff" x="39" y="20">{children-count}</text>
+                  </g>`;
+
+          // ESTILO C: SIMPLE PERSONA (Fin de línea con 1 hijo)
+          const botonPersona = `
+                  <g transform="matrix(1,0,0,1,-11,2)">
+                      <rect x="0" y="0" height="32" width="50" rx="7" ry="7" fill="#F57C00"></rect>
+                      <circle stroke="#ffffff" stroke-width="1.2" fill="none" cx="17" cy="14" r="3.5"></circle>
+                      <rect x="14" y="18" rx="1" ry="1" height="2.5" width="6" fill="#ffffff"></rect>
+                      <text text-anchor="middle" style="font-size: 11px; cursor:pointer;" font-weight="bold" fill="#ffffff" x="39" y="20">{children-count}</text>
+                  </g>`;
+
+          // --- CREAMOS LOS 3 TEMPLATES ---
+          // 1. Template COMPLEX (El de siempre)
+          OrgChart.templates.fichaComplex = Object.assign(
+            {},
+            OrgChart.templates.fichaTemplate,
+          );
+          OrgChart.templates.fichaComplex.plus = botonDoble;
+          OrgChart.templates.fichaComplex.minus = botonDoble;
+
+          // 2. Template GROUP (Para Patricia)
+          OrgChart.templates.fichaGroup = Object.assign(
+            {},
+            OrgChart.templates.fichaTemplate,
+          );
+          OrgChart.templates.fichaGroup.plus = botonGrupo;
+          OrgChart.templates.fichaGroup.minus = botonGrupo;
+
+          // 3. Template SINGLE (Para Lisbeth)
+          OrgChart.templates.fichaSingle = Object.assign(
+            {},
+            OrgChart.templates.fichaTemplate,
+          );
+          OrgChart.templates.fichaSingle.plus = botonPersona;
+          OrgChart.templates.fichaSingle.minus = botonPersona;
 
           OrgChart.templates.fichaTemplate.ripple = {
             radius: 15,
@@ -1599,7 +1971,7 @@
           // 1. Clonamos la plantilla 'fichaTemplate' para heredar su tamaño y forma
           OrgChart.templates.vacanteTemplate = Object.assign(
             {},
-            OrgChart.templates.fichaTemplate
+            OrgChart.templates.fichaTemplate,
           );
 
           // 2. Definimos el fondo oscuro (SVG)
@@ -1626,49 +1998,72 @@
 
           // 5. ¡IMPORTANTE! Matamos el field_2
           OrgChart.templates.vacanteTemplate.field_2 = "";
-          //     OrgChart.templates.vacanteTemplate.field_2 = // "PUESTO VACANTE"
-          // '<foreignObject x="10" y="95" width="230" height="20">' +
-          // '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-style: italic; color: #e0e0e0; line-height: 1.2; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
-          // '{val}' +
-          // '</div>' +
-          // '</foreignObject>';
 
           // 1. Template Fantasma (Invisible)
           OrgChart.templates.ghost = Object.assign({}, OrgChart.templates.ana);
           OrgChart.templates.ghost.size = [0, 0]; // Tamaño cero para que no ocupe espacio
-          OrgChart.templates.ghost.node = '';      // Sin cuadro
-          OrgChart.templates.ghost.plus = '';      // Sin botón +
-          OrgChart.templates.ghost.minus = '';     // Sin botón -
+          OrgChart.templates.ghost.node = ""; // Sin cuadro
+          OrgChart.templates.ghost.plus = ""; // Sin botón +
+          OrgChart.templates.ghost.minus = ""; // Sin botón -
 
           // TEMPLATE GROUP
-          OrgChart.templates.group.link = 
-              `<path stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} {xb},{yb} {xc},{yc} L{xd},{yd}" />`;
-          OrgChart.templates.group.nodeMenuButton = '';
-          OrgChart.templates.group.min = Object.assign({}, OrgChart.templates.group);
+          OrgChart.templates.group.link = `<path stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} {xb},{yb} {xc},{yc} L{xd},{yd}" />`;
+          OrgChart.templates.group.nodeMenuButton = "";
+          OrgChart.templates.group.min = Object.assign(
+            {},
+            OrgChart.templates.group,
+          );
           OrgChart.templates.group.min.imgs = `{val}`;
           OrgChart.templates.group.min.img_0 = ``;
-          OrgChart.templates.group.min.description = 
-              `<text data-width="230" data-text-overflow="multiline" style="font-size: 14px;" fill="#aeaeae" x="125" y="100" text-anchor="middle">{val}</text>`;
-          // OrgChart.templates.group.field_0 = 
+          // OrgChart.templates.group.min.description =
+          //     `<text data-width="230" data-text-overflow="multiline" style="font-size: 14px;" fill="#aeaeae" x="125" y="100" text-anchor="middle">{val}</text>`;
+          // OrgChart.templates.group.field_0 =
           //     '<text style="font-size: 20px; font-weight: bold;" fill="#039BE5" text-anchor="middle">{val}</text>';
 
-              
+          // =========================================================
+          // GLOBO CONTADOR (ESQUINA SUPERIOR DERECHA DINÁMICA)
+          // =========================================================
+          OrgChart.templates.group.miGlobo = "{val}";
+
+          OrgChart.templates.group.counter =
+            '<g transform="translate({cx}, {h})">' +
+            // La píldora naranja (centrada en 0,0 relativo a la posición translate)
+            '<rect x="-25" y="-12" width="50" height="24" rx="12" ry="12" fill="#F57C00" stroke="#ffffff" stroke-width="2"></rect>' +
+            // Icono Persona (Blanco) a la izquierda
+            '<svg x="-18" y="-8" width="16" height="16" viewBox="0 0 15 15" fill="#ffffff">' +
+            '<path d="M7.461 2.356c-1.292 0 -2.339 1.223 -2.339 2.731 0 1.046 0.504 1.954 1.243 2.413l-0.858 0.398 -2.282 1.059c-0.221 0.11 -0.331 0.297 -0.331 0.562v2.514c0.018 0.314 0.207 0.607 0.512 0.612h8.12c0.349 -0.03 0.526 -0.312 0.529 -0.612V9.518c0 -0.265 -0.11 -0.452 -0.331 -0.562l-2.2 -1.059 -0.914 -0.433c0.709 -0.469 1.188 -1.358 1.188 -2.377 0 -1.508 -1.047 -2.731 -2.339 -2.731m-3.773 0.96c-0.556 0.021 -0.996 0.262 -1.331 0.645 -0.37 0.461 -0.551 1.009 -0.554 1.554 0.023 0.806 0.383 1.569 1.025 1.968L0.265 8.675C0.088 8.741 0 8.895 0 9.138v2.017c0.014 0.268 0.153 0.492 0.413 0.496h1.704V9.518c0.028 -0.57 0.296 -1.032 0.777 -1.257l1.703 -0.81c0.132 -0.077 0.259 -0.182 0.38 -0.314 -0.702 -1.083 -0.8 -2.381 -0.347 -3.523 -0.294 -0.18 -0.625 -0.296 -0.943 -0.298m7.607 0c-0.364 0.008 -0.7 0.141 -0.975 0.331 0.44 1.152 0.319 2.45 -0.331 3.457 0.143 0.165 0.293 0.292 0.447 0.38l1.637 0.777c0.499 0.274 0.756 0.739 0.761 1.257v2.134h1.753c0.288 -0.025 0.411 -0.255 0.414 -0.496V9.138c0 -0.221 -0.088 -0.375 -0.265 -0.463l-2.53 -1.208c0.656 -0.484 0.986 -1.209 0.992 -1.951 -0.017 -0.588 -0.197 -1.133 -0.554 -1.554 -0.373 -0.405 -0.836 -0.641 -1.348 -0.645"/>' +
+            "</svg>" +
+            // El Número (Valor dinámico)
+            '<text x="8" y="5" text-anchor="middle" fill="#ffffff" style="font-size: 11px; font-weight: bold;">{val}</text>' +
+            "</g>";
+
           //Lineas punteadas
           // stroke-dasharray="6, 3" crea el efecto discontinuo
-          OrgChart.templates.ghost.link = 
-              '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
+          OrgChart.templates.ghost.link =
+            '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
 
           //LINEAS PUNTEADAS
           // 2. Template de Grupo
-          // OrgChart.templates.group.link = 
+          // OrgChart.templates.group.link =
           //     '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
-            
+
           // // 3. Template de Grupo Min
-          // OrgChart.templates.group.min.link = 
+          // OrgChart.templates.group.min.link =
           //     '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
 
+          // =========================================================
+          // TEMPLATE PARA SLINKS (Líneas de conexión secundarias)
+          // =========================================================
+          OrgChart.templates.orange = Object.assign({}, OrgChart.templates.ana);
 
-              OrgChart.VERTICAL_CHILDREN_ASSISTANT = true;
+          // CAMBIO: Agregamos class="orange-link" y style="opacity: 0"
+          OrgChart.templates.orange.link =
+            '<path stroke-dasharray="5, 5" stroke="#F57C00" stroke-width="2" fill="none" d="{d}" />';
+
+          OrgChart.templates.orange.link_field_0 =
+            '<text text-anchor="middle" fill="#F57C00" font-size="10px" x="{x}" y="{y}">{val}</text>';
+
+          OrgChart.VERTICAL_CHILDREN_ASSISTANT = true;
 
           // --- 2.1 DEFINIR BINDINGS (MAPEOS) ---
           // (Mueve tu binding de persona aquí para tener ambos)
@@ -1676,6 +2071,8 @@
             field_0: "nombre",
             field_1: "puesto",
             img_0: "img",
+            conteo: "conteo", // <--- //TODO: Descomentar para mostrar el contador
+            miGlobo: "conteo",
             //column: "order" // jerarquía
           };
 
@@ -1692,7 +2089,7 @@
           // (Clonamos 'fichaTemplate' para heredar el tamaño y la barra naranja)
           OrgChart.templates.cargoTemplate = Object.assign(
             {},
-            OrgChart.templates.fichaTemplate
+            OrgChart.templates.fichaTemplate,
           );
 
           // Quitamos la imagen
@@ -1737,23 +2134,30 @@
             "sub-level-9": { subLevels: 9, levelSeparation: 20 },
             "sub-level-10": { subLevels: 10, levelSeparation: 20 },
             // 1. Tag para el NODO GRUPO (La caja contenedora)
-            "group": {
-                template: "group", // Usamos el template nativo de grupo
+            group: {
+              template: "group", // Usamos el template nativo de grupo
+              nodeBinding: {
+                conteo: "conteo",
+              },
             },
-            
+
+            fichaComplex: { template: "fichaComplex" },
+            fichaGroup: { template: "fichaGroup" },
+            fichaSingle: { template: "fichaSingle" },
+
             // 2. Configuración para los HIJOS dentro del grupo (opcional, para layout)
             "support-team-group": {
-                subTreeConfig: {
-                    columns: 2, // Mostrar en 2 columnas dentro del grupo
-                    layout: OrgChart.layout.treeLeftOffset // O treeRightOffset
-                }
+              subTreeConfig: {
+                columns: 2, // Mostrar en 2 columnas dentro del grupo
+                layout: OrgChart.layout.treeLeftOffset, // O treeRightOffset
+              },
             },
-            "fantasma": { template: "ghost" },
+            fantasma: { template: "ghost" },
             "assistant-branch": {
-                // Esto hace que lo que cuelgue del fantasma se alinee bonito a la izquierda/derecha
-                subTreeConfig: {
-                    layout: OrgChart.layout.treeRightOffset // O treeLeftOffset según prefieras
-                }
+              // Esto hace que lo que cuelgue del fantasma se alinee bonito a la izquierda/derecha
+              subTreeConfig: {
+                layout: OrgChart.layout.treeRightOffset, // O treeLeftOffset según prefieras
+              },
             },
             // 3. Tag para los nodos filtro (puntos pequeños)
             filter: {
@@ -1839,15 +2243,16 @@
                 func: OrgChart.anim.inCirc, // Prueba con outSin o outBack para una sensación más suave
                 duration: 400 // Aumenta la duración a 400ms (o más, como 500ms)
             }, */
-            /* 
-            collapse:{
-                level: 2,
-                allChildren: true
+
+            collapse: {
+              level: 1,
+              allChildren: true,
             },
+            //*
             expand: {
-                nodes: [4281], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos 
-                allChildren: true // Expande todos los hijos del nodo 4281
-            }, */
+              nodes: ["GRP_CORPORATIVO"], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos
+              allChildren: true, // Expande todos los hijos del nodo 4281
+            }, //*/
             controls: {
               svg_export: { title: "Exportar a SVG" },
               //png_preview: { title: 'Preview PNG' },
@@ -1878,34 +2283,38 @@
                   let dynamicRoots = [];
 
                   for (var i = 0; i < renderedIds.length; i++) {
-                      var id = renderedIds[i];
-                      var node = chart.getNode(id);
+                    var id = renderedIds[i];
+                    var node = chart.getNode(id);
 
-                      // Condición:
-                      // A. El nodo existe
-                      // B. No tiene padre visual (pid es null) -> Esto identifica a las cabezas de cada caja
-                      // C. NO es un nodo de tipo "group" (para no cerrar la caja gris, solo a la persona)
-                      if (node && !node.pid && node.tags.indexOf("group") === -1) {
-                          dynamicRoots.push(node.id);
-                      }
+                    // Condición:
+                    // A. El nodo existe
+                    // B. No tiene padre visual (pid es null) -> Esto identifica a las cabezas de cada caja
+                    // C. NO es un nodo de tipo "group" (para no cerrar la caja gris, solo a la persona)
+                    if (
+                      node &&
+                      !node.pid &&
+                      node.tags.indexOf("group") === -1
+                    ) {
+                      dynamicRoots.push(node.id);
+                    }
                   }
 
                   // 3. Iterar sobre cada cabeza encontrada y colapsar su descendencia
-                  dynamicRoots.forEach(rootId => {
-                      var node = chart.getNode(rootId);
-                      var collapseIds = [];
-                      
-                      // Usamos tu función 'iterate' existente para buscar hijos recursivamente
-                      iterate(chart, node, collapseIds, rootId);
+                  dynamicRoots.forEach((rootId) => {
+                    var node = chart.getNode(rootId);
+                    var collapseIds = [];
 
-                      // Si tiene hijos que colapsar, ejecutamos la orden
-                      if (collapseIds.length > 0) {
-                          chart.expandCollapse(rootId, [], collapseIds);
-                      }
+                    // Usamos tu función 'iterate' existente para buscar hijos recursivamente
+                    iterate(chart, node, collapseIds, rootId);
+
+                    // Si tiene hijos que colapsar, ejecutamos la orden
+                    if (collapseIds.length > 0) {
+                      chart.expandCollapse(rootId, [], collapseIds);
+                    }
                   });
 
                   // 4. Ajustar la vista al final
-                  chart.fit(); 
+                  chart.fit();
                 },
               },
               horizontalLayout: {
@@ -1917,7 +2326,7 @@
                     null,
                     function () {
                       chart.fit(); // Ajustar después de la animación de orientación
-                    }
+                    },
                   );
                 },
               },
@@ -1930,7 +2339,7 @@
                     null,
                     function () {
                       chart.fit(); // Ajustar después de la animación de orientación
-                    }
+                    },
                   );
                 },
               },
@@ -2002,28 +2411,46 @@
           /////////////////////////
           chart = new OrgChart(treeDiv, chartConfig);
 
-          // Expande y minimiza los nodos de grupo
-          chart.on('click', function (sender, args) {
-              if (args.node.tags.indexOf("group") != -1) {
-                  if (args.node.min) {
-                      sender.maximize(args.node.id);
-                      chart.center(args.node.id, null, true)
-                      chart.config.collapse = { level: 2, allChildren: true };
-                      const nodeData = sender.get(args.node.id);
-
-                      console.log("--- 🖱️ GRUPO CLICKEADO ---");
-                      console.log(nodeData);
-                      console.log("--------------------------");
-
-                      chart.fit()
-                  }
-                  else {
-                      sender.minimize(args.node.id);
-                      chart.setScale(1);
-                      chart.center(args.node.id, null, true)
-                  }
-                  return false;
+          // 2. Usamos el evento para construir el SVG dinámicamente
+          chart.on("field", function (sender, args) {
+            if (args.name == "conteo") {
+              if (args.value) {
+                var x = args.node.w; // Ancho dinámico del nodo
+                var y = 0; // Esquina superior
+                // Reemplazamos el valor por el bloque SVG completo
+                args.value = `
+                          <g transform="translate(${x}, ${y})">
+                            <g transform="translate(-15, 15)">
+                              <circle r="25" fill="#e67e22" stroke="#ffffff" stroke-width="2"></circle>
+                              <text text-anchor="middle" y="5" fill="#ffffff" font-size="14px" font-weight="bold">${args.value}</text>
+                            </g>
+                          </g>`;
+              } else {
+                args.value = ""; // Si no hay info, no mostramos nada
               }
+            }
+          });
+          // Expande y minimiza los nodos de grupo
+          chart.on("click", function (sender, args) {
+            if (args.node.tags.indexOf("group") != -1) {
+              if (args.node.min) {
+                sender.maximize(args.node.id);
+                chart.center(args.node.id, null, true);
+                //chart.config.collapse = { level: 2, allChildren: true };
+                const nodeData = sender.get(args.node.id);
+
+                console.log("--- 🖱️ GRUPO CLICKEADO ---");
+                console.log(nodeData);
+                console.log("--------------------------");
+
+                chart.fit();
+              } else {
+                sender.minimize(args.node.id);
+                chart.setScale(1);
+                chart.center(args.node.id, null, true);
+              }
+              return false;
+            }
           });
 
           //FUNCIONES PARA QUE LA IA UTILICE
@@ -2047,14 +2474,14 @@
                       node.templateName !== "invisibleGroup" &&
                       node.templateName !== "group"
                     ); // Añade más si tienes otros tipos de nodos internos
-                  }
+                  },
                 );
 
                 employeeCount = visibleEmployeeNodes.length;
 
                 toolCall.FunctionResult = `Actualmente hay ${employeeCount} empleados reales visibles en el organigrama.`;
                 console.log(
-                  `Resultado de getEmployeeCount (empleados reales visibles): ${toolCall.FunctionResult}`
+                  `Resultado de getEmployeeCount (empleados reales visibles): ${toolCall.FunctionResult}`,
                 );
               }
               // Si tienes otras herramientas, asegúrate de que su lógica también esté aquí
@@ -2100,24 +2527,24 @@
               // --- Lógica de Expansión Superficial ---
               // Lógica para expandir solo los hijos directos y mantener los nietos colapsados
               if (node && node.childrenIds && node.childrenIds.length > 0) {
-                args.cancel = true; 
+                args.cancel = true;
 
                 // 1. Preparamos la lista de TODOS los IDs que queremos ver inmediatamente.
                 //    Esto incluye a los hijos directos (Fantasmas/Empleados)
                 //    Y a los hijos de los fantasmas (Grupos).
                 let idsToShow = [...node.childrenIds];
 
-                node.childrenIds.forEach(childId => {
-                    const childNode = chart.getNode(childId);
-                    
-                    // Si el hijo es un FANTASMA, agregamos sus hijos (los grupos) a la lista.
-                    // Al pedirle al gráfico que muestre a los grupos, él sabe que 
-                    // TIENE que abrir al fantasma automáticamente.
-                    if (childNode && childNode.tags.includes("fantasma")) {
-                        if (childNode.childrenIds) {
-                            idsToShow.push(...childNode.childrenIds);
-                        }
+                node.childrenIds.forEach((childId) => {
+                  const childNode = chart.getNode(childId);
+
+                  // Si el hijo es un FANTASMA, agregamos sus hijos (los grupos) a la lista.
+                  // Al pedirle al gráfico que muestre a los grupos, él sabe que
+                  // TIENE que abrir al fantasma automáticamente.
+                  if (childNode && childNode.tags.includes("fantasma")) {
+                    if (childNode.childrenIds) {
+                      idsToShow.push(...childNode.childrenIds);
                     }
+                  }
                 });
 
                 // 2. Ejecutamos UNA sola orden de expansión.
@@ -2142,7 +2569,6 @@
             return false;
           });
 
-          
           //TODO: para personalizar los item del search
           // 2. Sobrescribe el método OrgChart.searchUI.createItem
           //    Este método es responsable de generar el HTML para cada elemento de la lista de resultados.
@@ -2211,10 +2637,67 @@
               });
           });
 
+          // =========================================================
+          // 9. LÓGICA DE HOVER (INTEGRADA CON TU CÓDIGO)
+          // =========================================================
+          chart.on("init", function (sender) {
+            // A. Evento al pasar el mouse POR ENCIMA (Mostrar)
+            sender.element.addEventListener("mouseover", function (e) {
+              // 1. Usamos TU método para encontrar el nodo
+              let nodeElement = e.target.closest("[data-n-id]");
+
+              if (nodeElement) {
+                let nodeId = nodeElement.getAttribute("data-n-id");
+                console.log("ID detectado:", nodeId); // Debug
+
+                if (nodeId) {
+                  // 2. Buscamos los grupos <g> de conexión relacionados con este ID
+                  // Usamos los atributos data-c-l-from y data-c-l-to que vimos en tus capturas
+                  const gruposRelacionados = document.querySelectorAll(
+                    `g[data-c-l-from="${nodeId}"], g[data-c-l-to="${nodeId}"]`,
+                  );
+
+                  gruposRelacionados.forEach((grupo) => {
+                    // 3. Dentro del grupo, buscamos el path naranja
+                    // Selector de atributo exacto para el color
+                    const pathNaranja = grupo.querySelector(
+                      'path[stroke="#F57C00"]',
+                    );
+
+                    if (pathNaranja) {
+                      pathNaranja.classList.add("visible");
+
+                      // Opcional: Traer al frente para que se vea por encima de las cajas
+                      if (grupo.parentNode) {
+                        grupo.parentNode.appendChild(grupo);
+                      }
+                    }
+                  });
+                }
+              }
+            });
+
+            // B. Evento al SACAR el mouse (Ocultar)
+            sender.element.addEventListener("mouseout", function (e) {
+              // Obtenemos el nodo del que estamos saliendo
+              let nodeElement = e.target.closest("[data-n-id]");
+
+              // Verificamos si realmente salimos del nodo (y no solo nos movimos a un hijo interno como el texto)
+              // e.relatedTarget es el elemento al que entra el mouse. Si ese elemento NO está dentro de nuestro nodo, es que salimos.
+              if (nodeElement && !nodeElement.contains(e.relatedTarget)) {
+                // Buscamos TODAS las líneas naranjas que estén visibles y las apagamos
+                const pathsVisibles = document.querySelectorAll(
+                  'path[stroke="#F57C00"].visible',
+                );
+                pathsVisibles.forEach((p) => p.classList.remove("visible"));
+              }
+            });
+          });
+
           // --- ¡LÓGICA PARA CAMBIAR DE VISTA! ---
           // 1. Inicializar Select2 en todos los selects
           $(
-            "#linea-negocio-select, #centro-costos-select, #area-select, #departamento-select"
+            "#linea-negocio-select, #centro-costos-select, #area-select, #departamento-select",
           ).select2({
             width: "240px",
           });
@@ -2227,15 +2710,17 @@
           console.log("Select2 inicializado por primera vez.");
           //procesarLoginDeUsuario();
 
-  // =========================================================
+          // =========================================================
           // NUEVA LÓGICA DE FILTROS ESCALONADOS (OBLIGATORIOS)
           // Estructura: Línea -> Centro -> Propósito
           // =========================================================
 
           // Inicializar Select2 en los nuevos selects
-          $("#linea-negocio-select, #centro-costos-select, #proposito-select").select2({
+          $(
+            "#linea-negocio-select, #centro-costos-select, #proposito-select",
+          ).select2({
             width: "240px",
-            minimumResultsForSearch: 10 // Solo muestra buscador si hay muchas opciones
+            minimumResultsForSearch: 10, // Solo muestra buscador si hay muchas opciones
           });
 
           // 1. LISTENER: LÍNEA DE NEGOCIO
@@ -2248,7 +2733,7 @@
 
           //   // Poblar Centro de Costos con las opciones VÁLIDAS para esta línea
           //   const opcionesCostos = populateSelect("centro-costos-select", "centroCosto", nodosDeLinea);
-            
+
           //   // --- LÓGICA DE SELECCIÓN AUTOMÁTICA ---
           //   if (opcionesCostos.length > 1) {
           //       // Hay muchas opciones -> populateSelect agregó "TODOS" -> Lo seleccionamos
@@ -2261,10 +2746,8 @@
           //   }
           // });
 
-          
           // 1. LISTENER: LÍNEA DE NEGOCIO (El único que importa ahora)
           $("#linea-negocio-select").on("change", function () {
-            
             // OCULTAR visualmente los otros selectores
             // Select2 crea un contenedor hermano, así que ocultamos ese contenedor
             $("#centro-costos-select").next(".select2-container").hide();
@@ -2279,34 +2762,44 @@
           $("#centro-costos-select").on("change", function () {
             const selectedLinea = $("#linea-negocio-select").val();
             const selectedCosto = $(this).val();
-            const sourceNodes = document.getElementById("modo-select").value === "Cargo" ? allCargoNodes : allNodes;
+            const sourceNodes =
+              document.getElementById("modo-select").value === "Cargo"
+                ? allCargoNodes
+                : allNodes;
 
             // Filtrar nodos (Manejo correcto del comodín "todos")
             // Si selectedCosto es "todos", traemos a toda la línea. Si no, filtramos específico.
-            const nodosDeCosto = sourceNodes.filter((n) => 
-                n.lineaNegocio === selectedLinea && 
-                ((selectedCosto === "todos") || (n.centroCosto === selectedCosto))
+            const nodosDeCosto = sourceNodes.filter(
+              (n) =>
+                n.lineaNegocio === selectedLinea &&
+                (selectedCosto === "todos" || n.centroCosto === selectedCosto),
             );
 
             // Poblar Propósito con las opciones VÁLIDAS para este costo
-            const opcionesProposito = populateSelect("proposito-select", "proposito", nodosDeCosto);
+            const opcionesProposito = populateSelect(
+              "proposito-select",
+              "proposito",
+              nodosDeCosto,
+            );
 
             // --- LÓGICA DE SELECCIÓN AUTOMÁTICA ---
             if (opcionesProposito.length > 1) {
-               // Hay muchos -> Seleccionar TODOS
-               $("#proposito-select").val("todos").trigger("change");
+              // Hay muchos -> Seleccionar TODOS
+              $("#proposito-select").val("todos").trigger("change");
             } else if (opcionesProposito.length === 1) {
-               // Solo 1 -> Seleccionar el único
-               $("#proposito-select").val(opcionesProposito[0]).trigger("change");
+              // Solo 1 -> Seleccionar el único
+              $("#proposito-select")
+                .val(opcionesProposito[0])
+                .trigger("change");
             } else {
-               // Si no hay propósitos (raro), aplicamos filtro para limpiar
-               aplicarFiltrosJerarquicos(); 
+              // Si no hay propósitos (raro), aplicamos filtro para limpiar
+              aplicarFiltrosJerarquicos();
             }
           });
 
           // 3. LISTENER: PROPÓSITO
           $("#proposito-select").on("change", function () {
-             aplicarFiltrosJerarquicos();
+            aplicarFiltrosJerarquicos();
           });
 
           // 6. Listener para MODO (Persona/Cargo)
@@ -2341,7 +2834,7 @@
               populateSelect(
                 "linea-negocio-select",
                 "lineaNegocio",
-                sourceNodes
+                sourceNodes,
               );
               $("#linea-negocio-select").val(filtrosGuardados.linea);
 
@@ -2350,19 +2843,19 @@
                 filtrosGuardados.linea === "todos"
                   ? sourceNodes
                   : sourceNodes.filter(
-                      (n) => n.lineaNegocio === filtrosGuardados.linea
+                      (n) => n.lineaNegocio === filtrosGuardados.linea,
                     );
               populateSelect(
                 "centro-costos-select",
                 "centroCosto",
-                nodosParaCostos
+                nodosParaCostos,
               );
               // Solo restaurar si la opción aún existe en este set de nodos
               if (
                 $(
                   "#centro-costos-select option[value='" +
                     filtrosGuardados.costo +
-                    "']"
+                    "']",
                 ).length > 0
               ) {
                 $("#centro-costos-select").val(filtrosGuardados.costo);
@@ -2372,17 +2865,23 @@
 
               // 2c. Poblar y restaurar ÁREA (basado en Costo) ✅ NUEVO BLOQUE
               // Primero filtramos los nodos según el costo restaurado
-              const nodosParaAreas = filtrosGuardados.costo === "todos"
+              const nodosParaAreas =
+                filtrosGuardados.costo === "todos"
                   ? nodosParaCostos // Vienen del paso anterior (filtrados por línea)
-                  : nodosParaCostos.filter((n) => n.centroCosto === filtrosGuardados.costo);
-              
+                  : nodosParaCostos.filter(
+                      (n) => n.centroCosto === filtrosGuardados.costo,
+                    );
+
               populateSelect("area-select", "area", nodosParaAreas);
-              
+
               // Intentar restaurar el valor seleccionado
-              if ($("#area-select option[value='" + filtrosGuardados.area + "']").length > 0) {
-                  $("#area-select").val(filtrosGuardados.area);
+              if (
+                $("#area-select option[value='" + filtrosGuardados.area + "']")
+                  .length > 0
+              ) {
+                $("#area-select").val(filtrosGuardados.area);
               } else {
-                  filtrosGuardados.area = "todos"; // Reset si no existe
+                filtrosGuardados.area = "todos"; // Reset si no existe
               }
 
               // 2d. Poblar y restaurar DEPTO (basado en área)
@@ -2390,19 +2889,19 @@
                 filtrosGuardados.area === "todos"
                   ? nodosParaAreas // Nodos ya filtrados por línea
                   : nodosParaAreas.filter(
-                      (n) => n.area === filtrosGuardados.area
+                      (n) => n.area === filtrosGuardados.area,
                     );
               populateSelect(
                 "departamento-select",
                 "departamento",
-                nodosParaDeptos
+                nodosParaDeptos,
               );
               // Solo restaurar si la opción aún existe
               if (
                 $(
                   "#departamento-select option[value='" +
                     filtrosGuardados.depto +
-                    "']"
+                    "']",
                 ).length > 0
               ) {
                 $("#departamento-select").val(filtrosGuardados.depto);
@@ -2450,7 +2949,7 @@
               function () {
                 // Función 'callback': se ejecuta DESPUÉS de centrar
                 sender.instance.setScale(1); // Fija el zoom a 100%
-              }
+              },
             );
 
             return false; // Previene otros eventos
@@ -2473,14 +2972,14 @@
 
                     // 1. Busca el item SELECCIONADO (el que tiene data-selected="yes")
                     let elementToClick = searchTable.querySelector(
-                      'tr[data-selected="yes"]'
+                      'tr[data-selected="yes"]',
                     );
 
                     if (!elementToClick) {
                       // 2. Si no hay ninguno seleccionado, busca el PRIMER item de la lista
                       // (el primer tr que tenga el atributo data-search-item-id)
                       elementToClick = searchTable.querySelector(
-                        "tr[data-search-item-id]"
+                        "tr[data-search-item-id]",
                       );
                     }
 
@@ -2500,7 +2999,7 @@
                   ) {
                     event.preventDefault();
                   }
-                }
+                },
               );
             }
 
@@ -2547,7 +3046,7 @@
               });
             } else {
               console.error(
-                "onInit: No se pudieron encontrar los elementos de la UI de Balkan (search, menu, input)."
+                "onInit: No se pudieron encontrar los elementos de la UI de Balkan (search, menu, input).",
               );
             }
 
@@ -2576,7 +3075,12 @@
       async function loadAndRenderCargoChart(apiUrl, filtrosGuardados = null) {
         // Objeto por defecto si no se pasan filtros
         if (!filtrosGuardados) {
-          filtrosGuardados = { linea: "todos", costo: "todos", area: "todos", depto: "todos" };
+          filtrosGuardados = {
+            linea: "todos",
+            costo: "todos",
+            area: "todos",
+            depto: "todos",
+          };
         }
 
         // Esta función repobla y restaura los filtros para la vista de Cargo
@@ -2592,49 +3096,59 @@
             filtrosGuardados.linea === "todos"
               ? sourceNodes
               : sourceNodes.filter(
-                  (n) => n.lineaNegocio === filtrosGuardados.linea
+                  (n) => n.lineaNegocio === filtrosGuardados.linea,
                 );
           populateSelect(
             "centro-costos-select",
             "centroCosto",
-            nodosParaCostos
+            nodosParaCostos,
           );
           if (
             $(
               "#centro-costos-select option[value='" +
                 filtrosGuardados.costo +
-                "']"
+                "']",
             ).length > 0
           ) {
             $("#centro-costos-select").val(filtrosGuardados.costo);
           } else {
             filtrosGuardados.costo = "todos"; // Forzar a 'todos' si no se encontró
-          } 
+          }
 
           // 3. ✅ Área (NUEVO)
-          const nodosParaAreas = filtrosGuardados.costo === "todos" ? nodosParaCostos : nodosParaCostos.filter((n) => n.centroCosto === filtrosGuardados.costo);
+          const nodosParaAreas =
+            filtrosGuardados.costo === "todos"
+              ? nodosParaCostos
+              : nodosParaCostos.filter(
+                  (n) => n.centroCosto === filtrosGuardados.costo,
+                );
           populateSelect("area-select", "area", nodosParaAreas);
-          if ($("#area-select option[value='" + filtrosGuardados.area + "']").length > 0) {
-             $("#area-select").val(filtrosGuardados.area);
-          } else { filtrosGuardados.area = "todos"; }
+          if (
+            $("#area-select option[value='" + filtrosGuardados.area + "']")
+              .length > 0
+          ) {
+            $("#area-select").val(filtrosGuardados.area);
+          } else {
+            filtrosGuardados.area = "todos";
+          }
 
           // 4. Poblar y restaurar DEPTO
           const nodosParaDeptos =
             filtrosGuardados.costo === "todos"
               ? nodosParaCostos
               : nodosParaCostos.filter(
-                  (n) => n.centroCosto === filtrosGuardados.costo
+                  (n) => n.centroCosto === filtrosGuardados.costo,
                 );
           populateSelect(
             "departamento-select",
             "departamento",
-            nodosParaDeptos
+            nodosParaDeptos,
           );
           if (
             $(
               "#departamento-select option[value='" +
                 filtrosGuardados.depto +
-                "']"
+                "']",
             ).length > 0
           ) {
             $("#departamento-select").val(filtrosGuardados.depto);
@@ -2673,11 +3187,11 @@
             : null;
           if (!Array.isArray(flatApiData))
             throw new Error(
-              "Formato inválido. No se encontró array en 'Cargo'."
+              "Formato inválido. No se encontró array en 'Cargo'.",
             );
 
           console.log(
-            `Datos de Cargo recibidos (${flatApiData.length}). Procesando...`
+            `Datos de Cargo recibidos (${flatApiData.length}). Procesando...`,
           );
 
           // --- Transformación de "Cargo" ---
@@ -2689,7 +3203,7 @@
                 cargo.codigoPosicionReporta != "00424" && //Este id no aparece en la api pero si en la viewEmployeers
                 //&& !(cargo.codigoPosicionReporta === '00006' && cargo.codigoPosicion !== '00001')
                 //&& !['00006', '00416', '00330', '00353'].includes(cargo.codigoPosicion)
-                cargo.puesto != null
+                cargo.puesto != null,
             ) // Filtro básico
             .map((cargo) => {
               const isVacant = cargo.esVacante === "1";
@@ -2726,7 +3240,11 @@
                   // Es un array de empleados
                   listaEmpleados = cargo.Empleado;
                   primerEmpleado = cargo.Empleado[0];
-                  console.log("Lista de Empleados para cargo", id, listaEmpleados);
+                  console.log(
+                    "Lista de Empleados para cargo",
+                    id,
+                    listaEmpleados,
+                  );
                   console.log(primerEmpleado);
                   cargoPersonaDisplay =
                     listaEmpleados.length === 1
@@ -2782,7 +3300,7 @@
                     : cargo.nombreDepartamento) || "N/A",
                 //cargoDepto: cargo.codigoPosicion,//cargo.nombreDepartamento || "N/A", //WIP: prueba para sabeer codPosicion de la gente
 
-                // Campos para los filtros,   
+                // Campos para los filtros,
                 lineaNegocio:
                   (primerEmpleado
                     ? primerEmpleado.nombreLineaNegocio
@@ -2847,39 +3365,39 @@
 
       // --- Llamada inicial ---
       document.addEventListener("DOMContentLoaded", function () {
-
         // --- INICIO CÓDIGO DEL BOTÓN (MODIFICADO PARA DESCARGA) ---
         const btnManual = document.getElementById("btn-download-app-manual");
-        
+
         if (btnManual) {
-            btnManual.addEventListener("click", function (e) {
-                e.preventDefault(); // Evita comportamientos por defecto
+          btnManual.addEventListener("click", function (e) {
+            e.preventDefault(); // Evita comportamientos por defecto
 
-                // ⚠️ 1. PON AQUÍ LA URL REAL DE TU PDF
-                const manualPdfUrl = "RRHH-USU-USORGA-V001 Manual de Usuario de Uso de Organigrama.pdf";
-                
-                // ⚠️ 2. PON AQUÍ EL NOMBRE CON EL QUE SE GUARDARÁ EL ARCHIVO
-                const nombreArchivo = "Manual_Usuario_Organigrama.pdf";
+            // ⚠️ 1. PON AQUÍ LA URL REAL DE TU PDF
+            const manualPdfUrl =
+              "RRHH-USU-USORGA-V001 Manual de Usuario de Uso de Organigrama.pdf";
 
-                // Creación de un enlace temporal invisible
-                const link = document.createElement('a');
-                link.href = manualPdfUrl;
-                
-                // El atributo 'download' fuerza la descarga
-                link.setAttribute('download', nombreArchivo);
-                link.setAttribute('target', '_blank'); // Fallback por si el navegador bloquea la descarga directa
-                link.style.display = 'none';
+            // ⚠️ 2. PON AQUÍ EL NOMBRE CON EL QUE SE GUARDARÁ EL ARCHIVO
+            const nombreArchivo = "Manual_Usuario_Organigrama.pdf";
 
-                // Añadirlo al documento, hacer clic y removerlo
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            });
+            // Creación de un enlace temporal invisible
+            const link = document.createElement("a");
+            link.href = manualPdfUrl;
+
+            // El atributo 'download' fuerza la descarga
+            link.setAttribute("download", nombreArchivo);
+            link.setAttribute("target", "_blank"); // Fallback por si el navegador bloquea la descarga directa
+            link.style.display = "none";
+
+            // Añadirlo al documento, hacer clic y removerlo
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          });
         }
         // --- FIN CÓDIGO DEL BOTÓN ---
 
         const apiUrl =
-          "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_persona";     //TODO: APUNTA A QA
+          "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_persona"; //TODO: APUNTA A QA
         loadAndRenderChart(apiUrl);
       });
     </script>
