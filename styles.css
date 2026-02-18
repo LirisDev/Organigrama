@@ -1309,18 +1309,29 @@ div[data-ctrl-search] {
     fill: #27ae60 !important;
 }
 
+/* RETAIL (Verde) */
+[data-n-id="GRP_MACRO_PECUARIO"] rect {
+    stroke: #0c2291 !important;
+    fill: #0c2291 !important;
+}
+/* RETAIL (Verde) */
+[data-n-id="GRP_MACRO_RETAIL"] rect {
+    stroke: #1ed3cd !important;
+    fill: #1ed3cd !important;
+}
+
 /* CLINKS */
 /* 1. OCULTAR POR DEFECTO:
    Seleccionamos cualquier path SVG que tenga el color naranja exacto.
-   Usamos !important para vencer al estilo en línea de Balkan. */
+   Usamos !important para vencer al estilo en línea de Balkan. 
 path[stroke="#F57C00"] {
     opacity: 0 !important;
     transition: opacity 0.3s ease-in-out;
 }
 
 /* 2. MOSTRAR AL HACER HOVER:
-   Esta clase se la pondremos con JS. */
+   Esta clase se la pondremos con JS. 
 path[stroke="#F57C00"].visible {
     opacity: 1 !important;
-    stroke-width: 3px !important; /* Un poco más grueso para resaltar */
-}
+    stroke-width: 3px !important; /* Un poco más grueso para resaltar 
+} */

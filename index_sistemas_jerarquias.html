@@ -168,6 +168,30 @@
         RETAIL: { id: "00671", order: 8, reportFuncional: "15" },
       };
 
+      // --- NUEVA CONFIGURACIÓN DE JERARQUÍA DE GRUPOS ---
+      const ESTRUCTURA_MACRO = {
+        PECUARIO: {
+          id: "GRP_MACRO_PECUARIO",
+          title: "DIVISIÓN PECUARIO",
+          order: 2,
+          headId: "12", // ID de Santiago Saab (Cabeza de esta división)
+          subgrupos: [
+            "BALANCEADO",
+            "CARNICERIA",
+            "CARNICOS",
+            "PECUARIOS",
+            "DERIVADOS",
+          ],
+        },
+        RETAIL: {
+          id: "GRP_MACRO_RETAIL",
+          title: "DIVISIÓN RETAIL",
+          order: 3,
+          headId: "390", // ID de Juan Jose Hidalgo (Cabeza de esta división)
+          subgrupos: ["RETAIL", "MARKETING"],
+        },
+      };
+
       const apiCargoUrl =
         "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_cargo"; //TODO: APUNTA A QA
 
@@ -385,9 +409,9 @@
                 }</span>
             </div>
             <div class="details-info-line">
-                <span class="details-info-label">Propósito:</span>
-                <span class="details-info-value" data-field="proposito">${
-                  personData.proposito || "N/A"
+                <span class="details-info-label">Área:</span>
+                <span class="details-info-value" data-field="area">${
+                  personData.area || "N/A"
                 }</span>
             </div>
         `;
@@ -627,7 +651,7 @@
         if (excludeId != n.id) {
           collapseIds.push(n.id);
         }
-        if (n.childrenIds) {
+        if (n.childrenIds && n.childrenIds.length > 0) {
           for (var i = 0; i < n.childrenIds.length; i++) {
             iterate(c, c.getNode(n.childrenIds[i]), collapseIds, excludeId);
           }
@@ -934,10 +958,12 @@
         const selectedLineaRaw = $("#linea-negocio-select").val();
         if (!selectedLineaRaw) return;
 
-        const selectedLinea = selectedLineaRaw.trim().toUpperCase();
+        // Normalizar valor (ej: "CARNICOS")
+        const filtroActivo = selectedLineaRaw.toUpperCase().trim();
+        const esTodos = filtroActivo === "TODOS";
+        const esSoloCorp = filtroActivo === "CORPORATIVO";
         console.log(
-          "🚀 Renderizando (Fix Duplicados Internos). Filtro:",
-          selectedLinea,
+          "🚀 Renderizando: Estructura Final (Santiago Hermano + Cabeza)...",
         );
 
         const currentMode = document.getElementById("modo-select").value;
@@ -951,27 +977,23 @@
         const nodesToRender = new Map();
         const sourceMap = new Map(sourceNodes.map((n) => [n.id, n]));
 
-        // 1. DEFINIR LÍNEAS VISIBLES
-        const lineasAMostrar = new Set();
-        const configKeys = Object.keys(CABEZAS_NEGOCIO_TEMP);
+        // Helper para buscar nodos
+        const encontrarNodoPorConfig = (configId) => {
+          if (!configId) return null;
+          let nodo = sourceMap.get(configId);
+          if (!nodo) nodo = sourceNodes.find((n) => n.codPosicion === configId);
+          return nodo;
+        };
 
-        if (
-          selectedLinea === "TODOS" ||
-          selectedLinea === "TODA LÍNEA DE NEGOCIOS"
-        ) {
-          configKeys.forEach((k) => lineasAMostrar.add(k.toUpperCase()));
-        } else if (selectedLinea !== "CORPORATIVO") {
-          const keyReal = configKeys.find(
-            (k) => k.toUpperCase() === selectedLinea,
-          );
-          if (keyReal) lineasAMostrar.add(keyReal.toUpperCase());
-        }
+        const antonioNode = encontrarNodoPorConfig(
+          CABEZAS_NEGOCIO_TEMP.CORPORATIVO.id,
+        );
+        const idAntonio = antonioNode ? antonioNode.id : null;
 
-        // 2. CREAR GRUPOS (Con orden)
+        // =========================================================
+        // 1. CORPORATIVO (GRUPO GRIS)
+        // =========================================================
         const groupCorpId = "GRP_CORPORATIVO";
-        const orderCorp = CABEZAS_NEGOCIO_TEMP["CORPORATIVO"]
-          ? CABEZAS_NEGOCIO_TEMP["CORPORATIVO"].order
-          : 0;
         nodesToRender.set(groupCorpId, {
           id: groupCorpId,
           pid: null,
@@ -979,328 +1001,369 @@
           title: "Holding",
           tags: ["group"],
           templateName: "group",
-          order: orderCorp,
+          order: 1,
         });
 
-        lineasAMostrar.forEach((linea) => {
-          if (linea === "CORPORATIVO") return;
-          const groupId = `GRP_${linea.replace(/\s/g, "")}`;
-          const tagLinea = `LINEA_${linea.replace(/\s/g, "_")}`;
-          const orderLinea = CABEZAS_NEGOCIO_TEMP[linea].order || { order: 99 };
-          nodesToRender.set(groupId, {
-            id: groupId,
-            pid: groupCorpId,
-            nombre: linea,
-            title: "Línea de Negocio",
-            tags: ["group", tagLinea],
-            templateName: "group",
-            order: orderLinea,
-          });
-        });
+        if (idAntonio) {
+          // A. Antonio (Raíz)
+          const nodoAntonio = Object.assign({}, sourceMap.get(idAntonio));
+          nodoAntonio.stpid = groupCorpId;
+          nodoAntonio.pid = null;
+          nodesToRender.set(idAntonio, nodoAntonio);
 
-        // 3. MAPAS Y CLONES
-        const antonioNode = sourceNodes.find(
-          (n) => String(n.codPosicion) === "00001" || n.CodEmpleado == 1,
-        );
-        const idAntonio = antonioNode ? antonioNode.id : null;
+          // B. Staff de Antonio (Gerentes + SANTIAGO)
+          // Buscamos manualmente a los hijos de Antonio para aplicar lógica especial a Santiago
+          sourceMap.forEach((node) => {
+            if (node.pid === idAntonio) {
+              const lineaNode = (node.lineaNegocio || "").toUpperCase().trim();
 
-        const mapClonesContextuales = new Map(); // { "LINEA_IDORIGINAL": "ID_CLON" }
+              // Santiago (ID 12) tiene linea "CORPORATIVO", así que él SÍ pasa.
+              // Juan José tiene linea "NEGOCIO RETAIL" (o similar), así que él NO pasa.
+              if (lineaNode !== "CORPORATIVO" || node.puesto === "COMITE")
+                return;
 
-        // --- PRE-REGISTRO DE CABEZAS (Para saber quién es quién) ---
-        const mapCabezasDeLinea = new Map(); // { "LINEA": "ID_NODO_ORIGINAL" }
+              // ¿Es este nodo una Cabeza de División (Santiago o Juan Jose)?
+              const esCabezaDivision = Object.values(ESTRUCTURA_MACRO).some(
+                (m) => {
+                  const head = encontrarNodoPorConfig(m.headId);
+                  return head && head.id === node.id;
+                },
+              );
 
-        // A. Cloneas HEAD
-        lineasAMostrar.forEach((linea) => {
-          const keyConfig = configKeys.find((k) => k.toUpperCase() === linea);
-          const codPosJefe = CABEZAS_NEGOCIO_TEMP[keyConfig]
-            ? CABEZAS_NEGOCIO_TEMP[keyConfig].id
-            : null;
-          if (codPosJefe) {
-            const nodoOriginal = sourceNodes.find(
-              (n) => String(n.codPosicion) === codPosJefe,
-            );
-            if (nodoOriginal) {
-              mapCabezasDeLinea.set(linea, nodoOriginal.id);
+              // Agregamos al nodo (Santiago ID 12 entra aquí como hijo normal de Antonio)
+              const nodoHijo = Object.assign({}, node);
+              //nodoHijo.stpid = groupCorpId; // Va dentro del grupo gris
 
-              // Si no es Corporativo, creamos el CLON CABEZA ahora mismo
-              if (linea !== "CORPORATIVO") {
-                const idClonHead = `HEAD_${linea.replace(/\s/g, "")}_${nodoOriginal.id}`;
-                const nodoClon = Object.assign({}, nodoOriginal);
-                nodoClon.id = idClonHead;
-                nodoClon.stpid = `GRP_${linea.replace(/\s/g, "")}`;
-                nodoClon.pid = null;
+              // IMPORTANTE: Si es Santiago, usamos su ID ORIGINAL ("12") aquí arriba.
+              // Esto hará que Angie ("pid": "12") se conecte a él automáticamente.
+              nodesToRender.set(nodoHijo.id, nodoHijo);
 
-                mapClonesContextuales.set(
-                  `${linea}_${nodoOriginal.id}`,
-                  idClonHead,
-                );
-                nodesToRender.set(idClonHead, nodoClon);
+              // --- C. FILTRO DE HIJOS (La clave de Angie) ---
+              let filtroHijosCorp = null;
+
+              if (esCabezaDivision) {
+                // Si es Santiago, le decimos: "Solo carga a tus hijos que sean de CORPORATIVO"
+                filtroHijosCorp = (n) => {
+                  const linea = (n.lineaNegocio || "").toUpperCase().trim();
+                  return linea === "CORPORATIVO";
+                };
               }
+
+              // Traemos la descendencia.
+              // Para Santiago, esto traerá a Angie. Ignorará a Pecuario.
+              // Para el resto (Gerente Financiero), trae todo normal.
+              agregarDescendencia(
+                nodoHijo.id,
+                nodoHijo.id,
+                nodesToRender,
+                sourceMap,
+                [],
+                filtroHijosCorp,
+              );
             }
-          }
-        });
-
-        // B. Ancestros (Tu función existente)
-        function obtenerClonAncestro(originalId, lineaContexto) {
-          const keyCache = `${lineaContexto}_${originalId}`;
-          if (mapClonesContextuales.has(keyCache))
-            return mapClonesContextuales.get(keyCache);
-
-          const nodoOriginal = sourceMap.get(originalId);
-          if (!nodoOriginal) return null;
-          if (nodoOriginal.id === idAntonio) return null;
-
-          // Verificar si este ancestro ES la cabeza de la línea (ya creado)
-          const idCabezaLinea = mapCabezasDeLinea.get(lineaContexto);
-          if (originalId === idCabezaLinea) {
-            // Debería estar en el mapa, pero por si acaso
-            return mapClonesContextuales.get(`${lineaContexto}_${originalId}`);
-          }
-
-          // Crear Clon Intermedio (Ancestros Externos)
-          const idClon = `ANCESTRO_${lineaContexto}_${originalId}`;
-          const nodoClon = Object.assign({}, nodoOriginal);
-          nodoClon.id = idClon;
-          nodoClon.stpid = null;
-
-          if (nodoOriginal.pid) {
-            const idPadreClon = obtenerClonAncestro(
-              nodoOriginal.pid,
-              lineaContexto,
-            );
-            if (idPadreClon) nodoClon.pid = idPadreClon;
-          }
-
-          mapClonesContextuales.set(keyCache, idClon);
-          nodesToRender.set(idClon, nodoClon);
-          return idClon;
+          });
         }
 
-        // C. Procesar Nodos (Tu lógica existente)
-        sourceNodes.forEach((node) => {
-          let miLinea = node.lineaNegocio
-            ? node.lineaNegocio.trim().toUpperCase()
-            : "N/A";
-
-          // A. CORPORATIVO
-          if (miLinea === "CORPORATIVO") {
-            const renderNode = Object.assign({}, node);
-            renderNode.stpid = null;
-            if (idAntonio && node.id === idAntonio) {
-              renderNode.stpid = groupCorpId;
-              renderNode.pid = null;
-            }
-            nodesToRender.set(renderNode.id, renderNode);
-          }
-
-          // B. OTRAS LÍNEAS VISIBLES
-          else if (lineasAMostrar.has(miLinea)) {
-            // 1. Si soy la cabeza, NO me renderizo (ya está el clon HEAD_...)
-            const idCabeza = mapCabezasDeLinea.get(miLinea);
-            if (node.id === idCabeza) return;
-
-            // 2. Si NO soy la cabeza, me renderizo como nodo normal
-            const renderNode = Object.assign({}, node);
-            renderNode.stpid = null;
-
-            // --- CONEXIÓN DE PADRES ---
-            if (node.pid) {
-              const jefeOriginal = sourceMap.get(node.pid);
-
-              // ¿Mi jefe es de mi misma línea?
-              const lineaJefe = jefeOriginal
-                ? jefeOriginal.lineaNegocio.trim().toUpperCase()
-                : "N/A";
-
-              if (lineaJefe === miLinea) {
-                // CASO: Jefe Interno (Ej: Maria Eugenia reporta a Juan Jose, ambos Marketing)
-                // Si mi jefe es la cabeza, uso su clon HEAD.
-                // Si mi jefe es normal, uso su ID original (porque él se renderizó en este mismo bucle).
-
-                if (node.pid === idCabeza) {
-                  // Conectar al HEAD clonado
-                  const keyHead = `${miLinea}_${node.pid}`;
-                  if (mapClonesContextuales.has(keyHead)) {
-                    renderNode.pid = mapClonesContextuales.get(keyHead);
-                  }
-                } else {
-                  // Conectar al ID original (Juan Jose original)
-                  renderNode.pid = node.pid;
-                }
-              } else {
-                // CASO: Jefe Externo (Ej: Reporta a Logística Corp)
-                // Clonamos al jefe externo
-                const idJefeClon = obtenerClonAncestro(node.pid, miLinea);
-                if (idJefeClon) {
-                  renderNode.pid = idJefeClon;
-                }
-              }
-            }
-
-            nodesToRender.set(renderNode.id, renderNode);
-          }
-        });
+        // --- Si es solo CORPORATIVO, salimos aquí ---
+        if (esSoloCorp) {
+          cargarYFinalizar(nodesToRender);
+          return;
+        }
 
         // =========================================================
-        // 6. CONTEO VISUAL FINAL (Para el globo)
+        // 2. MACRO GRUPOS (PECUARIO / RETAIL)
+        // =========================================================
+        Object.values(ESTRUCTURA_MACRO).forEach((macro) => {
+          // --- CAMBIO 3: Filtro de División ---
+          // Solo mostramos esta división si es "TODOS" o si la línea seleccionada está dentro de sus subgrupos.
+          const contieneLaLinea = macro.subgrupos.includes(filtroActivo);
+          if (!esTodos && !contieneLaLinea) return;
+
+          // 2.1 Crear la Caja del Macro Grupo
+          nodesToRender.set(macro.id, {
+            id: macro.id,
+            pid: groupCorpId, // Visualmente cuelga del grupo Corp
+            nombre: macro.title,
+            tags: ["group", "macro-group"],
+            templateName: "group",
+            order: macro.order,
+          });
+
+          // 2.2 Crear la Cabeza Macro (CLON de Santiago)
+          const headNodeOriginal = encontrarNodoPorConfig(macro.headId);
+
+          if (headNodeOriginal) {
+            // Creamos un ID NUEVO para el "Santiago de Abajo"
+            const idHeadMacroVisual = `HEAD_MACRO_${macro.id}_${headNodeOriginal.id}`;
+            const headNode = Object.assign({}, headNodeOriginal);
+
+            headNode.id = idHeadMacroVisual;
+            headNode.stpid = macro.id; // Dentro de la caja de color
+            headNode.pid = null; // Raíz visual de esta caja
+            headNode.tags = [...(headNode.tags || []), "head-of-group"];
+
+            nodesToRender.set(idHeadMacroVisual, headNode);
+
+            // --- FILTRO MACRO: Todo MENOS Corporativo ---
+            // Queremos evitar que Angie salga duplicada aquí abajo.
+
+            // Lista de exclusión: Gerentes de línea (ya que tendrán sus propias cajas)
+            const idsGerentesLinea = [];
+            macro.subgrupos.forEach((n) => {
+              const c = CABEZAS_NEGOCIO_TEMP[n];
+              if (c) {
+                const g = encontrarNodoPorConfig(c.id);
+                if (g) idsGerentesLinea.push(g.id);
+              }
+            });
+
+            const filtroMacro = (nodo) => {
+              const linea = (nodo.lineaNegocio || "").toUpperCase().trim();
+
+              // 1. Si es Corporativo (Angie), FUERA. (Ya salió arriba)
+              if (linea === "CORPORATIVO") return false;
+
+              // 2. Si es de un subgrupo (ej: es de Carnicos), FUERA. (Saldrá en su caja)
+              const esDeSubgrupo = macro.subgrupos.some((sub) => sub === linea);
+              return !esDeSubgrupo;
+            };
+
+            // Traemos hijos de Santiago (Operativos) y los colgamos del Clon Macro
+            agregarDescendencia(
+              idHeadMacroVisual,
+              headNodeOriginal.id,
+              nodesToRender,
+              sourceMap,
+              idsGerentesLinea,
+              filtroMacro,
+            );
+
+            // 2.3 SUBGRUPOS (Líneas de Negocio)
+            macro.subgrupos.forEach((nombreLinea, index) => {
+              // --- Filtro de Línea Específica ---
+              // Solo mostramos esta caja si es "TODOS" o es EXACTAMENTE la línea que pidió el usuario.
+              if (!esTodos && filtroActivo !== nombreLinea) return;
+
+              const subGroupId = `GRP_${nombreLinea.replace(/\s/g, "")}`;
+              const tagLinea = `LINEA_${nombreLinea.replace(/\s/g, "_")}`;
+              const configLinea = CABEZAS_NEGOCIO_TEMP[nombreLinea] || {};
+
+              nodesToRender.set(subGroupId, {
+                id: subGroupId,
+                pid: idHeadMacroVisual, // Cuelga de Santiago Macro (el clon)
+                nombre: nombreLinea,
+                title: "Línea de Negocio",
+                tags: ["group", tagLinea],
+                templateName: "group",
+                order: configLinea.order || index + 10,
+              });
+
+              // Gerente de Línea
+              if (configLinea.id) {
+                const gerenteOriginal = encontrarNodoPorConfig(configLinea.id);
+                if (gerenteOriginal) {
+                  const idGerenteLineaVisual = `HEAD_LINEA_${subGroupId}_${gerenteOriginal.id}`;
+                  const nodoGerente = Object.assign({}, gerenteOriginal);
+
+                  nodoGerente.id = idGerenteLineaVisual;
+                  nodoGerente.stpid = subGroupId;
+                  nodoGerente.pid = null;
+                  nodesToRender.set(idGerenteLineaVisual, nodoGerente);
+
+                  // Lógica: Si Santiago también es gerente de Cárnicos, usamos filtro estricto
+                  // let filtroLinea = null;
+                  // if (gerenteOriginal.id === headNodeOriginal.id) {
+                  //     filtroLinea = (n) => (n.lineaNegocio || "").toUpperCase().trim() === nombreLinea;
+                  // }
+
+                  const filtroLinea = (nodo) => {
+                    const lineaHijo = (nodo.lineaNegocio || "")
+                      .toUpperCase()
+                      .trim();
+                    return lineaHijo === nombreLinea;
+                  };
+
+                  // Traer equipo de la línea
+                  agregarDescendencia(
+                    idGerenteLineaVisual,
+                    gerenteOriginal.id,
+                    nodesToRender,
+                    sourceMap,
+                    [],
+                    filtroLinea,
+                  );
+                }
+              }
+            });
+          }
+        });
+        // =========================================================
+        // 6. CONTEO VISUAL FINAL (Para los globos naranjas)
         // =========================================================
         const visualCounts = {};
-        // Inicializar
-        configKeys.forEach((k) => (visualCounts[k.toUpperCase()] = 0));
+
+        // A. Inicializar conteos para todas las líneas y corporativo
+        Object.keys(CABEZAS_NEGOCIO_TEMP).forEach((k) => {
+          visualCounts[k.toUpperCase().replace(/\s/g, "")] = 0;
+        });
         visualCounts["CORPORATIVO"] = 0;
 
+        // B. Inicializar conteos para las Divisiones Macro (Pecuario/Retail)
+        Object.values(ESTRUCTURA_MACRO).forEach((macro) => {
+          visualCounts[macro.id] = 0;
+        });
+
+        // C. Primera pasada: Contar personas en su grupo directo (stpid)
         nodesToRender.forEach((node) => {
-          // Ignoramos grupos, fantasmas y vacantes
-          //if (node.tags && (node.tags.includes("group") || node.tags.includes("fantasma") || node.tags.includes("vacante"))) return;
-
-          let visualLine = "N/A";
-
-          // 1. ¿Es un CLON DE CABEZA? (Ej: Juan José en Marketing)
-          if (node.id.startsWith("HEAD_")) {
-            // Formato: HEAD_MARKETING_123. Extraemos "MARKETING"
-            const parts = node.id.split("_");
-            visualLine = parts[1]; // Nombre de la línea limpio
-          }
-          // 2. ¿Es un ANCESTRO CLONADO? (Ej: Jefe Logística en Cárnicos)
-          else if (node.id.startsWith("ANCESTRO_")) {
-            // Formato: ANCESTRO_CARNICOS_456. Extraemos "CARNICOS"
-            const parts = node.id.split("_");
-            visualLine = parts[1]; // Nombre de la línea limpio
-          }
-          // 3. ¿Está explícitamente DENTRO de un grupo? (Ej: Antonio en GRP_CORPORATIVO)
-          else if (node.stpid && node.stpid.startsWith("GRP_")) {
-            visualLine = node.stpid.replace("GRP_", "");
-          }
-          // 4. ¿Es un empleado normal? (Usa su línea de negocio original)
-          else {
-            visualLine = node.lineaNegocio
-              ? node.lineaNegocio.trim().toUpperCase()
-              : "N/A";
-            // Limpiamos espacios para que coincida con las claves (Ej: " CARNICOS" -> "CARNICOS")
-            visualLine = visualLine.replace(/\s/g, "");
-          }
-
-          // Normalizar la clave para sumar al contador correcto
-          // Buscamos qué clave de config coincide con lo que encontramos
-          const matchedKey = Object.keys(visualCounts).find(
-            (k) => k.replace(/\s/g, "") === visualLine,
-          );
-
-          if (matchedKey) {
-            visualCounts[matchedKey]++;
-          } else if (visualLine === "CORPORATIVO") {
-            visualCounts["CORPORATIVO"]++;
-          }
-        });
-
-        console.log("📊 Conteos Visuales Finales:", visualCounts);
-
-        // 7. ACTUALIZAR GRUPOS (Conteo y Orden)
-        // Corporativo
-        const nodoCorp = nodesToRender.get(groupCorpId);
-        if (nodoCorp) nodoCorp.conteo = String(visualCounts["CORPORATIVO"]);
-
-        // Líneas
-        lineasAMostrar.forEach((linea) => {
-          const groupId = `GRP_${linea.replace(/\s/g, "")}`;
-          const nodoGrupo = nodesToRender.get(groupId);
-          if (nodoGrupo) {
-            // Buscamos la clave original para sacar el conteo del mapa visualCounts
-            const key = Object.keys(visualCounts).find(
-              (k) => k.replace(/\s/g, "") === linea.replace(/\s/g, ""),
-            );
-            if (key) {
-              nodoGrupo.conteo = String(visualCounts[key]);
-            }
-          }
-        });
-
-        // =========================================================
-        // 8. LÓGICA DE CLINKS (CORREGIDA Y ROBUSTA)
-        // =========================================================
-        const misClinks = [];
-
-        // Iteramos sobre los nodos REALES que se van a dibujar
-        nodesToRender.forEach((node) => {
-          // 1. Identificamos si es un nodo "Cabeza de Línea"
-          if (typeof node.id === "string" && node.id.startsWith("HEAD_")) {
-            // 2. Extraemos el nombre de la línea del ID
-            // El formato es: HEAD_NOMBRELINEA_IDORIGINAL
-            const partes = node.id.split("_");
-            const nombreLineaEnId = partes[1]; // Ej: "MARKETING" o "BALANCEADO"
-
-            // 3. Buscamos este nombre en tu configuración global
-            // (Hacemos un find por si acaso haya diferencias de mayúsculas/espacios, aunque el replace ayuda)
-            const configKey = Object.keys(CABEZAS_NEGOCIO_TEMP).find(
-              (key) => key.replace(/\s/g, "") === nombreLineaEnId,
-            );
-
-            if (configKey) {
-              const config = CABEZAS_NEGOCIO_TEMP[configKey];
-
-              // 4. Si esta línea tiene un reporte funcional definido...
-              if (config && config.reportFuncional) {
-                // Verificamos que el nodo destino (el jefe funcional) exista en el gráfico actual
-                if (nodesToRender.has(config.reportFuncional)) {
-                  misClinks.push({
-                    from: node.id, // Usamos el ID real del nodo iterado (Correcto)
-                    to: config.reportFuncional, // El ID destino desde tu config (Ej: "12" o "15")
-                    label: "", // Sin etiqueta para limpiar
-                    template: "orange",
-                  });
-                }
-              }
-            }
-          }
-        });
-
-        // Inyectamos a la configuración
-        chart.config.clinks = misClinks;
-
-        OrgChart.CLINK_CURVE = -0.5; //1.5;
-
-        // 9. CARGAR
-        const finalArray = Array.from(nodesToRender.values());
-        console.log(`✅ Renderizando ${finalArray.length} nodos.`);
-
-        calcularDescendenciaManual(finalArray);
-
-        // --- ASIGNACIÓN DE TEMPLATES ---
-        finalArray.forEach((node) => {
-          // Si es un grupo o fantasma, no tocamos su template
+          // Ignoramos nodos que sean grupos o auxiliares (fantasmas)
           if (
             node.tags &&
             (node.tags.includes("group") || node.tags.includes("fantasma"))
           )
             return;
 
-          const directos = node._directos || 0;
-          const total = node._total || 0;
-
-          if (directos > 0) {
-            if (directos === total) {
-              // Fin de línea
-              if (directos === 1) {
-                node.tags.push("fichaSingle"); // Usará template fichaSingle
-                // OJO: En la v7 de Balkan a veces hay que setear 'templateName' si no usas tags
-                // Pero intentemos primero sobrescribir la propiedad template si Balkan te deja
-              } else {
-                node.tags.push("fichaGroup");
-              }
-            } else {
-              // Complejo
-              node.tags.push("fichaComplex");
+          // Usamos stpid para identificar en qué caja está la persona actualmente
+          if (node.stpid) {
+            // Si está en una caja de línea (ej: GRP_CARNICERIA) o Macro (GRP_MACRO_PECUARIO)
+            const groupKey = node.stpid.startsWith("GRP_MACRO_")
+              ? node.stpid
+              : node.stpid.replace("GRP_", "");
+            if (visualCounts[groupKey] !== undefined) {
+              visualCounts[groupKey]++;
             }
           } else {
-            // Sin hijos, usa el default (sin botón)
+            // Fallback: usar su línea de negocio original si no tiene stpid (ej: staff directo raíz)
+            const linea = node.lineaNegocio
+              ? node.lineaNegocio.trim().toUpperCase().replace(/\s/g, "")
+              : "N/A";
+            if (visualCounts[linea] !== undefined) {
+              visualCounts[linea]++;
+            }
           }
         });
 
+        // D. AGREGACIÓN: Sumar los totales de las líneas a sus Divisiones Macro
+        // Ejemplo: División Pecuaria = Santiago + Carnicería + Cárnicos + Balanceado...
+        Object.values(ESTRUCTURA_MACRO).forEach((macro) => {
+          macro.subgrupos.forEach((sub) => {
+            const subKey = sub.toUpperCase().replace(/\s/g, "");
+            if (visualCounts[subKey]) {
+              visualCounts[macro.id] += visualCounts[subKey];
+            }
+          });
+        });
+
+        // E. ASIGNAR LOS CONTEOS A LOS NODOS DE GRUPO
+        nodesToRender.forEach((node) => {
+          if (node.tags && node.tags.includes("group")) {
+            // Caso 1: Es una División Macro (Pecuario/Retail)
+            if (visualCounts[node.id] !== undefined) {
+              node.conteo = String(visualCounts[node.id]);
+            }
+            // Caso 2: Es una Línea de Negocio Individual o Corporativo
+            else {
+              const lineaKey = node.id.replace("GRP_", "");
+              if (visualCounts[lineaKey] !== undefined) {
+                node.conteo = String(visualCounts[lineaKey]);
+              }
+            }
+          }
+        });
+
+        console.log("📊 Conteos Visuales Finales:", visualCounts);
+
+        // Disparar renderizado final
+        cargarYFinalizar(nodesToRender);
+      }
+
+      function cargarYFinalizar(nodesToRender) {
+        const finalArray = Array.from(nodesToRender.values());
+        if (typeof calcularDescendenciaManual === "function") {
+          calcularDescendenciaManual(finalArray);
+        }
+
+        finalArray.forEach((node) => {
+          if (
+            node.tags &&
+            (node.tags.includes("group") || node.tags.includes("fantasma"))
+          )
+            return;
+          const directos = node._directos || 0;
+          const total = node._total || 0;
+          const esVacante = node.tags && node.tags.includes("vacante");
+
+          if (directos > 0) {
+            if (directos === total) {
+              if (directos === 1)
+                node.tags.push(esVacante ? "vacanteSingle" : "fichaSingle");
+              else node.tags.push(esVacante ? "vacanteGroup" : "fichaGroup");
+            } else {
+              node.tags.push(esVacante ? "vacanteComplex" : "fichaComplex");
+            }
+          } else {
+            if (esVacante) node.tags.push("vacanteSimple");
+          }
+        });
+
+        console.log(`✅ Renderizando Filtrado: ${finalArray.length} nodos.`);
         chart.load(finalArray);
         setTimeout(() => {
           chart.fit();
         }, 250);
         loaderOverlay.classList.remove("visible");
+      }
+
+      // Función recursiva para agregar hijos con filtros
+      // idVisualPadre: El ID del nodo padre en el gráfico (puede ser clon o real)
+      // idOriginalPadre: El ID real en la data (para buscar quién le reporta de verdad)
+      // nodesToRender: El mapa donde guardamos los nodos a dibujar
+      // sourceMap: La data original
+      // idsAExcluir: Lista negra de IDs que no queremos dibujar en esta rama
+      // filtroEstricto: Función opcional. Si devuelve FALSE, el hijo se ignora.
+      function agregarDescendencia(
+        idVisualPadre,
+        idOriginalPadre,
+        nodesToRender,
+        sourceMap,
+        idsAExcluir = [],
+        filtroEstricto = null,
+      ) {
+        // Si no especificamos original, es el mismo que el visual
+        const idBusqueda = idOriginalPadre || idVisualPadre;
+
+        sourceMap.forEach((node) => {
+          // ¿El nodo le reporta a este jefe?
+          if (node.pid === idBusqueda) {
+            // 1. Chequeo de lista negra
+            if (idsAExcluir.includes(node.id)) return;
+
+            // 2. Filtro Lógico (Aquí es donde separamos a Angie del resto)
+            if (filtroEstricto && !filtroEstricto(node)) return;
+
+            // Si pasa las pruebas, lo agregamos
+            if (!nodesToRender.has(node.id)) {
+              const nodoHijo = Object.assign({}, node);
+
+              // Si el padre visual es un clon, actualizamos el pid del hijo
+              if (idVisualPadre !== idOriginalPadre) {
+                nodoHijo.pid = idVisualPadre;
+              }
+
+              nodesToRender.set(nodoHijo.id, nodoHijo);
+
+              // Recursividad: Buscamos a los hijos de este hijo (nietos)
+              // Nota: A los nietos ya NO les aplicamos el filtro estricto del abuelo.
+              // Ejemplo: Los asistentes de Angie deben salir con Angie, sin importar si son "Corp" o no.
+              agregarDescendencia(
+                nodoHijo.id,
+                nodoHijo.id,
+                nodesToRender,
+                sourceMap,
+                idsAExcluir,
+              );
+            }
+          }
+        });
       }
 
       ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
@@ -1758,7 +1821,7 @@
 
                   // Importante para que los filtros jerárquicos no fallen
                   departamento: emp.nombreDepartamento || "N/A",
-                  // area: emp.nombreArea || "N/A",
+                  area: emp.nombreArea || "N/A",
                   proposito: emp.nombreProposito || "N/A", //TODO: Cambio por campos de la lstPosiciones
                   lineaNegocio: emp.nombreLineaNegocio2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
                   centroCosto: emp.nombreCentroCosto2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
@@ -1786,7 +1849,7 @@
                   // Importante para los filtros jerárquicos
                   lineaNegocio: emp.nombreLineaNegocio2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
                   centroCosto: emp.nombreCentroCosto2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
-                  // area: emp.nombreArea || "N/A",
+                  area: emp.nombreArea || "N/A",
                   departamento: emp.nombreDepartamento || "N/A", //
                   proposito: emp.nombreProposito || "N/A",
 
@@ -1999,6 +2062,38 @@
           // 5. ¡IMPORTANTE! Matamos el field_2
           OrgChart.templates.vacanteTemplate.field_2 = "";
 
+          // --- AHORA CREAMOS LAS 3 VARIANTES PARA VACANTES ---
+
+          // A. Vacante Compleja (Botón Doble)
+          OrgChart.templates.vacanteComplex = Object.assign(
+            {},
+            OrgChart.templates.vacanteTemplate,
+          );
+          OrgChart.templates.vacanteComplex.plus = botonDoble;
+          OrgChart.templates.vacanteComplex.minus = botonDoble;
+
+          // B. Vacante Grupo (Botón Grupo)
+          OrgChart.templates.vacanteGroup = Object.assign(
+            {},
+            OrgChart.templates.vacanteTemplate,
+          );
+          OrgChart.templates.vacanteGroup.plus = botonGrupo;
+          OrgChart.templates.vacanteGroup.minus = botonGrupo;
+
+          // C. Vacante Single (Botón Persona)
+          OrgChart.templates.vacanteSingle = Object.assign(
+            {},
+            OrgChart.templates.vacanteTemplate,
+          );
+          OrgChart.templates.vacanteSingle.plus = botonPersona;
+          OrgChart.templates.vacanteSingle.minus = botonPersona;
+
+          // D. Vacante (Sin Botón)
+          OrgChart.templates.vacanteSimple = Object.assign(
+            {},
+            OrgChart.templates.vacanteTemplate,
+          );
+
           // 1. Template Fantasma (Invisible)
           OrgChart.templates.ghost = Object.assign({}, OrgChart.templates.ana);
           OrgChart.templates.ghost.size = [0, 0]; // Tamaño cero para que no ocupe espacio
@@ -2139,11 +2234,28 @@
               nodeBinding: {
                 conteo: "conteo",
               },
+              // subTreeConfig: {
+              //       collapse: { level: 1
+              //        } // Nivel alto = Siempre expandido
+              //   }
             },
+            //   "head-of-group": {
+            //       subTreeConfig: {
+            //           collapse: { level: 0 }
+            //       }
+            // },
 
             fichaComplex: { template: "fichaComplex" },
             fichaGroup: { template: "fichaGroup" },
             fichaSingle: { template: "fichaSingle" },
+
+            // Tags Vacantes (NUEVOS)
+            vacanteComplex: { template: "vacanteComplex" },
+            vacanteGroup: { template: "vacanteGroup" },
+            vacanteSingle: { template: "vacanteSingle" },
+
+            // Tag bas"e (se mantiene por si acaso)
+            vacanteSimple: { template: "vacanteSimple" }, //template: "vacanteTemplate" },
 
             // 2. Configuración para los HIJOS dentro del grupo (opcional, para layout)
             "support-team-group": {
@@ -2164,11 +2276,6 @@
               template: "dot",
             },
             levelSeparation: 20,
-            // Tag para la plantilla vacante
-            vacante: {
-              template: "vacanteTemplate",
-              //   nodeBinding: { field_0: "puesto" },
-            },
 
             // Tags vacíos solo para que el CSS los pueda seleccionar
             "level-0": {},
@@ -2250,9 +2357,10 @@
             },
             //*
             expand: {
-              nodes: ["GRP_CORPORATIVO"], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos
+              //nodes: ["GRP_CORPORATIVO", "HEAD_MACRO_GRP_MACRO_PECUARIO_12", "HEAD_MACRO_GRP_MACRO_RETAIL_390"], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos
+              nodes: ["GRP_CORPORATIVO"], // "HEAD_MACRO_GRP_MACRO_PECUARIO_12", "HEAD_MACRO_GRP_MACRO_RETAIL_390"], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos
               allChildren: true, // Expande todos los hijos del nodo 4281
-            }, //*/
+            }, //*/ , "GRP_MACRO_PECUARIO", "GRP_MACRO_RETAIL"
             controls: {
               svg_export: { title: "Exportar a SVG" },
               //png_preview: { title: 'Preview PNG' },
@@ -2268,55 +2376,124 @@
                   this.fit(); // Ajusta el zoom a la pantalla
                 },
               },
-              collapseAll: {
-                icon: collapse_all,
-                title: "Colapsar todo",
-                onClick: function () {
-                  // 1. Obtener nodos renderizados
-                  const renderedNodes = chart.nodes;
-                  const renderedIds = Object.keys(renderedNodes);
+collapseAll: {
+    icon: collapse_all,
+    title: "Colapsar todo",
+    onClick: function () {
+        
+        // --- 1. FUNCIÓN DE DETECCIÓN (EXTRAÍDA PARA REUTILIZAR) ---
+        // Esta función solo "mira", no toca nada. Devuelve la lista de lo que hay que cerrar.
+        function detectarNodosAbiertos() {
+            const visibleIds = chart.visibleNodeIds;
+            if (!visibleIds || visibleIds.length === 0) return [];
 
-                  if (renderedIds.length === 0) return;
+            let lista = [];
 
-                  // 2. Buscar TODAS las "Cabezas Visuales" (Roots)
-                  // En la nueva lógica, tanto el Presidente como los Gerentes de Línea tienen pid: null
-                  let dynamicRoots = [];
+            for (var i = 0; i < visibleIds.length; i++) {
+                var id = visibleIds[i];
+                var node = chart.getNode(id);
 
-                  for (var i = 0; i < renderedIds.length; i++) {
-                    var id = renderedIds[i];
-                    var node = chart.getNode(id);
+                if (!node) continue;
 
-                    // Condición:
-                    // A. El nodo existe
-                    // B. No tiene padre visual (pid es null) -> Esto identifica a las cabezas de cada caja
-                    // C. NO es un nodo de tipo "group" (para no cerrar la caja gris, solo a la persona)
-                    if (
-                      node &&
-                      !node.pid &&
-                      node.tags.indexOf("group") === -1
-                    ) {
-                      dynamicRoots.push(node.id);
+                // Protección Retail
+                if (node.stpid) {
+                    var parentGroup = chart.getNode(node.stpid);
+                    if (parentGroup && parentGroup.min) continue;
+                }
+
+                // Criterios de Selección (Tus filtros exactos)
+                if (
+                    node &&
+                    !node.pid &&
+                    !node.id.includes("MACRO") &&
+                    (!node.tags || !node.tags.includes("group")) &&
+                    (!node.tags || !node.tags.includes("fantasma"))
+                ) {
+                    // Condición: Tiene hijos y NO está cerrado
+                    if (node.childrenIds && node.childrenIds.length > 0 && node.expanded !== false) {
+                        lista.push(node.id);
                     }
-                  }
+                }
+            }
+            return lista;
+        }
 
-                  // 3. Iterar sobre cada cabeza encontrada y colapsar su descendencia
-                  dynamicRoots.forEach((rootId) => {
-                    var node = chart.getNode(rootId);
-                    var collapseIds = [];
+        // --- 2. EL MOTOR RECURSIVO ---
+        function procesarCicloDeCierre(intento) {
+            // Límite de seguridad
+            if (intento > 3) { 
+                chart.fit(); 
+                return; 
+            }
+                            chart.fit(); 
 
-                    // Usamos tu función 'iterate' existente para buscar hijos recursivamente
-                    iterate(chart, node, collapseIds, rootId);
 
-                    // Si tiene hijos que colapsar, ejecutamos la orden
-                    if (collapseIds.length > 0) {
-                      chart.expandCollapse(rootId, [], collapseIds);
-                    }
-                  });
+            // Buscamos trabajo para este ciclo
+            const dynamicRoots = detectarNodosAbiertos();
 
-                  // 4. Ajustar la vista al final
-                  chart.fit();
-                },
-              },
+            // CONDICIÓN DE PARADA DE ÉXITO:
+            if (dynamicRoots.length === 0) {
+                console.log("Ciclo finalizado. Todo limpio.");
+                // Solo hacemos fit() si realmente venimos de un ciclo de trabajo previo.
+                // Si fue el intento 1, no deberíamos llegar aquí por la validación inicial, 
+                // pero por seguridad lo dejamos.
+                if (intento > 1) {
+                    chart.fit();
+                }
+                return;
+            }
+
+            console.log(`Ciclo ${intento}: Colapsando ${dynamicRoots.length} nodos...`);
+
+            // Ejecutamos el cierre del lote actual
+            cerrarLoteActual(dynamicRoots, function() {
+                // Esperamos a que la librería reacomode el DOM y traiga nuevos nodos
+                setTimeout(() => {
+                    // LLAMADA RECURSIVA
+                    procesarCicloDeCierre(intento + 1);
+                }, 350); 
+            });
+        }
+
+        // --- 3. FUNCIÓN DE EJECUCIÓN DEL LOTE (Tu lógica intacta) ---
+        function cerrarLoteActual(roots, callbackFinal) {
+            function next(index) {
+                if (index >= roots.length) {
+                    callbackFinal();
+                    return;
+                }
+                const rootId = roots[index];
+                const node = chart.getNode(rootId);
+
+                if (!node) { next(index + 1); return; }
+
+                var collapseIds = [];
+                iterate(chart, node, collapseIds, rootId);
+
+                if (collapseIds.length > 0) {
+                    chart.expandCollapse(rootId, [], collapseIds, function () {
+                        next(index + 1);
+                    });
+                } else {
+                    next(index + 1);
+                }
+            }
+            next(0);
+        }
+
+        // --- 4. ARRANQUE INTELIGENTE ---
+        // Antes de empezar la locura recursiva, miramos si es necesario.
+        const trabajoInicial = detectarNodosAbiertos();
+
+        if (trabajoInicial.length > 0) {
+            // SOLO si hay algo abierto, arrancamos la maquinaria.
+            procesarCicloDeCierre(1);
+        } else {
+            // Si todo está cerrado, no hacemos NADA. Ni fit, ni logs, ni loops.
+            console.log("Todo ya estaba colapsado. Sin acciones.");
+        }
+    },
+},
               horizontalLayout: {
                 icon: OrgChart.icon.layout_normal(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
                 title: "Horizontal Layout",
@@ -2507,39 +2684,36 @@
             console.log("--------------------------");
           });
 
-          //CUANDO SE CIERRA UN NODO SE CIERRAN TODOS LOS NODOS HIJOS Y AL ABRIR VA DE 1 EN 1
+          // CUANDO SE CIERRA UN NODO, FORZAMOS EL CIERRE DE TODA SU DESCENDENCIA (DEEP COLLAPSE)
           chart.onExpandCollpaseButtonClick((args) => {
             const nodeId = args.id;
             const node = chart.getNode(nodeId);
 
             if (args.collapsing) {
-              // --- Lógica de Colapso Profundo ---
-              args.cancel = true; // Cancelar el comportamiento predeterminado de OrgChart.js
+              // --- CASO COLAPSAR (CERRAR) ---
+              args.cancel = true; // Detenemos la animación por defecto para controlarla manualmente
+
               let collapseIds = [];
 
-              // Usamos tu función 'iterate'
+              // 1. Recolectamos TODOS los hijos, nietos, bisnietos...
               iterate(chart, node, collapseIds, nodeId);
 
-              // Colapsa los nodos y, una vez completada la animación, ajusta la vista
-              chart.expandCollapse(nodeId, [], collapseIds);
-              //   chart.fit(); // Ajusta el organigrama a la pantalla
+              // 2. Le ordenamos al gráfico: "Mantente tú (nodeId) cerrado, y cierra explícitamente a todos estos (collapseIds)"
+              // Al pasarle los IDs de los nietos, su estado cambia a expanded: false
+              chart.expandCollapse(nodeId, [], collapseIds, function () {
+                // Opcional: Ajustar vista al terminar
+                // chart.fit();
+              });
             } else {
-              // --- Lógica de Expansión Superficial ---
-              // Lógica para expandir solo los hijos directos y mantener los nietos colapsados
+              // --- CASO EXPANDIR (ABRIR) ---
+              // Aquí mantenemos tu lógica de "abrir paso a paso" o "abrir grupos fantasma"
               if (node && node.childrenIds && node.childrenIds.length > 0) {
                 args.cancel = true;
-
-                // 1. Preparamos la lista de TODOS los IDs que queremos ver inmediatamente.
-                //    Esto incluye a los hijos directos (Fantasmas/Empleados)
-                //    Y a los hijos de los fantasmas (Grupos).
                 let idsToShow = [...node.childrenIds];
 
+                // Lógica para abrir grupos automáticamente si el hijo es un fantasma
                 node.childrenIds.forEach((childId) => {
                   const childNode = chart.getNode(childId);
-
-                  // Si el hijo es un FANTASMA, agregamos sus hijos (los grupos) a la lista.
-                  // Al pedirle al gráfico que muestre a los grupos, él sabe que
-                  // TIENE que abrir al fantasma automáticamente.
                   if (childNode && childNode.tags.includes("fantasma")) {
                     if (childNode.childrenIds) {
                       idsToShow.push(...childNode.childrenIds);
@@ -2547,28 +2721,14 @@
                   }
                 });
 
-                // 2. Ejecutamos UNA sola orden de expansión.
-                //    Al pasar los IDs de los nietos (grupos), la librería hace
-                //    un solo cálculo de layout y animación.
                 chart.expand(nodeId, idsToShow);
               } else {
-                // Si el nodo no tiene hijos (es una hoja) o no se aplica la lógica de "solo hijos directos",
-                // permite la expansión predeterminada (que no hará nada visualmente para una hoja)
-                // y luego ajusta la vista.
                 chart.expand(nodeId, "all");
               }
             }
 
-            // --- LÓGICA DE FIT ---
-            // Lo ejecutamos después de un breve retraso para que la animación termine
-            // setTimeout(() => {
-            //   chart.center(nodeId, null, null);
-            // }, 100); // 100ms de retraso
-
-            // Prevenimos el comportamiento por defecto (que "recuerda" el estado)
-            return false;
+            return false; // Siempre devolvemos false para tomar control total
           });
-
           //TODO: para personalizar los item del search
           // 2. Sobrescribe el método OrgChart.searchUI.createItem
           //    Este método es responsable de generar el HTML para cada elemento de la lista de resultados.
@@ -2641,6 +2801,20 @@
           // 9. LÓGICA DE HOVER (INTEGRADA CON TU CÓDIGO)
           // =========================================================
           chart.on("init", function (sender) {
+            // Buscamos los IDs que tienen esos tags
+            const idsToExpand = sender.config.nodes
+              .filter(
+                (n) =>
+                  n.tags &&
+                  (n.tags.includes("group") ||
+                    n.tags.includes("head-of-group")),
+              )
+              .map((n) => n.id);
+
+            if (idsToExpand.length > 0) {
+              // Expandimos todos esos nodos de una vez
+              sender.expand(null, idsToExpand);
+            }
             // A. Evento al pasar el mouse POR ENCIMA (Mostrar)
             sender.element.addEventListener("mouseover", function (e) {
               // 1. Usamos TU método para encontrar el nodo

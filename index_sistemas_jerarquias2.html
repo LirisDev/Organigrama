@@ -1218,46 +1218,46 @@
         // =========================================================
         // 8. LÓGICA DE CLINKS (CORREGIDA Y ROBUSTA)
         // =========================================================
-        const misClinks = [];
+        // const misClinks = [];
 
-        // Iteramos sobre los nodos REALES que se van a dibujar
-        nodesToRender.forEach((node) => {
-          // 1. Identificamos si es un nodo "Cabeza de Línea"
-          if (typeof node.id === "string" && node.id.startsWith("HEAD_")) {
-            // 2. Extraemos el nombre de la línea del ID
-            // El formato es: HEAD_NOMBRELINEA_IDORIGINAL
-            const partes = node.id.split("_");
-            const nombreLineaEnId = partes[1]; // Ej: "MARKETING" o "BALANCEADO"
+        // // Iteramos sobre los nodos REALES que se van a dibujar
+        // nodesToRender.forEach((node) => {
+        //   // 1. Identificamos si es un nodo "Cabeza de Línea"
+        //   if (typeof node.id === "string" && node.id.startsWith("HEAD_")) {
+        //     // 2. Extraemos el nombre de la línea del ID
+        //     // El formato es: HEAD_NOMBRELINEA_IDORIGINAL
+        //     const partes = node.id.split("_");
+        //     const nombreLineaEnId = partes[1]; // Ej: "MARKETING" o "BALANCEADO"
 
-            // 3. Buscamos este nombre en tu configuración global
-            // (Hacemos un find por si acaso haya diferencias de mayúsculas/espacios, aunque el replace ayuda)
-            const configKey = Object.keys(CABEZAS_NEGOCIO_TEMP).find(
-              (key) => key.replace(/\s/g, "") === nombreLineaEnId,
-            );
+        //     // 3. Buscamos este nombre en tu configuración global
+        //     // (Hacemos un find por si acaso haya diferencias de mayúsculas/espacios, aunque el replace ayuda)
+        //     const configKey = Object.keys(CABEZAS_NEGOCIO_TEMP).find(
+        //       (key) => key.replace(/\s/g, "") === nombreLineaEnId,
+        //     );
 
-            if (configKey) {
-              const config = CABEZAS_NEGOCIO_TEMP[configKey];
+        //     if (configKey) {
+        //       const config = CABEZAS_NEGOCIO_TEMP[configKey];
 
-              // 4. Si esta línea tiene un reporte funcional definido...
-              if (config && config.reportFuncional) {
-                // Verificamos que el nodo destino (el jefe funcional) exista en el gráfico actual
-                if (nodesToRender.has(config.reportFuncional)) {
-                  misClinks.push({
-                    from: node.id, // Usamos el ID real del nodo iterado (Correcto)
-                    to: config.reportFuncional, // El ID destino desde tu config (Ej: "12" o "15")
-                    label: "", // Sin etiqueta para limpiar
-                    template: "orange",
-                  });
-                }
-              }
-            }
-          }
-        });
+        //       // 4. Si esta línea tiene un reporte funcional definido...
+        //       if (config && config.reportFuncional) {
+        //         // Verificamos que el nodo destino (el jefe funcional) exista en el gráfico actual
+        //         if (nodesToRender.has(config.reportFuncional)) {
+        //           misClinks.push({
+        //             from: node.id, // Usamos el ID real del nodo iterado (Correcto)
+        //             to: config.reportFuncional, // El ID destino desde tu config (Ej: "12" o "15")
+        //             label: "", // Sin etiqueta para limpiar
+        //             template: "orange",
+        //           });
+        //         }
+        //       }
+        //     }
+        //   }
+        // });
 
-        // Inyectamos a la configuración
-        chart.config.clinks = misClinks;
+        // // Inyectamos a la configuración
+        // chart.config.clinks = misClinks;
 
-        OrgChart.CLINK_CURVE = -0.5; //1.5;
+        // OrgChart.CLINK_CURVE = -0.5; //1.5;
 
         // 9. CARGAR
         const finalArray = Array.from(nodesToRender.values());
