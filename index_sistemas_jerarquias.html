@@ -83,15 +83,17 @@
     <div class="org-container">
       <header id="custom-filters">
         <div>
+          <select id="area-select" class="control-select"></select>
+
           <select id="linea-negocio-select" class="control-select"></select>
 
-          <select id="centro-costos-select" class="control-select"></select>
+          <!-- <select id="centro-costos-select" class="control-select"></select>
 
-          <select id="proposito-select" class="control-select"></select>
+          <select id="proposito-select" class="control-select"></select> -->
 
           <select id="modo-select" class="control-select">
             <option value="Persona">VISTA POR PERSONA</option>
-            <option value="Cargo">VISTA POR CARGO</option>
+            <!-- <option value="Cargo">VISTA POR CARGO</option> -->
           </select>
 
           <button
@@ -144,8 +146,6 @@
       let allCargoNodes = []; // Aquí guardaremos los nodos de "Cargo"
       let isCargoDataReady = false; // Bandera para saber si ya cargamos la data de cargo
       let filteredNodes = [];
-
-      //TODO: Corregir el bug inicial
 
       // --- Referencias a divs de estado ---
       const loaderOverlay = document.getElementById("chart-loader-overlay");
@@ -597,20 +597,30 @@
         this.data = null; // Limpiar la data
       };
 
+      // Función para saber exactamente cuál es el Área según la Línea
+      function determinarArea(linea) {
+        const l = (linea || "").toUpperCase().trim();
+        if (l === "CORPORATIVO") return "CORPORATIVO";
+        if (ESTRUCTURA_MACRO.PECUARIO.subgrupos.includes(l)) return "PECUARIA";
+        if (ESTRUCTURA_MACRO.RETAIL.subgrupos.includes(l)) return "RETAIL";
+        return "CORPORATIVO"; // Por defecto para personal de apoyo
+      }
+
       /* FUNCION PARA HABILITAR/DESHABILITAR FILTROS */
       function actualizarEstadoFiltros() {
         const selectIds =
-          "#linea-negocio-select, #centro-costos-select, #proposito-select";
+          "#area-select, #linea-negocio-select, #centro-costos-select, #proposito-select";
         const $nivel = $("#nivel-select");
 
         // 1. Verificar valores de los filtros principales
+        const area = $("#area-select").val();
         const linea = $("#linea-negocio-select").val();
         const costo = $("#centro-costos-select").val();
         const prop = $("#proposito-select").val(); // <--- Nuevo
 
         // ¿Hay algún filtro activo? (Es decir, algo distinto a "todos")
         const hayFiltrosActivos =
-          linea !== "todos" || costo !== "todos" || prop !== "todos";
+          area !== "todos" || linea !== "todos" || costo !== "todos" || prop !== "todos";
         // 2. Lógica de Permisos de Usuario (Global)
         if (usuarioPuedeVerTodo) {
           console.log("🔐 Permiso Global: SI");
@@ -806,7 +816,8 @@
 
         // 7. ¡DISPARO FINAL!
         // Selecciona el valor y fuerza la ejecución INMEDIATA del gráfico
-        $("#linea-negocio-select").val(valorInicial).trigger("change");
+        $("#area-select").val("todos").trigger("change");
+        //$("#linea-negocio-select").val(valorInicial).trigger("change");
       }
 
       // --- Función Sanitize (para evitar bucles infinitos) ---
@@ -955,16 +966,19 @@
       function renderOrganigramaGrupos() {
         if (!chart) return;
 
+        const selectedAreaRaw = $("#area-select").val();
         const selectedLineaRaw = $("#linea-negocio-select").val();
-        if (!selectedLineaRaw) return;
+        if (!selectedLineaRaw || !selectedLineaRaw) return;
 
         // Normalizar valor (ej: "CARNICOS")
-        const filtroActivo = selectedLineaRaw.toUpperCase().trim();
-        const esTodos = filtroActivo === "TODOS";
-        const esSoloCorp = filtroActivo === "CORPORATIVO";
-        console.log(
-          "🚀 Renderizando: Estructura Final (Santiago Hermano + Cabeza)...",
-        );
+        const areaFiltro = selectedAreaRaw.toUpperCase().trim();
+        const lineaFiltro = selectedLineaRaw.toUpperCase().trim();
+        
+        const esTodasAreas = areaFiltro === "TODOS";
+        const esTodasLineas = lineaFiltro === "TODOS";
+
+        // Si el área es corporativo o la línea es corporativo
+        const esSoloCorp = areaFiltro === "CORPORATIVO" || lineaFiltro === "CORPORATIVO";
 
         const currentMode = document.getElementById("modo-select").value;
         const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
@@ -974,8 +988,48 @@
           return;
         }
 
+        // const nodesToRender = new Map();
+        // const sourceMap = new Map(sourceNodes.map((n) => [n.id, n]));
+
         const nodesToRender = new Map();
-        const sourceMap = new Map(sourceNodes.map((n) => [n.id, n]));
+        
+        // 1. CLONAMOS EL MAPA (Shallow Copy) PARA PODER MANIPULARLO SIN DAÑAR LA DATA GLOBAL
+        const sourceMap = new Map();
+        sourceNodes.forEach((n) => sourceMap.set(n.id, Object.assign({}, n)));
+
+        // =========================================================
+        // EXCEPCIÓN HARDCODEADA: EL CLON DE ANDRES HERRERA (9987)
+        // =========================================================
+        const idAndres = "9987";
+        const andresOriginal = sourceMap.get(idAndres);
+
+        if (andresOriginal) {
+            // A. Creamos el clon visual de Andrés
+            const idAndresClon = `CLON_CARNICOS_${idAndres}`;
+            const andresClon = Object.assign({}, andresOriginal);
+            andresClon.id = idAndresClon;
+            
+            // Le asignamos como jefe a Santiago (ID Original: HEAD_LINEA_GRP_CARNICOS_12), para que la recursividad de Cárnicos lo atrape.
+            // OJO: Dejamos su lineaNegocio intacta ("RETAIL") para que el contador NO lo sume en Cárnicos.
+            andresClon.pid = "01098"; 
+            
+            // Lo guardamos en el mapa temporal para que el motor lo encuentre al dibujar
+            sourceMap.set(idAndresClon, andresClon);
+
+            // B. El Agente de Tránsito: Revisamos a los hijos de Andrés
+            sourceMap.forEach((node) => {
+                if (node.pid === idAndres) { // Si reporta al Andrés original
+                    const lineaHijo = (node.lineaNegocio || "").toUpperCase().trim();
+                    if (lineaHijo === "CARNICOS") { // TODO: cuando le cambien a retail a los demás descomentar esto
+                    //if (node.id === "2819") {
+                      
+                        // Si el hijo es de Cárnicos, lo divorciamos del original y lo enrutamos al clon
+                        node.pid = idAndresClon; 
+                    }
+                }
+            });
+        }
+        // =========================================================
 
         // Helper para buscar nodos
         const encontrarNodoPorConfig = (configId) => {
@@ -1076,8 +1130,12 @@
         Object.values(ESTRUCTURA_MACRO).forEach((macro) => {
           // --- CAMBIO 3: Filtro de División ---
           // Solo mostramos esta división si es "TODOS" o si la línea seleccionada está dentro de sus subgrupos.
-          const contieneLaLinea = macro.subgrupos.includes(filtroActivo);
-          if (!esTodos && !contieneLaLinea) return;
+          const areaDeEsteMacro = macro.id === "GRP_MACRO_PECUARIO" ? "PECUARIA" : "RETAIL";
+          if (!esTodasAreas && areaFiltro !== areaDeEsteMacro) return; // Ignoramos la caja entera
+
+          // --- NUEVO: ¿Este Macro Grupo contiene la Línea elegida? ---
+          const contieneLaLinea = macro.subgrupos.includes(lineaFiltro);
+          if (!esTodasLineas && !contieneLaLinea) return; // Ignoramos la caja entera
 
           // 2.1 Crear la Caja del Macro Grupo
           nodesToRender.set(macro.id, {
@@ -1123,6 +1181,7 @@
               // 1. Si es Corporativo (Angie), FUERA. (Ya salió arriba)
               if (linea === "CORPORATIVO") return false;
 
+              if (String(nodo.id).includes("CLON_")) return false;
               // 2. Si es de un subgrupo (ej: es de Carnicos), FUERA. (Saldrá en su caja)
               const esDeSubgrupo = macro.subgrupos.some((sub) => sub === linea);
               return !esDeSubgrupo;
@@ -1142,7 +1201,7 @@
             macro.subgrupos.forEach((nombreLinea, index) => {
               // --- Filtro de Línea Específica ---
               // Solo mostramos esta caja si es "TODOS" o es EXACTAMENTE la línea que pidió el usuario.
-              if (!esTodos && filtroActivo !== nombreLinea) return;
+              if (!esTodasLineas && lineaFiltro !== nombreLinea) return;
 
               const subGroupId = `GRP_${nombreLinea.replace(/\s/g, "")}`;
               const tagLinea = `LINEA_${nombreLinea.replace(/\s/g, "_")}`;
@@ -1180,7 +1239,8 @@
                     const lineaHijo = (nodo.lineaNegocio || "")
                       .toUpperCase()
                       .trim();
-                    return lineaHijo === nombreLinea;
+                    //return lineaHijo === nombreLinea;
+                    return lineaHijo === nombreLinea || String(nodo.id).includes("CLON_");
                   };
 
                   // Traer equipo de la línea
@@ -1215,30 +1275,42 @@
 
         // C. Primera pasada: Contar personas en su grupo directo (stpid)
         nodesToRender.forEach((node) => {
-          // Ignoramos nodos que sean grupos o auxiliares (fantasmas)
+          // --- EXCEPCIÓN DE RRHH: IGNORAR EL "COMITÉ" ---
+          // Si el puesto contiene la palabra COMITE, lo ignoramos para que no sume jamás.
+          const nombrePuesto = node.puesto ? node.puesto.toUpperCase().trim() : "";
+          if (nombrePuesto === "COMITE" || nombrePuesto === "COMITÉ") {
+              return; // Lo saltamos como si no existiera matemáticamente
+          }
+
+          // C.1 Ignoramos nodos que sean grupos o auxiliares (fantasmas)
           if (
             node.tags &&
-            (node.tags.includes("group") || node.tags.includes("fantasma"))
+            (node.tags.includes("group") || node.tags.includes("fantasma") || node.tags.includes("head-of-group")) // || node.tags.includes("vacante")) // TODO: Descomentar si piden que solo se cuenten las personas activas y no las vacantes disponibles
           )
             return;
 
-          // Usamos stpid para identificar en qué caja está la persona actualmente
+          // C.2 Extraemos la línea de negocio real del contrato del empleado (normalizada)
+          const lineaRealEmpleado = node.lineaNegocio ? node.lineaNegocio.trim().toUpperCase().replace(/\s/g, "") : "N/A";
+
+          // C.3 ¿Dónde está sentado visualmente este nodo ahora mismo?
           if (node.stpid) {
-            // Si está en una caja de línea (ej: GRP_CARNICERIA) o Macro (GRP_MACRO_PECUARIO)
-            const groupKey = node.stpid.startsWith("GRP_MACRO_")
-              ? node.stpid
-              : node.stpid.replace("GRP_", "");
-            if (visualCounts[groupKey] !== undefined) {
-              visualCounts[groupKey]++;
+            // Está dentro de una caja (ej: GRP_CARNICERIA)
+            const nombreCaja = node.stpid.replace("GRP_", "");
+            if (nombreCaja === lineaRealEmpleado) {
+                if (visualCounts[nombreCaja] !== undefined) {
+                  visualCounts[nombreCaja]++;
+                }
+            } else {
+                // El empleado está de invitado en otra caja (ej. Omar Buritica en Carnicería).
+                // ¡No sumamos nada! Fantasma numérico.
+                console.log(`Empleado ${node.nombre} ignorado en ${nombreCaja} porque pertenece a ${lineaRealEmpleado}`);
             }
           } else {
             // Fallback: usar su línea de negocio original si no tiene stpid (ej: staff directo raíz)
-            const linea = node.lineaNegocio
-              ? node.lineaNegocio.trim().toUpperCase().replace(/\s/g, "")
-              : "N/A";
-            if (visualCounts[linea] !== undefined) {
-              visualCounts[linea]++;
-            }
+            // Está suelto (ej. Corporativo directo). Lo sumamos a su línea real.
+            if (visualCounts[lineaRealEmpleado] !== undefined) {
+              visualCounts[lineaRealEmpleado]++;
+            } //TODO: No está contando comité por que tiene linea de negocio CORPORATIVO
           }
         });
 
@@ -1270,7 +1342,7 @@
           }
         });
 
-        console.log("📊 Conteos Visuales Finales:", visualCounts);
+        console.log("📊 Conteos Visuales Finales (Personas Únicas):", visualCounts);
 
         // Disparar renderizado final
         cargarYFinalizar(nodesToRender);
@@ -1599,22 +1671,6 @@
         loaderOverlay.classList.remove("visible");
       }
 
-      // --- Función Auxiliar para añadir ancestros (recursiva hacia arriba) ---
-      function addNodeAndAncestors(node, nodesToShow, nodeMap) {
-        let currentNode = node;
-        while (currentNode) {
-          if (nodesToShow.has(currentNode.id)) break;
-
-          nodesToShow.set(currentNode.id, currentNode);
-
-          if (currentNode.pid && nodeMap.has(currentNode.pid)) {
-            currentNode = nodeMap.get(currentNode.pid);
-          } else {
-            currentNode = null;
-          }
-        }
-      }
-
       // Función recursiva para calcular hijos y nietos
       function calcularDescendenciaManual(nodes) {
         // 1. Convertir array a mapa para acceso rápido
@@ -1821,7 +1877,8 @@
 
                   // Importante para que los filtros jerárquicos no fallen
                   departamento: emp.nombreDepartamento || "N/A",
-                  area: emp.nombreArea || "N/A",
+                  //area: emp.nombreArea || "N/A",
+                  area: determinarArea(emp.nombreLineaNegocio2),
                   proposito: emp.nombreProposito || "N/A", //TODO: Cambio por campos de la lstPosiciones
                   lineaNegocio: emp.nombreLineaNegocio2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
                   centroCosto: emp.nombreCentroCosto2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
@@ -1847,9 +1904,10 @@
                     emp.codigoPosicionReporta ||
                     "Código de posición que reporta no definido",
                   // Importante para los filtros jerárquicos
-                  lineaNegocio: emp.nombreLineaNegocio2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
-                  centroCosto: emp.nombreCentroCosto2 || "N/A", //TODO: Cambio por campos de la lstPosiciones
-                  area: emp.nombreArea || "N/A",
+                  lineaNegocio: emp.nombreLineaNegocio2 || "N/A", // Cambio por campos de la lstPosiciones
+                  centroCosto: emp.nombreCentroCosto2 || "N/A", // Cambio por campos de la lstPosiciones
+                  //area: emp.nombreArea || "N/A",
+                  area: determinarArea(emp.nombreLineaNegocio2),
                   departamento: emp.nombreDepartamento || "N/A", //
                   proposito: emp.nombreProposito || "N/A",
 
@@ -1879,12 +1937,18 @@
 
           isDataReady = true;
 
-          // Poblamos los selects para filtrar por Línea de Negocio, Centro de Costos y Departamento
           populateSelect(
-            "linea-negocio-select",
-            "lineaNegocio",
+            "area-select",
+            "area",
             sanitizedNodes,
           );
+
+          // Poblamos los selects para filtrar por Línea de Negocio, Centro de Costos y Departamento
+          // populateSelect(
+          //   "linea-negocio-select",
+          //   "lineaNegocio",
+          //   sanitizedNodes,
+          // );
           //populateSelect("centro-costos-select", "centroCosto", sanitizedNodes);
 
           // 4.1 Intentar procesar (en caso de que el 'userId' ya haya llegado)
@@ -2110,10 +2174,6 @@
           );
           OrgChart.templates.group.min.imgs = `{val}`;
           OrgChart.templates.group.min.img_0 = ``;
-          // OrgChart.templates.group.min.description =
-          //     `<text data-width="230" data-text-overflow="multiline" style="font-size: 14px;" fill="#aeaeae" x="125" y="100" text-anchor="middle">{val}</text>`;
-          // OrgChart.templates.group.field_0 =
-          //     '<text style="font-size: 20px; font-weight: bold;" fill="#039BE5" text-anchor="middle">{val}</text>';
 
           // =========================================================
           // GLOBO CONTADOR (ESQUINA SUPERIOR DERECHA DINÁMICA)
@@ -2136,15 +2196,6 @@
           // stroke-dasharray="6, 3" crea el efecto discontinuo
           OrgChart.templates.ghost.link =
             '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
-
-          //LINEAS PUNTEADAS
-          // 2. Template de Grupo
-          // OrgChart.templates.group.link =
-          //     '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
-
-          // // 3. Template de Grupo Min
-          // OrgChart.templates.group.min.link =
-          //     '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
 
           // =========================================================
           // TEMPLATE PARA SLINKS (Líneas de conexión secundarias)
@@ -2234,10 +2285,6 @@
               nodeBinding: {
                 conteo: "conteo",
               },
-              // subTreeConfig: {
-              //       collapse: { level: 1
-              //        } // Nivel alto = Siempre expandido
-              //   }
             },
             //   "head-of-group": {
             //       subTreeConfig: {
@@ -2376,124 +2423,136 @@
                   this.fit(); // Ajusta el zoom a la pantalla
                 },
               },
-collapseAll: {
-    icon: collapse_all,
-    title: "Colapsar todo",
-    onClick: function () {
-        
-        // --- 1. FUNCIÓN DE DETECCIÓN (EXTRAÍDA PARA REUTILIZAR) ---
-        // Esta función solo "mira", no toca nada. Devuelve la lista de lo que hay que cerrar.
-        function detectarNodosAbiertos() {
-            const visibleIds = chart.visibleNodeIds;
-            if (!visibleIds || visibleIds.length === 0) return [];
+              collapseAll: {
+                icon: collapse_all,
+                title: "Colapsar todo",
+                onClick: function () {
+                  // --- 1. FUNCIÓN DE DETECCIÓN (EXTRAÍDA PARA REUTILIZAR) ---
+                  // Esta función solo "mira", no toca nada. Devuelve la lista de lo que hay que cerrar.
+                  function detectarNodosAbiertos() {
+                    const visibleIds = chart.visibleNodeIds;
+                    if (!visibleIds || visibleIds.length === 0) return [];
 
-            let lista = [];
+                    let lista = [];
 
-            for (var i = 0; i < visibleIds.length; i++) {
-                var id = visibleIds[i];
-                var node = chart.getNode(id);
+                    for (var i = 0; i < visibleIds.length; i++) {
+                      var id = visibleIds[i];
+                      var node = chart.getNode(id);
 
-                if (!node) continue;
+                      if (!node) continue;
 
-                // Protección Retail
-                if (node.stpid) {
-                    var parentGroup = chart.getNode(node.stpid);
-                    if (parentGroup && parentGroup.min) continue;
-                }
+                      // Protección Retail
+                      if (node.stpid) {
+                        var parentGroup = chart.getNode(node.stpid);
+                        if (parentGroup && parentGroup.min) continue;
+                      }
 
-                // Criterios de Selección (Tus filtros exactos)
-                if (
-                    node &&
-                    !node.pid &&
-                    !node.id.includes("MACRO") &&
-                    (!node.tags || !node.tags.includes("group")) &&
-                    (!node.tags || !node.tags.includes("fantasma"))
-                ) {
-                    // Condición: Tiene hijos y NO está cerrado
-                    if (node.childrenIds && node.childrenIds.length > 0 && node.expanded !== false) {
-                        lista.push(node.id);
+                      // Criterios de Selección (Tus filtros exactos)
+                      if (
+                        node &&
+                        !node.pid &&
+                        !node.id.includes("MACRO") &&
+                        (!node.tags || !node.tags.includes("group")) &&
+                        (!node.tags || !node.tags.includes("fantasma"))
+                      ) {
+                        // Condición: Tiene hijos y NO está cerrado
+                        if (
+                          node.childrenIds &&
+                          node.childrenIds.length > 0 &&
+                          node.expanded !== false
+                        ) {
+                          lista.push(node.id);
+                        }
+                      }
                     }
-                }
-            }
-            return lista;
-        }
+                    return lista;
+                  }
 
-        // --- 2. EL MOTOR RECURSIVO ---
-        function procesarCicloDeCierre(intento) {
-            // Límite de seguridad
-            if (intento > 3) { 
-                chart.fit(); 
-                return; 
-            }
-                            chart.fit(); 
-
-
-            // Buscamos trabajo para este ciclo
-            const dynamicRoots = detectarNodosAbiertos();
-
-            // CONDICIÓN DE PARADA DE ÉXITO:
-            if (dynamicRoots.length === 0) {
-                console.log("Ciclo finalizado. Todo limpio.");
-                // Solo hacemos fit() si realmente venimos de un ciclo de trabajo previo.
-                // Si fue el intento 1, no deberíamos llegar aquí por la validación inicial, 
-                // pero por seguridad lo dejamos.
-                if (intento > 1) {
+                  // --- 2. EL MOTOR RECURSIVO ---
+                  function procesarCicloDeCierre(intento) {
+                    // Límite de seguridad
+                    if (intento > 3) {
+                      chart.fit();
+                      return;
+                    }
                     chart.fit();
-                }
-                return;
-            }
 
-            console.log(`Ciclo ${intento}: Colapsando ${dynamicRoots.length} nodos...`);
+                    // Buscamos trabajo para este ciclo
+                    const dynamicRoots = detectarNodosAbiertos();
 
-            // Ejecutamos el cierre del lote actual
-            cerrarLoteActual(dynamicRoots, function() {
-                // Esperamos a que la librería reacomode el DOM y traiga nuevos nodos
-                setTimeout(() => {
-                    // LLAMADA RECURSIVA
-                    procesarCicloDeCierre(intento + 1);
-                }, 350); 
-            });
-        }
+                    // CONDICIÓN DE PARADA DE ÉXITO:
+                    if (dynamicRoots.length === 0) {
+                      console.log("Ciclo finalizado. Todo limpio.");
+                      // Solo hacemos fit() si realmente venimos de un ciclo de trabajo previo.
+                      // Si fue el intento 1, no deberíamos llegar aquí por la validación inicial,
+                      // pero por seguridad lo dejamos.
+                      if (intento > 1) {
+                        chart.fit();
+                      }
+                      return;
+                    }
 
-        // --- 3. FUNCIÓN DE EJECUCIÓN DEL LOTE (Tu lógica intacta) ---
-        function cerrarLoteActual(roots, callbackFinal) {
-            function next(index) {
-                if (index >= roots.length) {
-                    callbackFinal();
-                    return;
-                }
-                const rootId = roots[index];
-                const node = chart.getNode(rootId);
+                    console.log(
+                      `Ciclo ${intento}: Colapsando ${dynamicRoots.length} nodos...`,
+                    );
 
-                if (!node) { next(index + 1); return; }
-
-                var collapseIds = [];
-                iterate(chart, node, collapseIds, rootId);
-
-                if (collapseIds.length > 0) {
-                    chart.expandCollapse(rootId, [], collapseIds, function () {
-                        next(index + 1);
+                    // Ejecutamos el cierre del lote actual
+                    cerrarLoteActual(dynamicRoots, function () {
+                      // Esperamos a que la librería reacomode el DOM y traiga nuevos nodos
+                      setTimeout(() => {
+                        // LLAMADA RECURSIVA
+                        procesarCicloDeCierre(intento + 1);
+                      }, 350);
                     });
-                } else {
-                    next(index + 1);
-                }
-            }
-            next(0);
-        }
+                  }
 
-        // --- 4. ARRANQUE INTELIGENTE ---
-        // Antes de empezar la locura recursiva, miramos si es necesario.
-        const trabajoInicial = detectarNodosAbiertos();
+                  // --- 3. FUNCIÓN DE EJECUCIÓN DEL LOTE (Tu lógica intacta) ---
+                  function cerrarLoteActual(roots, callbackFinal) {
+                    function next(index) {
+                      if (index >= roots.length) {
+                        callbackFinal();
+                        return;
+                      }
+                      const rootId = roots[index];
+                      const node = chart.getNode(rootId);
 
-        if (trabajoInicial.length > 0) {
-            // SOLO si hay algo abierto, arrancamos la maquinaria.
-            procesarCicloDeCierre(1);
-        } else {
-            // Si todo está cerrado, no hacemos NADA. Ni fit, ni logs, ni loops.
-            console.log("Todo ya estaba colapsado. Sin acciones.");
-        }
-    },
-},
+                      if (!node) {
+                        next(index + 1);
+                        return;
+                      }
+
+                      var collapseIds = [];
+                      iterate(chart, node, collapseIds, rootId);
+
+                      if (collapseIds.length > 0) {
+                        chart.expandCollapse(
+                          rootId,
+                          [],
+                          collapseIds,
+                          function () {
+                            next(index + 1);
+                          },
+                        );
+                      } else {
+                        next(index + 1);
+                      }
+                    }
+                    next(0);
+                  }
+
+                  // --- 4. ARRANQUE INTELIGENTE ---
+                  // Antes de empezar la locura recursiva, miramos si es necesario.
+                  const trabajoInicial = detectarNodosAbiertos();
+
+                  if (trabajoInicial.length > 0) {
+                    // SOLO si hay algo abierto, arrancamos la maquinaria.
+                    procesarCicloDeCierre(1);
+                  } else {
+                    // Si todo está cerrado, no hacemos NADA. Ni fit, ni logs, ni loops.
+                    console.log("Todo ya estaba colapsado. Sin acciones.");
+                  }
+                },
+              },
               horizontalLayout: {
                 icon: OrgChart.icon.layout_normal(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
                 title: "Horizontal Layout",
@@ -2729,43 +2788,6 @@ collapseAll: {
 
             return false; // Siempre devolvemos false para tomar control total
           });
-          //TODO: para personalizar los item del search
-          // 2. Sobrescribe el método OrgChart.searchUI.createItem
-          //    Este método es responsable de generar el HTML para cada elemento de la lista de resultados.
-          /* OrgChart.searchUI.createItem = function (img, id, first, second) {
-              // 'this' dentro de esta función se refiere a la instancia de searchUI,
-              // que a su vez tiene una referencia a la instancia del gráfico.
-              const chartInstance = this.instance;
-              const nodeData = chartInstance.get(id); // Obtén los datos completos del nodo usando su ID
-
-              const name = nodeData.nombre || '';  // Asume que el nombre está en el campo 'name'
-              const title = nodeData.puesto || ''; // Asume que el puesto está en el campo 'title'
-
-              // Retorna el HTML personalizado para el elemento de la lista de búsqueda
-              return `<tr data-search-item-id="${id}">
-                          <td class="boc-search-image-td">
-                              <div class="boc-search-img" style="background-image: url(${img})"></div>
-                          </td>
-                          <td class="boc-search-text-td">
-                              <div class="boc-search-nombre">${name}</div>
-                              <div class="boc-search-puesto" style="font-size: 0.8em; color: #666;">${title}</div>
-                          </td>
-                      </tr>`;
-          };
-
-          // Opcional: Si quieres mantener el límite visual de 5 y el scroll,
-          // aplica los estilos CSS como se explicó anteriormente.
-          // Esto debe hacerse después de que el gráfico esté listo y los resultados se muestren.
-          chart.searchUI.on('show-items', function(sender, args) {
-              const searchResultsWrapper = sender.searchTableWrapper;
-              if (searchResultsWrapper) {
-                  searchResultsWrapper.style.maxHeight = '250px'; // Ajusta esta altura según el tamaño de tus elementos
-                  searchResultsWrapper.style.overflowY = 'auto';
-                  searchResultsWrapper.style.border = '1px solid #ccc';
-                  searchResultsWrapper.style.boxSizing = 'border-box';
-                  searchResultsWrapper.style.padding = '5px';
-              }
-          }); */
 
           // Se dispara DESPUÉS de que la carga inicial Y
           // la animación 'scaleInitial: match.boundary' han terminado.
@@ -2776,15 +2798,15 @@ collapseAll: {
             document.getElementById("custom-filters").classList.add("ui-ready");
 
             // 1. Detectar clic en el fondo del documento
-            $(document).on("click", function (e) {
-              // Si el clic NO fue dentro de un contenedor de select2
-              if (
-                $(e.target).closest(".select2-container").length === 0 &&
-                $(e.target).closest(".control-select").length === 0
-              ) {
-                $(".control-select").select2("close");
-              }
-            });
+            // $(document).on("click", function (e) {
+            //   // Si el clic NO fue dentro de un contenedor de select2
+            //   if (
+            //     $(e.target).closest(".select2-container").length === 0 &&
+            //     $(e.target).closest(".control-select").length === 0
+            //   ) {
+            //     $(".control-select").select2("close");
+            //   }
+            // });
 
             // 2. Detectar clic ESPECÍFICO en el SVG del organigrama (Balkan captura eventos)
             // Esto se añade mejor dentro de la configuración del chart o en el evento onReady
@@ -2822,7 +2844,7 @@ collapseAll: {
 
               if (nodeElement) {
                 let nodeId = nodeElement.getAttribute("data-n-id");
-                console.log("ID detectado:", nodeId); // Debug
+                //console.log("ID detectado:", nodeId); // Debug
 
                 if (nodeId) {
                   // 2. Buscamos los grupos <g> de conexión relacionados con este ID
@@ -2870,31 +2892,67 @@ collapseAll: {
 
           // --- ¡LÓGICA PARA CAMBIAR DE VISTA! ---
           // 1. Inicializar Select2 en todos los selects
-          $(
-            "#linea-negocio-select, #centro-costos-select, #area-select, #departamento-select",
-          ).select2({
-            width: "240px",
-          });
-          // Inicializa el select de MODO (SIN buscador)
-          $("#modo-select").select2({
-            width: "240px",
-            minimumResultsForSearch: Infinity, // Esta línea desactiva el buscador
-          });
+          // $(
+          //   "#linea-negocio-select, #centro-costos-select, #area-select, #departamento-select",
+          // ).select2({
+          //   width: "240px",
+          // });
+          // // Inicializa el select de MODO (SIN buscador)
+          // $("#modo-select").select2({
+          //   width: "240px",
+          //   minimumResultsForSearch: Infinity, // Esta línea desactiva el buscador
+          // });
 
           console.log("Select2 inicializado por primera vez.");
-          //procesarLoginDeUsuario();
-
           // =========================================================
           // NUEVA LÓGICA DE FILTROS ESCALONADOS (OBLIGATORIOS)
-          // Estructura: Línea -> Centro -> Propósito
+          // Estructura: Área -> Línea
           // =========================================================
 
           // Inicializar Select2 en los nuevos selects
-          $(
-            "#linea-negocio-select, #centro-costos-select, #proposito-select",
-          ).select2({
+          // $(
+          //   "#linea-negocio-select, #centro-costos-select, #proposito-select",
+          // ).select2({
+          //   width: "240px",
+          //   minimumResultsForSearch: 10, // Solo muestra buscador si hay muchas opciones
+          // });
+
+          // Inicializar Select2
+          $("#area-select, #linea-negocio-select").select2({
             width: "240px",
-            minimumResultsForSearch: 10, // Solo muestra buscador si hay muchas opciones
+            minimumResultsForSearch: 10,
+          });
+
+          // =======================================================
+          // 1. LISTENER: ÁREA (El maestro)
+          // =======================================================
+          $("#area-select").on("change", function () {
+            const selectedArea = $(this).val();
+            const sourceNodes = document.getElementById("modo-select").value === "Cargo" ? allCargoNodes : allNodes;
+
+            // Filtrar nodos por el Área seleccionada
+            const nodosDeArea = selectedArea === "todos" 
+              ? sourceNodes 
+              : sourceNodes.filter((n) => n.area === selectedArea);
+
+            // Poblar las opciones de "Línea de Negocio" basados en esta Área
+            const opcionesLinea = populateSelect("linea-negocio-select", "lineaNegocio", nodosDeArea);
+
+            // Selección Automática
+            if (opcionesLinea.length > 1) {
+              $("#linea-negocio-select").val("todos").trigger("change");
+            } else if (opcionesLinea.length === 1) {
+              $("#linea-negocio-select").val(opcionesLinea[0]).trigger("change");
+            } else {
+              renderOrganigramaGrupos();
+            }
+          });
+
+          // =======================================================
+          // 2. LISTENER: LÍNEA DE NEGOCIO (El que dibuja)
+          // =======================================================
+          $("#linea-negocio-select").on("change", function () {
+            renderOrganigramaGrupos();
           });
 
           // 1. LISTENER: LÍNEA DE NEGOCIO
@@ -2921,16 +2979,16 @@ collapseAll: {
           // });
 
           // 1. LISTENER: LÍNEA DE NEGOCIO (El único que importa ahora)
-          $("#linea-negocio-select").on("change", function () {
-            // OCULTAR visualmente los otros selectores
-            // Select2 crea un contenedor hermano, así que ocultamos ese contenedor
-            $("#centro-costos-select").next(".select2-container").hide();
-            $("#proposito-select").next(".select2-container").hide();
-            $("#modo-select").next(".select2-container").hide();
+          // $("#linea-negocio-select").on("change", function () {
+          //   // OCULTAR visualmente los otros selectores
+          //   // Select2 crea un contenedor hermano, así que ocultamos ese contenedor
+          //   $("#centro-costos-select").next(".select2-container").hide();
+          //   $("#proposito-select").next(".select2-container").hide();
+          //   $("#modo-select").next(".select2-container").hide();
 
-            // Llamamos a la función constructora
-            renderOrganigramaGrupos();
-          });
+          //   // Llamamos a la función constructora
+          //   renderOrganigramaGrupos();
+          // });
 
           // 2. LISTENER: CENTRO DE COSTOS
           $("#centro-costos-select").on("change", function () {
@@ -3258,85 +3316,40 @@ collapseAll: {
         }
 
         // Esta función repobla y restaura los filtros para la vista de Cargo
+        // Esta función repobla y restaura los filtros para la vista de Cargo
         function poblarYRestaurarFiltrosCargo() {
-          const sourceNodes = allCargoNodes; // Fuente de datos para Cargo
-          console.log("Restaurando filtros para vista Cargo..."); // 1. Poblar y restaurar LÍNEA
+          const sourceNodes = allCargoNodes;
+          console.log("Restaurando filtros para vista Cargo...");
 
-          // 1. Linea
-          populateSelect("linea-negocio-select", "lineaNegocio", sourceNodes);
-          $("#linea-negocio-select").val(filtrosGuardados.linea); // 2. Poblar y restaurar COSTO
-
-          const nodosParaCostos =
-            filtrosGuardados.linea === "todos"
-              ? sourceNodes
-              : sourceNodes.filter(
-                  (n) => n.lineaNegocio === filtrosGuardados.linea,
-                );
-          populateSelect(
-            "centro-costos-select",
-            "centroCosto",
-            nodosParaCostos,
-          );
-          if (
-            $(
-              "#centro-costos-select option[value='" +
-                filtrosGuardados.costo +
-                "']",
-            ).length > 0
-          ) {
-            $("#centro-costos-select").val(filtrosGuardados.costo);
-          } else {
-            filtrosGuardados.costo = "todos"; // Forzar a 'todos' si no se encontró
-          }
-
-          // 3. ✅ Área (NUEVO)
-          const nodosParaAreas =
-            filtrosGuardados.costo === "todos"
-              ? nodosParaCostos
-              : nodosParaCostos.filter(
-                  (n) => n.centroCosto === filtrosGuardados.costo,
-                );
-          populateSelect("area-select", "area", nodosParaAreas);
-          if (
-            $("#area-select option[value='" + filtrosGuardados.area + "']")
-              .length > 0
-          ) {
+          // 1. Poblar ÁREA primero
+          populateSelect("area-select", "area", sourceNodes);
+          
+          // Restauramos el área guardada (o 'todos' por defecto)
+          if ($("#area-select option[value='" + filtrosGuardados.area + "']").length > 0) {
             $("#area-select").val(filtrosGuardados.area);
           } else {
-            filtrosGuardados.area = "todos";
+            $("#area-select").val("todos");
           }
 
-          // 4. Poblar y restaurar DEPTO
-          const nodosParaDeptos =
-            filtrosGuardados.costo === "todos"
-              ? nodosParaCostos
-              : nodosParaCostos.filter(
-                  (n) => n.centroCosto === filtrosGuardados.costo,
-                );
-          populateSelect(
-            "departamento-select",
-            "departamento",
-            nodosParaDeptos,
-          );
-          if (
-            $(
-              "#departamento-select option[value='" +
-                filtrosGuardados.depto +
-                "']",
-            ).length > 0
-          ) {
-            $("#departamento-select").val(filtrosGuardados.depto);
+          // 2. Filtrar para saber qué Líneas mostrar
+          const selectedArea = $("#area-select").val();
+          const nodosDeArea = selectedArea === "todos" 
+              ? sourceNodes 
+              : sourceNodes.filter((n) => n.area === selectedArea);
+
+          // 3. Poblar LÍNEA DE NEGOCIO
+          populateSelect("linea-negocio-select", "lineaNegocio", nodosDeArea);
+
+          // Restauramos la línea guardada
+          if ($("#linea-negocio-select option[value='" + filtrosGuardados.linea + "']").length > 0) {
+             $("#linea-negocio-select").val(filtrosGuardados.linea);
+          } else {
+             $("#linea-negocio-select").val("todos");
           }
 
-          // 4. ✅ RESTAURAR NIVEL
-          if (filtrosGuardados.niveles) {
-            $("#nivel-select").val(filtrosGuardados.niveles);
-          }
-
-          // 5. Notificar a Select2
-          $(".control-select").trigger("change.select2"); // 5. Aplicar filtros
-
-          aplicarFiltrosJerarquicos();
+          // 4. Notificar a Select2 y dibujar
+          $(".control-select").trigger("change.select2"); 
+          renderOrganigramaGrupos();
         }
 
         if (isCargoDataReady) {
