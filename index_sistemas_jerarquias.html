@@ -146,6 +146,7 @@
       let allCargoNodes = []; // Aquí guardaremos los nodos de "Cargo"
       let isCargoDataReady = false; // Bandera para saber si ya cargamos la data de cargo
       let filteredNodes = [];
+      let isCollapsingAll = false;
 
       // --- Referencias a divs de estado ---
       const loaderOverlay = document.getElementById("chart-loader-overlay");
@@ -176,17 +177,41 @@
           order: 2,
           headId: "12", // ID de Santiago Saab (Cabeza de esta división)
           subgrupos: [
-            "BALANCEADO",
+            //"BALANCEADO",
             "CARNICERIA",
-            "CARNICOS",
+            //"CARNICOS",
             "PECUARIOS",
+            //"DERIVADOS",
+          ],
+        },
+        INDUSTRIAL: {
+          id: "GRP_MACRO_INDUSTRIAL",
+          title: "DIVISIÓN INDUSTRIAL",
+          order: 3,
+          headId: "12", // ID de Santiago Saab (Cabeza de esta división)
+          subgrupos: [
             "DERIVADOS",
+            "BALANCEADO",
+            "CARNICOS"
+          ],
+        },
+        INMOBILIARIA: {
+          id: "GRP_MACRO_INMOBILIARIA",
+          title: "DIVISIÓN INMOBILIARIA",
+          order: 4,
+          //headId: ,//"12", // ID de Santiago Saab (Cabeza de esta división)
+          subgrupos: [
+            // "BALANCEADO",
+            // "CARNICERIA",
+            // "CARNICOS",
+            // "PECUARIOS",
+            // "DERIVADOS",
           ],
         },
         RETAIL: {
           id: "GRP_MACRO_RETAIL",
           title: "DIVISIÓN COMERCIAL",
-          order: 3,
+          order: 5,
           headId: "390", // ID de Juan Jose Hidalgo (Cabeza de esta división)
           subgrupos: ["RETAIL", "MARKETING"],
         },
@@ -597,11 +622,22 @@
         this.data = null; // Limpiar la data
       };
 
+      // Reemplaza esta función helper dentro de renderOrganigramaGrupos:
+      const getAreaDeMacro = (macroId) => {
+          if (macroId === "GRP_MACRO_PECUARIO") return "PECUARIA";
+          if (macroId === "GRP_MACRO_INDUSTRIAL") return "INDUSTRIAL";
+          if (macroId === "GRP_MACRO_INMOBILIARIA") return "INMOBILIARIA";
+          if (macroId === "GRP_MACRO_RETAIL") return "RETAIL";
+          return "";
+      };
+
       // Función para saber exactamente cuál es el Área según la Línea
       function determinarArea(linea) {
         const l = (linea || "").toUpperCase().trim();
         if (l === "CORPORATIVO") return "CORPORATIVO";
         if (ESTRUCTURA_MACRO.PECUARIO.subgrupos.includes(l)) return "PECUARIA";
+        if (ESTRUCTURA_MACRO.INDUSTRIAL.subgrupos.includes(l)) return "INDUSTRIAL";
+        if (ESTRUCTURA_MACRO.INMOBILIARIA.subgrupos.includes(l)) return "INMOBILIARIA";
         if (ESTRUCTURA_MACRO.RETAIL.subgrupos.includes(l)) return "RETAIL";
         return "CORPORATIVO"; // Por defecto para personal de apoyo
       }
@@ -1013,6 +1049,9 @@
             // OJO: Dejamos su lineaNegocio intacta ("RETAIL") para que el contador NO lo sume en Cárnicos.
             andresClon.pid = "1841";  // TODO: que le agarre al cargo y no a la persona
             
+            // En renderOrganigramaGrupos, donde creas el clon de Andrés:
+            andresClon.displayNombre = `${andresOriginal.nombre} (CÁRNICOS)`;
+            
             // Lo guardamos en el mapa temporal para que el motor lo encuentre al dibujar
             sourceMap.set(idAndresClon, andresClon);
 
@@ -1130,8 +1169,8 @@
         Object.values(ESTRUCTURA_MACRO).forEach((macro) => {
           // --- CAMBIO 3: Filtro de División ---
           // Solo mostramos esta división si es "TODOS" o si la línea seleccionada está dentro de sus subgrupos.
-          const areaDeEsteMacro = macro.id === "GRP_MACRO_PECUARIO" ? "PECUARIA" : "RETAIL";
-          if (!esTodasAreas && areaFiltro !== areaDeEsteMacro) return; // Ignoramos la caja entera
+          const areaDeEsteMacro = getAreaDeMacro(macro.id);
+          if (!esTodasAreas && areaFiltro !== areaDeEsteMacro) return;
 
           // --- NUEVO: ¿Este Macro Grupo contiene la Línea elegida? ---
           const contieneLaLinea = macro.subgrupos.includes(lineaFiltro);
@@ -1159,6 +1198,8 @@
             headNode.stpid = macro.id; // Dentro de la caja de color
             headNode.pid = null; // Raíz visual de esta caja
             headNode.tags = [...(headNode.tags || []), "head-of-group"];
+            
+            headNode.displayNombre = `${headNodeOriginal.nombre} (${macro.title})`;
 
             nodesToRender.set(idHeadMacroVisual, headNode);
 
@@ -1181,10 +1222,26 @@
               // 1. Si es Corporativo (Angie), FUERA. (Ya salió arriba)
               if (linea === "CORPORATIVO") return false;
 
+              // if (String(nodo.id).includes("CLON_")) return false;
+              // // 2. Si es de un subgrupo (ej: es de Carnicos), FUERA. (Saldrá en su caja)
+              // const esDeSubgrupo = macro.subgrupos.some((sub) => sub === linea);
+              // return !esDeSubgrupo;
+              // 2. Proteger a los clones de excepciones
               if (String(nodo.id).includes("CLON_")) return false;
-              // 2. Si es de un subgrupo (ej: es de Carnicos), FUERA. (Saldrá en su caja)
-              const esDeSubgrupo = macro.subgrupos.some((sub) => sub === linea);
-              return !esDeSubgrupo;
+
+              // 3. Si es de un subgrupo de ESTA división, FUERA. (Saldrá en su propia cajita)
+              if (macro.subgrupos.includes(linea)) return false;
+
+              // 4. NUEVO (ANTI-ROBO): Si es de un subgrupo de OTRA división, FUERA.
+
+              let perteneceAOtraDivision = false;
+              Object.values(ESTRUCTURA_MACRO).forEach((otraDivision) => {
+                if (otraDivision.id !== macro.id && otraDivision.subgrupos.includes(linea)) {
+                  perteneceAOtraDivision = true;
+                }
+              });
+              
+              if (perteneceAOtraDivision) return false;
             };
 
             // Traemos hijos de Santiago (Operativos) y los colgamos del Clon Macro
@@ -1207,9 +1264,16 @@
               const tagLinea = `LINEA_${nombreLinea.replace(/\s/g, "_")}`;
               const configLinea = CABEZAS_NEGOCIO_TEMP[nombreLinea] || {};
 
+              // --- NUEVO: EXCEPCIÓN PARA BALANCEADO ---
+              // Por defecto cuelgan del Macro (Santiago), pero Balanceado cuelga de Derivados
+              let jefeDeLaCaja = idHeadMacroVisual;
+              if (nombreLinea === "BALANCEADO") {
+                  jefeDeLaCaja = "GRP_DERIVADOS"; // Lo colgamos de la caja hermana
+              }
+
               nodesToRender.set(subGroupId, {
                 id: subGroupId,
-                pid: idHeadMacroVisual, // Cuelga de Santiago Macro (el clon)
+                pid: jefeDeLaCaja, // Cuelga de Santiago Macro (el clon)
                 nombre: nombreLinea,
                 title: "Línea de Negocio",
                 tags: ["group", tagLinea],
@@ -1227,6 +1291,8 @@
                   nodoGerente.id = idGerenteLineaVisual;
                   nodoGerente.stpid = subGroupId;
                   nodoGerente.pid = null;
+                  nodoGerente.displayNombre = `${gerenteOriginal.nombre} (${nombreLinea})`;
+
                   nodesToRender.set(idGerenteLineaVisual, nodoGerente);
 
                   // Lógica: Si Santiago también es gerente de Cárnicos, usamos filtro estricto
@@ -1310,7 +1376,7 @@
             // Está suelto (ej. Corporativo directo). Lo sumamos a su línea real.
             if (visualCounts[lineaRealEmpleado] !== undefined) {
               visualCounts[lineaRealEmpleado]++;
-            } //TODO: No está contando comité por que tiene linea de negocio CORPORATIVO
+            } 
           }
         });
 
@@ -1354,6 +1420,13 @@
           calcularDescendenciaManual(finalArray);
         }
 
+        // AGREGAR ESTO: Asegurar displayNombre en todos los nodos
+        finalArray.forEach((node) => {
+            if (!node.displayNombre) {
+                node.displayNombre = node.nombre || node.cargoPuesto || "";
+            }
+        });
+
         finalArray.forEach((node) => {
           if (
             node.tags &&
@@ -1378,6 +1451,16 @@
         });
 
         console.log(`✅ Renderizando Filtrado: ${finalArray.length} nodos.`);
+
+            // ✅ LIMPIAR estado interno de Balkan nodo por nodo
+        // (esto evita que recuerde expansiones manuales previas)
+        // ✅ Siempre limpiar estado interno de Balkan
+        finalArray.forEach((node) => {
+            delete node.state;
+            node.expanded = false; // ← Explícito, no solo delete
+        });
+
+
         chart.load(finalArray);
         setTimeout(() => {
           chart.fit();
@@ -2347,7 +2430,7 @@
             showYScroll: true,
             showXScroll: true,
             enableSearch: true,
-            searchFields: ["nombre", "puesto"],
+            searchFields: ["displayNombre", "puesto"],
             template: "fichaTemplate", // Plantilla base fichaTemplate, olivia, ana, etc
             // mode: 'dark',
             layout: OrgChart.normal,
@@ -2362,7 +2445,7 @@
             nodeBinding: personaBinding,
             searchFieldsWeight: {
               nombre: 100, //percent
-              puesto: 20, //percent
+              puesto: 40, //percent
             },
 
             orderBy: [
@@ -2370,7 +2453,7 @@
               { field: "puesto", desc: false }, // Luego por puesto (ascendente)
               { field: "nombre", desc: false }, // Luego por nombre (ascendente)
             ],
-            searchDisplayField: "nombre",
+            searchDisplayField: "displayNombre",
             aiChatTools: [
               {
                 functionName: "getEmployeeCount",
@@ -2393,10 +2476,11 @@
                 },
               },
             ],
-            /* anim: {
-                func: OrgChart.anim.inCirc, // Prueba con outSin o outBack para una sensación más suave
-                duration: 400 // Aumenta la duración a 400ms (o más, como 500ms)
-            }, */
+            ///* 
+            // anim: {
+            //     func: OrgChart.anim.outBack, // Prueba con outSin o outBack para una sensación más suave
+            //     duration: 400 // Aumenta la duración a 400ms (o más, como 500ms)
+            // }, ///*/
 
             collapse: {
               level: 1,
@@ -2427,130 +2511,37 @@
                 icon: collapse_all,
                 title: "Colapsar todo",
                 onClick: function () {
-                  // --- 1. FUNCIÓN DE DETECCIÓN (EXTRAÍDA PARA REUTILIZAR) ---
-                  // Esta función solo "mira", no toca nada. Devuelve la lista de lo que hay que cerrar.
-                  function detectarNodosAbiertos() {
-                    const visibleIds = chart.visibleNodeIds;
-                    if (!visibleIds || visibleIds.length === 0) return [];
+                  loaderOverlay.classList.add("visible");
+                  // PASO 1: Cargar array vacío para destruir el árbol interno
+                  chart.config.expand = {
+                      nodes: [
+                          "GRP_CORPORATIVO",
+                          "GRP_MACRO_PECUARIO",
+                          "GRP_MACRO_INDUSTRIAL",
+                          "GRP_MACRO_INMOBILIARIA",
+                          "GRP_MACRO_RETAIL",
+                          "GRP_CARNICERIA",
+                          "GRP_PECUARIOS",
+                          "GRP_CARNICOS",
+                          "GRP_DERIVADOS",
+                          "GRP_BALANCEADO",
+                          "GRP_RETAIL",
+                          "GRP_MARKETING"
+                      ],
+                      allChildren: false,
+                  };
+                  chart.config.collapse = {
+                      level: 1,
+                      allChildren: true,
+                  };
 
-                    let lista = [];
-
-                    for (var i = 0; i < visibleIds.length; i++) {
-                      var id = visibleIds[i];
-                      var node = chart.getNode(id);
-
-                      if (!node) continue;
-
-                      // Protección Retail
-                      if (node.stpid) {
-                        var parentGroup = chart.getNode(node.stpid);
-                        if (parentGroup && parentGroup.min) continue;
-                      }
-
-                      // Criterios de Selección (Tus filtros exactos)
-                      if (
-                        node &&
-                        !node.pid &&
-                        !node.id.includes("MACRO") &&
-                        (!node.tags || !node.tags.includes("group")) &&
-                        (!node.tags || !node.tags.includes("fantasma"))
-                      ) {
-                        // Condición: Tiene hijos y NO está cerrado
-                        if (
-                          node.childrenIds &&
-                          node.childrenIds.length > 0 &&
-                          node.expanded !== false
-                        ) {
-                          lista.push(node.id);
-                        }
-                      }
-                    }
-                    return lista;
-                  }
-
-                  // --- 2. EL MOTOR RECURSIVO ---
-                  function procesarCicloDeCierre(intento) {
-                    // Límite de seguridad
-                    if (intento > 3) {
-                      chart.fit();
-                      return;
-                    }
-                    chart.fit();
-
-                    // Buscamos trabajo para este ciclo
-                    const dynamicRoots = detectarNodosAbiertos();
-
-                    // CONDICIÓN DE PARADA DE ÉXITO:
-                    if (dynamicRoots.length === 0) {
-                      console.log("Ciclo finalizado. Todo limpio.");
-                      // Solo hacemos fit() si realmente venimos de un ciclo de trabajo previo.
-                      // Si fue el intento 1, no deberíamos llegar aquí por la validación inicial,
-                      // pero por seguridad lo dejamos.
-                      if (intento > 1) {
-                        chart.fit();
-                      }
-                      return;
-                    }
-
-                    console.log(
-                      `Ciclo ${intento}: Colapsando ${dynamicRoots.length} nodos...`,
-                    );
-
-                    // Ejecutamos el cierre del lote actual
-                    cerrarLoteActual(dynamicRoots, function () {
-                      // Esperamos a que la librería reacomode el DOM y traiga nuevos nodos
-                      setTimeout(() => {
-                        // LLAMADA RECURSIVA
-                        procesarCicloDeCierre(intento + 1);
-                      }, 350);
-                    });
-                  }
-
-                  // --- 3. FUNCIÓN DE EJECUCIÓN DEL LOTE (Tu lógica intacta) ---
-                  function cerrarLoteActual(roots, callbackFinal) {
-                    function next(index) {
-                      if (index >= roots.length) {
-                        callbackFinal();
-                        return;
-                      }
-                      const rootId = roots[index];
-                      const node = chart.getNode(rootId);
-
-                      if (!node) {
-                        next(index + 1);
-                        return;
-                      }
-
-                      var collapseIds = [];
-                      iterate(chart, node, collapseIds, rootId);
-
-                      if (collapseIds.length > 0) {
-                        chart.expandCollapse(
-                          rootId,
-                          [],
-                          collapseIds,
-                          function () {
-                            next(index + 1);
-                          },
-                        );
-                      } else {
-                        next(index + 1);
-                      }
-                    }
-                    next(0);
-                  }
-
-                  // --- 4. ARRANQUE INTELIGENTE ---
-                  // Antes de empezar la locura recursiva, miramos si es necesario.
-                  const trabajoInicial = detectarNodosAbiertos();
-
-                  if (trabajoInicial.length > 0) {
-                    // SOLO si hay algo abierto, arrancamos la maquinaria.
-                    procesarCicloDeCierre(1);
-                  } else {
-                    // Si todo está cerrado, no hacemos NADA. Ni fit, ni logs, ni loops.
-                    console.log("Todo ya estaba colapsado. Sin acciones.");
-                  }
+                  // PASO 2: Vaciar el chart primero (destruye el árbol interno)
+                  chart.load([]);
+                  
+                  // PASO 3: Después de un tick, recargar con los datos reales
+                  setTimeout(() => {
+                      renderOrganigramaGrupos();
+                  }, 50);
                 },
               },
               horizontalLayout: {
@@ -2614,8 +2605,8 @@
             // subtreeSeparation: 30
           };
 
-          OrgChart.scroll.smooth = 12;
-          OrgChart.scroll.speed = 120;
+          OrgChart.scroll.smooth = 5;
+          OrgChart.scroll.speed = 18;
 
           //PERSONALIZAR IA
           // Aquí se le pueden dar instrucciones al sistema de IA para que entienda el contexto de la empresa
@@ -2667,27 +2658,27 @@
             }
           });
           // Expande y minimiza los nodos de grupo
-          chart.on("click", function (sender, args) {
-            if (args.node.tags.indexOf("group") != -1) {
-              if (args.node.min) {
-                sender.maximize(args.node.id);
-                chart.center(args.node.id, null, true);
-                //chart.config.collapse = { level: 2, allChildren: true };
-                const nodeData = sender.get(args.node.id);
+          // chart.on("click", function (sender, args) {
+          //   if (args.node.tags.indexOf("group") != -1) {
+          //     if (args.node.min) {
+          //       sender.maximize(args.node.id);
+          //       chart.center(args.node.id, null, true);
+          //       //chart.config.collapse = { level: 2, allChildren: true };
+          //       const nodeData = sender.get(args.node.id);
 
-                console.log("--- 🖱️ GRUPO CLICKEADO ---");
-                console.log(nodeData);
-                console.log("--------------------------");
+          //       console.log("--- 🖱️ GRUPO CLICKEADO ---");
+          //       console.log(nodeData);
+          //       console.log("--------------------------");
 
-                chart.fit();
-              } else {
-                sender.minimize(args.node.id);
-                chart.setScale(1);
-                chart.center(args.node.id, null, true);
-              }
-              return false;
-            }
-          });
+          //       chart.fit();
+          //     } else {
+          //       sender.minimize(args.node.id);
+          //       chart.setScale(1);
+          //       chart.center(args.node.id, null, true);
+          //     }
+          //     return false;
+          //   }
+          // });
 
           //FUNCIONES PARA QUE LA IA UTILICE
           // TODO: REVISAR QUE FUNCIONES SERÍAN UTILES IMPLEMENTAR
@@ -2823,72 +2814,59 @@
           // 9. LÓGICA DE HOVER (INTEGRADA CON TU CÓDIGO)
           // =========================================================
           chart.on("init", function (sender) {
-            // Buscamos los IDs que tienen esos tags
-            const idsToExpand = sender.config.nodes
-              .filter(
-                (n) =>
-                  n.tags &&
-                  (n.tags.includes("group") ||
-                    n.tags.includes("head-of-group")),
-              )
-              .map((n) => n.id);
+          // Sin ningún if de isCollapsingAll - esto corre igual en primera carga y en collapseAll
+          const idsToExpand = sender.config.nodes
+              .filter(n => n.tags && (
+                  n.tags.includes("group") ||
+                  n.tags.includes("head-of-group")
+              ))
+              .map(n => n.id);
 
-            if (idsToExpand.length > 0) {
-              // Expandimos todos esos nodos de una vez
+          if (idsToExpand.length > 0) {
               sender.expand(null, idsToExpand);
-            }
-            // A. Evento al pasar el mouse POR ENCIMA (Mostrar)
-            sender.element.addEventListener("mouseover", function (e) {
-              // 1. Usamos TU método para encontrar el nodo
-              let nodeElement = e.target.closest("[data-n-id]");
+          }
 
+          // Listeners de hover sin cambios
+          sender.element.addEventListener("mouseover", function (e) {
+              let nodeElement = e.target.closest("[data-n-id]");
               if (nodeElement) {
-                let nodeId = nodeElement.getAttribute("data-n-id");
-                //console.log("ID detectado:", nodeId); // Debug
-
-                if (nodeId) {
-                  // 2. Buscamos los grupos <g> de conexión relacionados con este ID
-                  // Usamos los atributos data-c-l-from y data-c-l-to que vimos en tus capturas
-                  const gruposRelacionados = document.querySelectorAll(
-                    `g[data-c-l-from="${nodeId}"], g[data-c-l-to="${nodeId}"]`,
-                  );
-
-                  gruposRelacionados.forEach((grupo) => {
-                    // 3. Dentro del grupo, buscamos el path naranja
-                    // Selector de atributo exacto para el color
-                    const pathNaranja = grupo.querySelector(
-                      'path[stroke="#F57C00"]',
-                    );
-
-                    if (pathNaranja) {
-                      pathNaranja.classList.add("visible");
-
-                      // Opcional: Traer al frente para que se vea por encima de las cajas
-                      if (grupo.parentNode) {
-                        grupo.parentNode.appendChild(grupo);
-                      }
-                    }
-                  });
-                }
+                  let nodeId = nodeElement.getAttribute("data-n-id");
+                  if (nodeId) {
+                      const gruposRelacionados = document.querySelectorAll(
+                          `g[data-c-l-from="${nodeId}"], g[data-c-l-to="${nodeId}"]`
+                      );
+                      gruposRelacionados.forEach((grupo) => {
+                          const pathNaranja = grupo.querySelector('path[stroke="#F57C00"]');
+                          if (pathNaranja) {
+                              pathNaranja.classList.add("visible");
+                              if (grupo.parentNode) {
+                                  grupo.parentNode.appendChild(grupo);
+                              }
+                          }
+                      });
+                  }
               }
-            });
-
-            // B. Evento al SACAR el mouse (Ocultar)
-            sender.element.addEventListener("mouseout", function (e) {
-              // Obtenemos el nodo del que estamos saliendo
-              let nodeElement = e.target.closest("[data-n-id]");
-
-              // Verificamos si realmente salimos del nodo (y no solo nos movimos a un hijo interno como el texto)
-              // e.relatedTarget es el elemento al que entra el mouse. Si ese elemento NO está dentro de nuestro nodo, es que salimos.
-              if (nodeElement && !nodeElement.contains(e.relatedTarget)) {
-                // Buscamos TODAS las líneas naranjas que estén visibles y las apagamos
-                const pathsVisibles = document.querySelectorAll(
-                  'path[stroke="#F57C00"].visible',
-                );
-                pathsVisibles.forEach((p) => p.classList.remove("visible"));
-              }
-            });
           });
+
+          sender.element.addEventListener("mouseout", function (e) {
+              let nodeElement = e.target.closest("[data-n-id]");
+              if (nodeElement && !nodeElement.contains(e.relatedTarget)) {
+                  const pathsVisibles = document.querySelectorAll('path[stroke="#F57C00"].visible');
+                  pathsVisibles.forEach((p) => p.classList.remove("visible"));
+              }
+          });
+      });
+          
+          function debounce(func, wait) {
+              let timeout;
+              return function(...args) {
+                  clearTimeout(timeout);
+                  timeout = setTimeout(() => func.apply(this, args), wait);
+              };
+          }
+
+          // Luego wrappea renderOrganigramaGrupos:
+          const renderDebounced = debounce(renderOrganigramaGrupos, 200);
 
           // --- ¡LÓGICA PARA CAMBIAR DE VISTA! ---
           // 1. Inicializar Select2 en todos los selects
@@ -3169,23 +3147,65 @@
           });
 
           chart.searchUI.on("searchclick", function (sender, args) {
-            // Oculta el buscador inmediatamente
             sender.hide();
+            
+            const targetNodeId = args.nodeId; // ← Guardar ANTES de cualquier operación async
+            
+            // PASO 1: Resetear config de expansión a estado inicial
+            chart.config.expand = {
+                nodes: [
+                    "GRP_CORPORATIVO",
+                    // "GRP_MACRO_PECUARIO",
+                    // "GRP_MACRO_INDUSTRIAL",
+                    // "GRP_MACRO_INMOBILIARIA",
+                    // "GRP_MACRO_RETAIL",
+                    // "GRP_CARNICERIA",
+                    // "GRP_PECUARIOS",
+                    // "GRP_CARNICOS",
+                    // "GRP_DERIVADOS",
+                    // "GRP_BALANCEADO",
+                    // "GRP_RETAIL",
+                    // "GRP_MARKETING"
+                ],
+                allChildren: false,
+            };
+            chart.config.collapse = {
+                level: 1,
+                allChildren: true,
+            };
 
-            sender.instance.center(
-              args.nodeId,
-              {
-                anim: true,
-                duration: 300, // Duración de la animación de centrado
-              },
-              function () {
-                // Función 'callback': se ejecuta DESPUÉS de centrar
-                sender.instance.setScale(1); // Fija el zoom a 100%
-              },
-            );
+            // PASO 2: Vaciar chart para destruir estado interno de Balkan
+            chart.load([]);
 
-            return false; // Previene otros eventos
-          });
+            // PASO 3: Recargar limpio y luego navegar al nodo
+            setTimeout(() => {
+                renderOrganigramaGrupos();
+                
+                // PASO 4: Esperar a que renderice y navegar
+                setTimeout(() => {
+                    chart.center(
+                        targetNodeId,
+                        { anim: true, duration: 500 },
+                        function () {
+                            //chart.setScale(1);
+                            chart.fit();
+
+                            const nodoDOM = document.querySelector(`[data-n-id="${targetNodeId}"]`);
+                            if (nodoDOM) {
+                                nodoDOM.classList.add("nodo-destacado");
+                                setTimeout(() => {
+                                    nodoDOM.classList.remove("nodo-destacado");
+                                }, 8000);
+                            }
+                        }
+                    );
+                }, 300);
+            }, 50);
+
+            return false;
+        });
+
+          
 
           chart.onInit(function () {
             //this.aiUI.show(true)
@@ -3586,7 +3606,7 @@
         const apiUrl =
           "https://mobileqa.liris.com.ec/delportal/wp-json/delportal/v1/get_organigrama_persona"; //TODO: APUNTA A QA
         loadAndRenderChart(apiUrl);
-      });
+      }); //01086
     </script>
   </body>
 </html>

@@ -27,6 +27,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior-x: none; 
 }
 /* #tree {
   width: 100%;
@@ -1250,6 +1251,18 @@ div[data-ctrl-search] {
   }
 }
 
+/* Animación para destacar el nodo buscado */
+@keyframes pulsoBuscador {
+  0% { filter: drop-shadow(0 0 5px #F57C00); }
+  50% { filter: drop-shadow(0 0 25px #F57C00); }
+  100% { filter: drop-shadow(0 0 5px #F57C00); }
+}
+
+.nodo-destacado rect {
+  animation: pulsoBuscador 2.2s infinite;
+  stroke: #F57C00 !important;
+  stroke-width: 4px !important;
+}
 
 /* ==========================================================================
   Colores para las líneas de negocio
@@ -1309,15 +1322,25 @@ div[data-ctrl-search] {
     fill: #27ae60 !important;
 }
 
-/* RETAIL (Verde) */
+/* PECUARIO (Azul) */
 [data-n-id="GRP_MACRO_PECUARIO"] rect {
     stroke: #0c2291 !important;
     fill: #0c2291 !important;
 }
-/* RETAIL (Verde) */
+/* RETAIL (Celeste) */
 [data-n-id="GRP_MACRO_RETAIL"] rect {
     stroke: #1ed3cd !important;
     fill: #1ed3cd !important;
+}
+/* INDUSTRIAL (Verde) */
+[data-n-id="GRP_MACRO_INDUSTRIAL"] rect {
+    stroke: #5b5a59 !important;
+    fill: #5b5a59 !important;
+}
+/* INMOBILIARIA (Verde) */
+[data-n-id="GRP_MACRO_INMOBILIARIA"] rect {
+    stroke: #d081fb !important;
+    fill: #d081fb !important;
 }
 
 /* CLINKS */
