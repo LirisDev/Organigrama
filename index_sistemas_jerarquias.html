@@ -1269,6 +1269,31 @@
               let jefeDeLaCaja = idHeadMacroVisual;
               if (nombreLinea === "BALANCEADO") {
                   jefeDeLaCaja = "GRP_DERIVADOS"; // Lo colgamos de la caja hermana
+                  // ✅ CREAR GRP_DERIVADOS si no existe todavía (puede no existir si filtramos solo BALANCEADO)
+                  if (!nodesToRender.has("GRP_DERIVADOS")) {
+                      const configDerivados = CABEZAS_NEGOCIO_TEMP["DERIVADOS"] || {};
+                      nodesToRender.set("GRP_DERIVADOS", {
+                          id: "GRP_DERIVADOS",
+                          pid: idHeadMacroVisual,
+                          nombre: "DERIVADOS",
+                          title: "Línea de Negocio",
+                          tags: ["group", "LINEA_DERIVADOS"],
+                          templateName: "group",
+                          order: configDerivados.order || 6,
+                      });
+
+                      // ✅ AGREGAR TAMBIÉN AL GERENTE DE DERIVADOS dentro de su caja
+                      const gerenteDerivados = encontrarNodoPorConfig(configDerivados.id);
+                      if (gerenteDerivados) {
+                          const idGerenteDerivadosVisual = `HEAD_LINEA_GRP_DERIVADOS_${gerenteDerivados.id}`;
+                          const nodoGerenteDerivados = Object.assign({}, gerenteDerivados);
+                          nodoGerenteDerivados.id = idGerenteDerivadosVisual;
+                          nodoGerenteDerivados.stpid = "GRP_DERIVADOS";
+                          nodoGerenteDerivados.pid = null;
+                          nodoGerenteDerivados.displayNombre = `${gerenteDerivados.nombre} (DERIVADOS)`;
+                          nodesToRender.set(idGerenteDerivadosVisual, nodoGerenteDerivados);
+                      }
+                  }
               }
 
               nodesToRender.set(subGroupId, {
@@ -1410,6 +1435,14 @@
 
         console.log("📊 Conteos Visuales Finales (Personas Únicas):", visualCounts);
 
+        // Justo antes de cargarYFinalizar(nodesToRender):
+        console.log("Hugo en nodesToRender:", nodesToRender.has("1841"));
+
+        sourceMap.forEach((node) => {
+            if (node.pid === "12") {
+                console.log(`Hijo de Santiago: ${node.id} - ${node.nombre} - linea: ${node.lineaNegocio} - pasaFiltro: ${(node.lineaNegocio || "").toUpperCase().trim() === "CARNICOS"}`);
+            }
+        });
         // Disparar renderizado final
         cargarYFinalizar(nodesToRender);
       }
