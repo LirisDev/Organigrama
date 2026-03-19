@@ -19,7 +19,8 @@
       href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
       rel="stylesheet"
     />
-
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simplebar@6.2.5/dist/simplebar.css" />
+    <script src="https://cdn.jsdelivr.net/npm/simplebar@6.2.5/dist/simplebar.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   </head>
   <body>
@@ -92,8 +93,8 @@
           <select id="proposito-select" class="control-select"></select> -->
 
           <select id="modo-select" class="control-select">
-            <option value="Persona">VISTA POR PERSONA</option>
-            <!-- <option value="Cargo">VISTA POR CARGO</option> -->
+            <option value="Persona" selected>VISTA POR PERSONA</option>
+            <option value="Cargo">VISTA POR CARGO</option>
           </select>
 
           <button
@@ -215,6 +216,48 @@
           headId: "390", // ID de Juan Jose Hidalgo (Cabeza de esta división)
           subgrupos: ["RETAIL", "MARKETING"],
         },
+      };
+
+      // CONFIGURACIÓN MAESTRA PARA CARGOS (usa codigoPosicion como ID)
+      const CABEZAS_NEGOCIO_CARGO = {
+          CORPORATIVO: { id: "00001", order: 1 },
+          BALANCEADO:  { id: "00023", order: 2 },
+          CARNICERIA:  { id: "00097", order: 3 },
+          CARNICOS:    { id: "00003", order: 4 },
+          PECUARIOS:   { id: "01047", order: 5 },
+          DERIVADOS:   { id: "01102", order: 6 },
+          MARKETING:   { id: "01049", order: 7 },
+          RETAIL:      { id: "00671", order: 8 },
+      };
+
+      const ESTRUCTURA_MACRO_CARGO = {
+          PECUARIO: {
+              id: "GRP_MACRO_PECUARIO",
+              title: "DIVISIÓN PECUARIO",
+              order: 2,
+              headId: "00003", // codigoPosicion de Santiago (Gerente General)
+              subgrupos: ["CARNICERIA", "PECUARIOS"],
+          },
+          INDUSTRIAL: {
+              id: "GRP_MACRO_INDUSTRIAL",
+              title: "DIVISIÓN INDUSTRIAL",
+              order: 3,
+              headId: "00003", // codigoPosicion de Santiago
+              subgrupos: ["DERIVADOS", "BALANCEADO", "CARNICOS"],
+          },
+          INMOBILIARIA: {
+              id: "GRP_MACRO_INMOBILIARIA",
+              title: "DIVISIÓN INMOBILIARIA",
+              order: 4,
+              subgrupos: [],
+          },
+          RETAIL: {
+              id: "GRP_MACRO_RETAIL",
+              title: "DIVISIÓN COMERCIAL",
+              order: 5,
+              headId: "00671", // codigoPosicion de Juan José Hidalgo (RETAIL)
+              subgrupos: ["RETAIL", "MARKETING"],
+          },
       };
 
       const apiCargoUrl =
@@ -443,6 +486,10 @@
 
         infoBlock.innerHTML = infoHtml;
 
+        const simplebarEl = infoBlock.querySelector('[data-simplebar]');
+        if (simplebarEl) {
+            new SimpleBar(simplebarEl); // ✅ Inicializar explícitamente
+        }
         /* 
         // 1. Añadir Email (solo si existe y no es 'N/A')
         if (personData.email && personData.email !== 'N/A') {
@@ -572,7 +619,7 @@
 
             // Generar lista de empleados
             if (employeeList && employeeList.length > 1) {
-              let employeeHtml = '<div class="details-employee-list">';
+              let employeeHtml = '<div class="details-employee-list" data-simplebar data-simplebar-auto-hide="false">';
 
               // Añadimos 'data-employee-id' a cada item
               // 'https://via.placeholder.com/40/cccccc/ffffff?text=N/A'}" class="employee-list-img" alt="">
@@ -589,13 +636,32 @@
                                     <div class="employee-list-name">${
                                       emp.nombre || ""
                                     } ${emp.apellido || ""}</div>
-                                    <div class="employee-list-email">${
-                                      emp.emailCorporativo || "Sin email"
-                                    }</div>
+                                    <!--  <div class="employee-list-email">${
+                                      emp.departamento || "Sin departamento"
+                                    }</div> -->
                                 </div>
                             </div>
                         `;
               });
+              // ✅ NUEVO: Si hay plazas vacantes, agregar fila al final
+              const vacantesDisponibles = this.data.plazasVacantes || 0;
+              if (vacantesDisponibles > 0) {
+                  employeeHtml += `
+                      <div class="employee-list-item" style="opacity: 1; cursor: default;">
+                          <div class="employee-list-img" style="background:#4a4a4a; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                  <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+                              </svg>
+                          </div>
+                          <div class="employee-list-info">
+                              <div class="employee-list-name"; font-style:italic;">
+                                  ${vacantesDisponibles} ${vacantesDisponibles === 1 ? "PLAZA VACANTE" : "PLAZAS VACANTES"}
+                              </div>
+                              <!-- <div class="employee-list-email" style="color:#999;">Puesto disponible</div> -->
+                          </div>
+                      </div>`;
+              }
+    
               // --- FIN DEL CAMBIO ---
 
               employeeHtml += "</div>";
@@ -618,6 +684,10 @@
        * Método HIDE: Se llama para cerrar el modal.
        */
       CustomDetailsForm.prototype.hide = function () {
+        const simplebarEl = this.form.querySelector('[data-simplebar]');
+        if (simplebarEl && simplebarEl.SimpleBar) {
+            simplebarEl.SimpleBar.unMount();
+        };
         this.overlay.classList.remove("visible");
         this.data = null; // Limpiar la data
       };
@@ -848,6 +918,9 @@
         $("#proposito-select").next(".select2-container").hide();
         $("#modo-select").next(".select2-container").hide();
 
+        $("#modo-select").val("Persona");
+        $(".control-select").trigger("change.select2"); // Notificar a Select2
+
         actualizarEstadoFiltros();
 
         // 7. ¡DISPARO FINAL!
@@ -982,11 +1055,22 @@
 
         const sortedValues = Array.from(valueSet).sort();
 
-        // 1. SIEMPRE AGREGAR "TODOS" (Para poder ver el mapa completo)
-        const optionTodos = document.createElement("option");
-        optionTodos.value = "todos";
-        optionTodos.textContent = "TODOS";
-        selectElement.appendChild(optionTodos);
+        // ✅ TEXTO DINÁMICO SEGÚN EL SELECT
+        //const optionTodos = document.createElement("option");
+        //optionTodos.value = "todos";
+        
+        if (sortedValues.length > 1) {
+          const optionTodos = document.createElement("option");
+          optionTodos.value = "todos";
+          if (selectId === "area-select") {
+              optionTodos.textContent = "TODAS LAS DIVISIONES";
+          } else if (selectId === "linea-negocio-select") {
+              optionTodos.textContent = "TODAS LAS LÍNEAS";
+          } else {
+              optionTodos.textContent = "TODOS";
+          }
+          selectElement.appendChild(optionTodos);
+        }
 
         // 2. Opciones normales
         sortedValues.forEach((value) => {
@@ -1002,6 +1086,8 @@
       function renderOrganigramaGrupos() {
         if (!chart) return;
 
+        console.log("🚀 renderOrganigramaGrupos INICIO");
+        
         const selectedAreaRaw = $("#area-select").val();
         const selectedLineaRaw = $("#linea-negocio-select").val();
         if (!selectedLineaRaw || !selectedLineaRaw) return;
@@ -1018,6 +1104,14 @@
 
         const currentMode = document.getElementById("modo-select").value;
         const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
+
+        // ✅ SELECCIONAR CONFIG SEGÚN MODO
+        const CABEZAS_ACTIVAS = currentMode === "Cargo" 
+            ? CABEZAS_NEGOCIO_CARGO 
+            : CABEZAS_NEGOCIO_TEMP;
+        const ESTRUCTURA_ACTIVA = currentMode === "Cargo" 
+            ? ESTRUCTURA_MACRO_CARGO 
+            : ESTRUCTURA_MACRO;
 
         if (!sourceNodes || sourceNodes.length === 0) {
           chart.load([]);
@@ -1070,6 +1164,35 @@
         }
         // =========================================================
 
+        // =========================================================
+        // EXCEPCIÓN CARGOS: CLON DE LA POSICIÓN 01098 (Andrés/Hugo)
+        // =========================================================
+        if (currentMode === "Cargo") {
+            const idPosClon = "00943";
+            const posOriginal = sourceMap.get(idPosClon);
+
+            if (posOriginal) {
+                const idClon = `CLON_CARNICOS_${idPosClon}`;
+                const posClon = Object.assign({}, posOriginal);
+                posClon.id = idClon;
+                posClon.pid = idPosClon; // Se conecta a sí mismo... 
+                // Espera — en cargos el pid ya apunta a su jefe real.
+                // El clon necesita pid del gerente de Cárnicos en cargos
+                posClon.pid = "01098"; // Santiago como Gerente de Cárnicos
+                posClon.displayNombre = `${posOriginal.cargoPuesto} (CÁRNICOS)`;
+                sourceMap.set(idClon, posClon);
+
+                // Redirigir hijos CARNICOS al clon
+                sourceMap.forEach((node) => {
+                    if (node.pid === idPosClon) {
+                        const lineaHijo = (node.lineaNegocio || "").toUpperCase().trim();
+                        if (lineaHijo === "CARNICOS") {
+                            node.pid = idClon;
+                        }
+                    }
+                });
+            }
+        }
         // Helper para buscar nodos
         const encontrarNodoPorConfig = (configId) => {
           if (!configId) return null;
@@ -1079,7 +1202,7 @@
         };
 
         const antonioNode = encontrarNodoPorConfig(
-          CABEZAS_NEGOCIO_TEMP.CORPORATIVO.id,
+          CABEZAS_ACTIVAS.CORPORATIVO.id,
         );
         const idAntonio = antonioNode ? antonioNode.id : null;
 
@@ -1091,6 +1214,7 @@
           id: groupCorpId,
           pid: null,
           nombre: "CORPORATIVO",
+          cargoPuesto: "CORPORATIVO", // ✅ AGREGAR
           title: "Holding",
           tags: ["group"],
           templateName: "group",
@@ -1112,11 +1236,11 @@
 
               // Santiago (ID 12) tiene linea "CORPORATIVO", así que él SÍ pasa.
               // Juan José tiene linea "NEGOCIO RETAIL" (o similar), así que él NO pasa.
-              if (lineaNode !== "CORPORATIVO" || node.puesto === "COMITE")
+              if (lineaNode !== "CORPORATIVO" || node.puesto === "COMITE" || node.puesto === "COMITE COMITE")
                 return;
 
               // ¿Es este nodo una Cabeza de División (Santiago o Juan Jose)?
-              const esCabezaDivision = Object.values(ESTRUCTURA_MACRO).some(
+              const esCabezaDivision = Object.values(ESTRUCTURA_ACTIVA).some(
                 (m) => {
                   const head = encontrarNodoPorConfig(m.headId);
                   return head && head.id === node.id;
@@ -1166,7 +1290,7 @@
         // =========================================================
         // 2. MACRO GRUPOS (PECUARIO / RETAIL)
         // =========================================================
-        Object.values(ESTRUCTURA_MACRO).forEach((macro) => {
+        Object.values(ESTRUCTURA_ACTIVA).forEach((macro) => {
           // --- CAMBIO 3: Filtro de División ---
           // Solo mostramos esta división si es "TODOS" o si la línea seleccionada está dentro de sus subgrupos.
           const areaDeEsteMacro = getAreaDeMacro(macro.id);
@@ -1181,6 +1305,7 @@
             id: macro.id,
             pid: groupCorpId, // Visualmente cuelga del grupo Corp
             nombre: macro.title,
+            cargoPuesto: macro.title, // ✅ AGREGAR
             tags: ["group", "macro-group"],
             templateName: "group",
             order: macro.order,
@@ -1209,7 +1334,7 @@
             // Lista de exclusión: Gerentes de línea (ya que tendrán sus propias cajas)
             const idsGerentesLinea = [];
             macro.subgrupos.forEach((n) => {
-              const c = CABEZAS_NEGOCIO_TEMP[n];
+              const c = CABEZAS_ACTIVAS[n];
               if (c) {
                 const g = encontrarNodoPorConfig(c.id);
                 if (g) idsGerentesLinea.push(g.id);
@@ -1235,13 +1360,14 @@
               // 4. NUEVO (ANTI-ROBO): Si es de un subgrupo de OTRA división, FUERA.
 
               let perteneceAOtraDivision = false;
-              Object.values(ESTRUCTURA_MACRO).forEach((otraDivision) => {
+              Object.values(ESTRUCTURA_ACTIVA).forEach((otraDivision) => {
                 if (otraDivision.id !== macro.id && otraDivision.subgrupos.includes(linea)) {
                   perteneceAOtraDivision = true;
                 }
               });
               
               if (perteneceAOtraDivision) return false;
+              return true; // ✅ AGREGAR ESTO
             };
 
             // Traemos hijos de Santiago (Operativos) y los colgamos del Clon Macro
@@ -1262,7 +1388,7 @@
 
               const subGroupId = `GRP_${nombreLinea.replace(/\s/g, "")}`;
               const tagLinea = `LINEA_${nombreLinea.replace(/\s/g, "_")}`;
-              const configLinea = CABEZAS_NEGOCIO_TEMP[nombreLinea] || {};
+              const configLinea = CABEZAS_ACTIVAS[nombreLinea] || {};
 
               // --- NUEVO: EXCEPCIÓN PARA BALANCEADO ---
               // Por defecto cuelgan del Macro (Santiago), pero Balanceado cuelga de Derivados
@@ -1271,11 +1397,12 @@
                   jefeDeLaCaja = "GRP_DERIVADOS"; // Lo colgamos de la caja hermana
                   // ✅ CREAR GRP_DERIVADOS si no existe todavía (puede no existir si filtramos solo BALANCEADO)
                   if (!nodesToRender.has("GRP_DERIVADOS")) {
-                      const configDerivados = CABEZAS_NEGOCIO_TEMP["DERIVADOS"] || {};
+                      const configDerivados = CABEZAS_ACTIVAS["DERIVADOS"] || {};
                       nodesToRender.set("GRP_DERIVADOS", {
                           id: "GRP_DERIVADOS",
                           pid: idHeadMacroVisual,
                           nombre: "DERIVADOS",
+                          cargoPuesto: "DERIVADOS", // ✅ AGREGAR
                           title: "Línea de Negocio",
                           tags: ["group", "LINEA_DERIVADOS"],
                           templateName: "group",
@@ -1300,6 +1427,7 @@
                 id: subGroupId,
                 pid: jefeDeLaCaja, // Cuelga de Santiago Macro (el clon)
                 nombre: nombreLinea,
+                cargoPuesto: nombreLinea, // ✅ AGREGAR
                 title: "Línea de Negocio",
                 tags: ["group", tagLinea],
                 templateName: "group",
@@ -1354,13 +1482,13 @@
         const visualCounts = {};
 
         // A. Inicializar conteos para todas las líneas y corporativo
-        Object.keys(CABEZAS_NEGOCIO_TEMP).forEach((k) => {
+        Object.keys(CABEZAS_ACTIVAS).forEach((k) => {
           visualCounts[k.toUpperCase().replace(/\s/g, "")] = 0;
         });
         visualCounts["CORPORATIVO"] = 0;
 
         // B. Inicializar conteos para las Divisiones Macro (Pecuario/Retail)
-        Object.values(ESTRUCTURA_MACRO).forEach((macro) => {
+        Object.values(ESTRUCTURA_ACTIVA).forEach((macro) => {
           visualCounts[macro.id] = 0;
         });
 
@@ -1407,7 +1535,7 @@
 
         // D. AGREGACIÓN: Sumar los totales de las líneas a sus Divisiones Macro
         // Ejemplo: División Pecuaria = Santiago + Carnicería + Cárnicos + Balanceado...
-        Object.values(ESTRUCTURA_MACRO).forEach((macro) => {
+        Object.values(ESTRUCTURA_ACTIVA).forEach((macro) => {
           macro.subgrupos.forEach((sub) => {
             const subKey = sub.toUpperCase().replace(/\s/g, "");
             if (visualCounts[subKey]) {
@@ -1435,14 +1563,14 @@
 
         console.log("📊 Conteos Visuales Finales (Personas Únicas):", visualCounts);
 
-        // Justo antes de cargarYFinalizar(nodesToRender):
-        console.log("Hugo en nodesToRender:", nodesToRender.has("1841"));
+        // console.log("📊 nodesToRender.size:", nodesToRender.size);
+        // console.log("📊 visualCounts:", visualCounts);
 
-        sourceMap.forEach((node) => {
-            if (node.pid === "12") {
-                console.log(`Hijo de Santiago: ${node.id} - ${node.nombre} - linea: ${node.lineaNegocio} - pasaFiltro: ${(node.lineaNegocio || "").toUpperCase().trim() === "CARNICOS"}`);
-            }
-        });
+        // sourceMap.forEach((node) => {
+        //     if (node.pid === "12") {
+        //         console.log(`Hijo de Santiago: ${node.id} - ${node.nombre} - linea: ${node.lineaNegocio} - pasaFiltro: ${(node.lineaNegocio || "").toUpperCase().trim() === "CARNICOS"}`);
+        //     }
+        // });
         // Disparar renderizado final
         cargarYFinalizar(nodesToRender);
       }
@@ -1460,27 +1588,34 @@
             }
         });
 
-        finalArray.forEach((node) => {
-          if (
-            node.tags &&
-            (node.tags.includes("group") || node.tags.includes("fantasma"))
-          )
-            return;
-          const directos = node._directos || 0;
-          const total = node._total || 0;
-          const esVacante = node.tags && node.tags.includes("vacante");
+        // ✅ DETECTAR MODO
+        const currentMode = document.getElementById("modo-select").value;
+        const esCargo = currentMode === "Cargo";
+        // if (currentMode === "Cargo") {
+        //     const virtuales = allCargoNodes;
+        //     finalArray = [...finalArray, ...virtuales];
+        // }
 
-          if (directos > 0) {
-            if (directos === total) {
-              if (directos === 1)
-                node.tags.push(esVacante ? "vacanteSingle" : "fichaSingle");
-              else node.tags.push(esVacante ? "vacanteGroup" : "fichaGroup");
+        finalArray.forEach((node) => {
+            if (node.tags && (node.tags.includes("group") || node.tags.includes("fantasma"))) return;
+            
+            const directos = node._directos || 0;
+            const total = node._total || 0;
+            const esVacante = node.tags && node.tags.includes("vacante");
+
+            if (directos > 0) {
+                if (directos === total) {
+                    if (directos === 1)
+                        // ✅ En cargo usar cargoSingle, en persona usar fichaSingle
+                        node.tags.push(esVacante ? "vacanteSingle" : (esCargo ? "cargoSingle" : "fichaSingle"));
+                    else
+                        node.tags.push(esVacante ? "vacanteGroup" : (esCargo ? "cargoGroup" : "fichaGroup"));
+                } else {
+                    node.tags.push(esVacante ? "vacanteComplex" : (esCargo ? "cargoComplex" : "fichaComplex"));
+                }
             } else {
-              node.tags.push(esVacante ? "vacanteComplex" : "fichaComplex");
+                if (esVacante) node.tags.push("vacanteSimple");
             }
-          } else {
-            if (esVacante) node.tags.push("vacanteSimple");
-          }
         });
 
         console.log(`✅ Renderizando Filtrado: ${finalArray.length} nodos.`);
@@ -1493,6 +1628,36 @@
             node.expanded = false; // ← Explícito, no solo delete
         });
 
+          // ✅ SIEMPRE setear expand/collapse antes de cargar
+    const lineaFiltro = ($("#linea-negocio-select").val() || "").toUpperCase().trim();
+    const hayFiltroEspecifico = lineaFiltro !== "TODOS";
+
+    if (hayFiltroEspecifico) {
+        chart.config.expand = { nodes: [], allChildren: true };
+        chart.config.collapse = { level: 99, allChildren: true };
+    } else {
+        chart.config.expand = {
+            nodes: [
+                "GRP_CORPORATIVO",
+                "GRP_MACRO_PECUARIO",
+                "GRP_MACRO_INDUSTRIAL",
+                "GRP_MACRO_INMOBILIARIA",
+                "GRP_MACRO_RETAIL",
+                "GRP_CARNICERIA",
+                "GRP_PECUARIOS",
+                "GRP_CARNICOS",
+                "GRP_DERIVADOS",
+                "GRP_BALANCEADO",
+                "GRP_RETAIL",
+                "GRP_MARKETING"
+            ],
+            allChildren: false,
+        };
+        chart.config.collapse = {
+            level: 1,
+            allChildren: true,
+        };
+    }
 
         chart.load(finalArray);
         setTimeout(() => {
@@ -2280,6 +2445,7 @@
           OrgChart.templates.ghost.node = ""; // Sin cuadro
           OrgChart.templates.ghost.plus = ""; // Sin botón +
           OrgChart.templates.ghost.minus = ""; // Sin botón -
+          OrgChart.templates.ghost.link = ""; // ✅ Sin líneas de conexión
 
           // TEMPLATE GROUP
           OrgChart.templates.group.link = `<path stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} {xb},{yb} {xc},{yc} L{xd},{yd}" />`;
@@ -2310,8 +2476,8 @@
 
           //Lineas punteadas
           // stroke-dasharray="6, 3" crea el efecto discontinuo
-          OrgChart.templates.ghost.link =
-            '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
+          // OrgChart.templates.ghost.link =
+          //   '<path stroke-dasharray="10, 5" stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} L{xb},{yb} L{xc},{yc} L{xd},{yd}" />';
 
           // =========================================================
           // TEMPLATE PARA SLINKS (Líneas de conexión secundarias)
@@ -2344,6 +2510,9 @@
             field_0: "cargoPuesto", // Puesto (ej. "GERENTE GENERAL")
             field_1: "cargoPersona", // Persona (ej. "SANTIAGO SAAB")
             field_2: "cargoDepto", // Depto (ej. "DIRECTORIO")
+            conteo: "conteo", // <--- //TODO: Descomentar para mostrar el contador
+            miGlobo: "conteo",
+
             //column: "order" // jerarquía
           };
 
@@ -2379,6 +2548,31 @@
             "</div>" +
             "</foreignObject>";
 
+          
+          // --- CREAMOS LOS 3 TEMPLATES ---
+          // 1. Template COMPLEX (El de siempre)
+          OrgChart.templates.cargoComplex = Object.assign(
+            {},
+            OrgChart.templates.cargoTemplate,
+          );
+          OrgChart.templates.cargoComplex.plus = botonDoble;
+          OrgChart.templates.cargoComplex.minus = botonDoble;
+
+          // 2. Template GROUP (Para Patricia)
+          OrgChart.templates.cargoGroup = Object.assign(
+            {},
+            OrgChart.templates.cargoTemplate,
+          );
+          OrgChart.templates.cargoGroup.plus = botonGrupo;
+          OrgChart.templates.cargoGroup.minus = botonGrupo;
+
+          // 3. Template SINGLE (Para Lisbeth)
+          OrgChart.templates.cargoSingle = Object.assign(
+            {},
+            OrgChart.templates.cargoTemplate,
+          );
+          OrgChart.templates.cargoSingle.plus = botonPersona;
+          OrgChart.templates.cargoSingle.minus = botonPersona;
           //OrgChart.templates.cargoTemplate.field_2 = ""; // Departamento
 
           // 6. Configuración de Tags
@@ -2417,6 +2611,12 @@
             vacanteGroup: { template: "vacanteGroup" },
             vacanteSingle: { template: "vacanteSingle" },
 
+
+            // En tagsConfig, agregar:
+            cargoComplex: { template: "cargoComplex" },
+            cargoGroup:   { template: "cargoGroup" },
+            cargoSingle:  { template: "cargoSingle" },
+
             // Tag bas"e (se mantiene por si acaso)
             vacanteSimple: { template: "vacanteSimple" }, //template: "vacanteTemplate" },
 
@@ -2427,7 +2627,8 @@
                 layout: OrgChart.layout.treeLeftOffset, // O treeRightOffset
               },
             },
-            fantasma: { template: "ghost" },
+            fantasma: { template: "ghost",     nodeExtent: { width: 0, height: 0 } // ✅ Forzar tamaño 0
+            },
             "assistant-branch": {
               // Esto hace que lo que cuelgue del fantasma se alinee bonito a la izquierda/derecha
               subTreeConfig: {
@@ -2463,7 +2664,8 @@
             showYScroll: true,
             showXScroll: true,
             enableSearch: true,
-            searchFields: ["displayNombre", "puesto"],
+            // searchFields: ["displayNombre", "puesto"],
+            searchFields: ["displayNombre", "puesto", "puestocompleto"],
             template: "fichaTemplate", // Plantilla base fichaTemplate, olivia, ana, etc
             // mode: 'dark',
             layout: OrgChart.normal,
@@ -2476,9 +2678,16 @@
             nodes: filteredNodes,
             tags: tagsConfig,
             nodeBinding: personaBinding,
+            // searchFieldsWeight: {
+            //   nombre: 100, //percent
+            //   puesto: 40, //percent
+            // },
             searchFieldsWeight: {
-              nombre: 100, //percent
-              puesto: 40, //percent
+              displayNombre: 100, 
+              puesto: 95, 
+              //searchIndex: 40,
+              puestoCompleto: 80,
+              puesto: 95, 
             },
 
             orderBy: [
@@ -2522,8 +2731,8 @@
             //*
             expand: {
               //nodes: ["GRP_CORPORATIVO", "HEAD_MACRO_GRP_MACRO_PECUARIO_12", "HEAD_MACRO_GRP_MACRO_RETAIL_390"], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos
-              nodes: ["GRP_CORPORATIVO"], // "HEAD_MACRO_GRP_MACRO_PECUARIO_12", "HEAD_MACRO_GRP_MACRO_RETAIL_390"], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos
-              allChildren: true, // Expande todos los hijos del nodo 4281
+              nodes: [],//["GRP_CORPORATIVO"], // "HEAD_MACRO_GRP_MACRO_PECUARIO_12", "HEAD_MACRO_GRP_MACRO_RETAIL_390"], // Expande el nodo con ID 4281(Daniel Rendon) y sus hijos
+              allChildren: false//true, // Expande todos los hijos del nodo 4281
             }, //*/ , "GRP_MACRO_PECUARIO", "GRP_MACRO_RETAIL"
             controls: {
               svg_export: { title: "Exportar a SVG" },
@@ -3047,141 +3256,80 @@
 
           // 6. Listener para MODO (Persona/Cargo)
           $("#modo-select").on("change", function () {
-            // Limpia el input de búsqueda cada vez que se cambia el modo
-            if (chart && chart.searchUI && chart.searchUI.input) {
+          if (chart && chart.searchUI && chart.searchUI.input) {
               chart.searchUI.input.value = "";
-            }
-            // --- Guardar los filtros actuales ---
-            const filtrosGuardados = {
-              linea: $("#linea-negocio-select").val(),
-              costo: $("#centro-costos-select").val(),
-              area: $("#area-select").val(), // ✅ NUEVO: Guardar Área
-              depto: $("#departamento-select").val(),
-              niveles: $("#nivel-select").val(), // ✅ GUARDAR NIVELES (Array)
-            };
-            console.log("Filtros guardados:", filtrosGuardados);
+          }
 
-            const vista = $(this).val();
-            if (vista === "Persona") {
+          const filtrosGuardados = {
+              linea: $("#linea-negocio-select").val(),
+              area: $("#area-select").val(),
+          };
+
+          const vista = $(this).val();
+
+          if (vista === "Persona") {
               console.log("Cambiando a vista: Persona");
-              statusDiv.innerText = "Cargando vista de Personas...";
-              statusDiv.style.display = "block";
 
               chart.config.template = "fichaTemplate";
               chart.config.nodeBinding = personaBinding;
-              chart.config.searchDisplayField = "nombre";
+              chart.config.searchDisplayField = "displayNombre";
+              chart.config.searchFields = ["displayNombre", "puesto"];
 
-              const sourceNodes = allNodes;
-              /// --- Repoblar y Restaurar Cascada ---
-              // 2a. Poblar y restaurar LÍNEA
-              populateSelect(
-                "linea-negocio-select",
-                "lineaNegocio",
-                sourceNodes,
-              );
-              $("#linea-negocio-select").val(filtrosGuardados.linea);
+              // Repoblar filtros con data de personas
+              populateSelect("area-select", "area", allNodes);
 
-              // 2b. Poblar y restaurar COSTO (basado en línea restaurada)
-              const nodosParaCostos =
-                filtrosGuardados.linea === "todos"
-                  ? sourceNodes
-                  : sourceNodes.filter(
-                      (n) => n.lineaNegocio === filtrosGuardados.linea,
-                    );
-              populateSelect(
-                "centro-costos-select",
-                "centroCosto",
-                nodosParaCostos,
-              );
-              // Solo restaurar si la opción aún existe en este set de nodos
-              if (
-                $(
-                  "#centro-costos-select option[value='" +
-                    filtrosGuardados.costo +
-                    "']",
-                ).length > 0
-              ) {
-                $("#centro-costos-select").val(filtrosGuardados.costo);
+              // Restaurar área guardada si existe
+              if ($("#area-select option[value='" + filtrosGuardados.area + "']").length > 0) {
+                  $("#area-select").val(filtrosGuardados.area);
               } else {
-                filtrosGuardados.costo = "todos"; // Forzar a 'todos' si no se encontró
+                  $("#area-select").val("todos");
               }
 
-              // 2c. Poblar y restaurar ÁREA (basado en Costo) ✅ NUEVO BLOQUE
-              // Primero filtramos los nodos según el costo restaurado
-              const nodosParaAreas =
-                filtrosGuardados.costo === "todos"
-                  ? nodosParaCostos // Vienen del paso anterior (filtrados por línea)
-                  : nodosParaCostos.filter(
-                      (n) => n.centroCosto === filtrosGuardados.costo,
-                    );
+              // Poblar línea según área
+              const selectedArea = $("#area-select").val();
+              const nodosDeArea = selectedArea === "todos"
+                  ? allNodes
+                  : allNodes.filter(n => n.area === selectedArea);
 
-              populateSelect("area-select", "area", nodosParaAreas);
+              const opcionesLinea = populateSelect("linea-negocio-select", "lineaNegocio", nodosDeArea);
 
-              // Intentar restaurar el valor seleccionado
-              if (
-                $("#area-select option[value='" + filtrosGuardados.area + "']")
-                  .length > 0
-              ) {
-                $("#area-select").val(filtrosGuardados.area);
+              // Restaurar línea guardada si existe
+              if ($("#linea-negocio-select option[value='" + filtrosGuardados.linea + "']").length > 0) {
+                  $("#linea-negocio-select").val(filtrosGuardados.linea);
               } else {
-                filtrosGuardados.area = "todos"; // Reset si no existe
+                  $("#linea-negocio-select").val("todos");
               }
 
-              // 2d. Poblar y restaurar DEPTO (basado en área)
-              const nodosParaDeptos =
-                filtrosGuardados.area === "todos"
-                  ? nodosParaAreas // Nodos ya filtrados por línea
-                  : nodosParaAreas.filter(
-                      (n) => n.area === filtrosGuardados.area,
-                    );
-              populateSelect(
-                "departamento-select",
-                "departamento",
-                nodosParaDeptos,
-              );
-              // Solo restaurar si la opción aún existe
-              if (
-                $(
-                  "#departamento-select option[value='" +
-                    filtrosGuardados.depto +
-                    "']",
-                ).length > 0
-              ) {
-                $("#departamento-select").val(filtrosGuardados.depto);
-              }
-
-              // 2e. ✅ RESTAURAR NIVEL
-              if (filtrosGuardados.niveles) {
-                $("#nivel-select").val(filtrosGuardados.niveles);
-              }
-
-              // 2f. Notificar a Select2 de los cambios
+              // Notificar Select2
               $(".control-select").trigger("change.select2");
 
-              // 2g. Aplicar los filtros restaurados
-              aplicarFiltrosJerarquicos();
+              // ✅ SIEMPRE usar renderOrganigramaGrupos para personas
+              renderOrganigramaGrupos();
 
               statusDiv.style.display = "none";
-              //loaderOverlay.classList.remove("visible");
-            } else if (vista === "Cargo") {
+
+          } else if (vista === "Cargo") {
               console.log("Cambiando a vista: Cargo");
 
               chart.config.template = "cargoTemplate";
               chart.config.nodeBinding = cargoBinding;
-              chart.config.searchDisplayField = "puesto";
-
-              // Esta función ya se encarga de repoblar y filtrar
+              chart.config.searchDisplayField = "displayNombre";
+              chart.config.searchFields = ["displayNombre", "puestoCompleto"];
+              chart.config.searchFieldsWeight = {
+                  displayNombre: 100,
+                  // searchIndex: 80,
+                  puestoCompleto: 80
+              };
               loadAndRenderCargoChart(apiCargoUrl, filtrosGuardados);
-              chart.config.searchFields = ["cargoPuesto", "cargoPersona"];
-            }
-            // Esto reaplicará el estado (bloqueado o desbloqueado) a los filtros
-            // después de que hayan sido repoblados para la nueva vista.
-            actualizarEstadoFiltros();
-          });
+          }
 
+          actualizarEstadoFiltros();
+      });
           chart.searchUI.on("searchclick", function (sender, args) {
             sender.hide();
             
+             // ✅ Si es nodo virtual, navegar al nodo real
+            const nodeData = allCargoNodes.find(n => n.id === args.nodeId);
             const targetNodeId = args.nodeId; // ← Guardar ANTES de cualquier operación async
             
             // PASO 1: Resetear config de expansión a estado inicial
@@ -3294,6 +3442,60 @@
             const searchElement = this.element.querySelector(".boc-search");
             const searchInput =
               this.searchUI && this.searchUI.input ? this.searchUI.input : null;
+            
+            // =================================================================
+            // ✅ NUEVO INTERCEPTOR: Reordena la lista al teclear en el buscador
+            // =================================================================
+            chart.searchUI.input.addEventListener("input", function (e) {
+                const query = e.target.value.toLowerCase().trim();
+                if (!query) return;
+
+                // Le damos 50 milisegundos a Balkan para que dibuje la lista de resultados
+                setTimeout(() => {
+                    const rows = document.querySelectorAll("tr[data-search-item-id]");
+                    
+                    rows.forEach(row => {
+                        const nodeId = row.getAttribute("data-search-item-id");
+                        const nodeData = chart.get(nodeId);
+                        
+                        // Solo aplicamos esto en modo Cargo y si hay lista de empleados
+                        if (nodeData && nodeData.listaEmpleados && document.getElementById("modo-select").value === "Cargo") {
+                            
+                            let listaNombres = nodeData.listaEmpleados.map(emp => `${emp.nombre || ""} ${emp.apellido || ""}`.trim());
+                            
+                            // ¿Escribió el nombre de alguien que está en esta lista?
+                            const matchIndex = listaNombres.findIndex(n => n.toLowerCase().includes(query));
+                            
+                            if (matchIndex > 0) {
+                                // 💡 ¡Lo sacamos de su posición y lo ponemos de #1!
+                                const matchName = listaNombres.splice(matchIndex, 1)[0];
+                                listaNombres.unshift(matchName);
+                            }
+
+                            // Reconstruimos el texto limitado a 2 personas
+                            let textLimitado = "";
+                            if (listaNombres.length === 0) textLimitado = "Sin asignar";
+                            else if (listaNombres.length <= 2) textLimitado = listaNombres.join(", ");
+                            else textLimitado = listaNombres.slice(0, 2).join(", ") + "...";
+
+                            // Buscamos el div del subtítulo para actualizarlo visualmente
+                            const divs = row.querySelectorAll("td div");
+                            if (divs.length > 1) {
+                                const targetDiv = divs[divs.length - 1]; // El último div es el subtítulo
+                                
+                                // Lo actualizamos solo si el usuario no tiene el mouse encima
+                                if (!targetDiv.getAttribute("data-truncado")) {
+                                    targetDiv.textContent = textLimitado;
+                                }
+                                
+                                // Guardamos la lista reordenada en el nodo para que el Hover la use
+                                nodeData._puestoReordenado = listaNombres.join(", ");
+                            }
+                        }
+                    });
+                }, 50); 
+            });
+
             const menuElement = this.element.querySelector("[data-ctrl-menu]"); // Las 3 rayitas
             if (searchElement && menuElement && searchInput) {
               // 2. Crear nuestro nuevo icono (la lupa)
@@ -3342,6 +3544,11 @@
             // Detectamos 'mousedown' en el contenedor del gráfico (#tree)
           });
 
+          // Asegurar que el chart inicie en modo Persona
+          document.getElementById("modo-select").value = "Persona";
+          chart.config.template = "fichaTemplate";
+          chart.config.nodeBinding = personaBinding;
+
           procesarLoginDeUsuario();
           // Asegurar ocultar filtros secundarios al inicio también
           $("#centro-costos-select").next(".select2-container").hide();
@@ -3374,34 +3581,31 @@
           const sourceNodes = allCargoNodes;
           console.log("Restaurando filtros para vista Cargo...");
 
-          // 1. Poblar ÁREA primero
+          // Poblar ÁREA usando los nodos de cargo
           populateSelect("area-select", "area", sourceNodes);
-          
-          // Restauramos el área guardada (o 'todos' por defecto)
+
           if ($("#area-select option[value='" + filtrosGuardados.area + "']").length > 0) {
-            $("#area-select").val(filtrosGuardados.area);
+              $("#area-select").val(filtrosGuardados.area);
           } else {
-            $("#area-select").val("todos");
+              $("#area-select").val("todos");
           }
 
-          // 2. Filtrar para saber qué Líneas mostrar
           const selectedArea = $("#area-select").val();
-          const nodosDeArea = selectedArea === "todos" 
-              ? sourceNodes 
-              : sourceNodes.filter((n) => n.area === selectedArea);
+          const nodosDeArea = selectedArea === "todos"
+              ? sourceNodes
+              : sourceNodes.filter(n => n.area === selectedArea);
 
-          // 3. Poblar LÍNEA DE NEGOCIO
           populateSelect("linea-negocio-select", "lineaNegocio", nodosDeArea);
 
-          // Restauramos la línea guardada
           if ($("#linea-negocio-select option[value='" + filtrosGuardados.linea + "']").length > 0) {
-             $("#linea-negocio-select").val(filtrosGuardados.linea);
+              $("#linea-negocio-select").val(filtrosGuardados.linea);
           } else {
-             $("#linea-negocio-select").val("todos");
+              $("#linea-negocio-select").val("todos");
           }
 
-          // 4. Notificar a Select2 y dibujar
-          $(".control-select").trigger("change.select2"); 
+          $(".control-select").trigger("change.select2");
+
+          // ✅ Usar renderOrganigramaGrupos (que ya detecta el modo)
           renderOrganigramaGrupos();
         }
 
@@ -3440,7 +3644,7 @@
               (cargo) =>
                 cargo &&
                 cargo.codigoPosicion != "00006" &&
-                cargo.codigoPosicionReporta != "00424" && //Este id no aparece en la api pero si en la viewEmployeers
+                //cargo.codigoPosicionReporta != "00424" && //Este id no aparece en la api pero si en la viewEmployeers
                 //&& !(cargo.codigoPosicionReporta === '00006' && cargo.codigoPosicion !== '00001')
                 //&& !['00006', '00416', '00330', '00353'].includes(cargo.codigoPosicion)
                 cargo.puesto != null,
@@ -3480,12 +3684,12 @@
                   // Es un array de empleados
                   listaEmpleados = cargo.Empleado;
                   primerEmpleado = cargo.Empleado[0];
-                  console.log(
-                    "Lista de Empleados para cargo",
-                    id,
-                    listaEmpleados,
-                  );
-                  console.log(primerEmpleado);
+                  // console.log(
+                  //   "Lista de Empleados para cargo",
+                  //   id,
+                  //   listaEmpleados,
+                  // );
+                  // console.log(primerEmpleado);
                   cargoPersonaDisplay =
                     listaEmpleados.length === 1
                       ? `${listaEmpleados[0].nombre || ""} ${
@@ -3533,7 +3737,70 @@
                 CodEmpleado,
                 // Campos para el template 'cargoTemplate'
                 cargoPuesto: cargo.puesto || "Puesto N/A",
-                cargoPersona: cargoPersonaDisplay, // "3 PERSONAS ASIGNADAS" o "Nombre Apellido"
+                // cargoPersona: cargoPersonaDisplay, // "3 PERSONAS ASIGNADAS" o "Nombre Apellido"
+                // ✅ NUEVO: Mostrar X de Y personas + indicar vacantes
+                cargoPersona: (() => {
+                    const total = parseInt(cargo.totalPlazas) || 0;
+                    const asignados = listaEmpleados.length;
+                    const vacantes = parseInt(cargo.plazasVacantes) || 0;
+                    
+                    if (isVacant) {
+                        return vacantes > 1 ? `${vacantes} PUESTOS VACANTES` : "PUESTO VACANTE";
+                    }
+                    if (total > 0 && vacantes > 0) {
+                        // Hay asignados Y vacantes
+                        return `${asignados} DE ${total} PERSONAS ASIGNADAS`;
+                    }
+                    if (asignados === 1) {
+                        return `${listaEmpleados[0].nombre || ""} ${listaEmpleados[0].apellido || ""}`.trim();
+                    }
+                    if (asignados > 1) {
+                        return `${asignados} PERSONAS ASIGNADAS`;
+                    }
+                    return "Sin Asignar";
+                })(),
+                //TODO: resolver que para cargos me deje buscar una persona y me lleve a su nodo de cargo
+
+                // ✅ Índice completo para búsqueda (todos los nombres, sin truncar)
+                searchIndex: (() => {
+                    const puestoBase = cargo.puesto || "";
+                    const dept = (primerEmpleado 
+                        ? primerEmpleado.nombreDepartamento 
+                        : cargo.nombreDepartamento) || "";
+                    if (listaEmpleados.length === 0) return `${puestoBase} ${dept}`;
+                    const todosLosNombres = listaEmpleados
+                        .map(e => `${e.nombre || ""} ${e.apellido || ""}`.trim())
+                        .join(" ");
+                        // Retornamos todo junto para que Balkan lo lea
+                    return `${puestoBase} ${dept} ${todosLosNombres}`;
+                    r//eturn `${puestoBase} - ${dept}`;
+                })(),
+
+                // ✅ Línea principal del resultado: CARGO - DEPARTAMENTO
+                displayNombre: (() => {
+                    const dept = (primerEmpleado 
+                        ? primerEmpleado.nombreDepartamento 
+                        : cargo.nombreDepartamento) || "";
+                    return dept ? `${cargo.puesto} - ${dept}` : (cargo.puesto || "");
+                })(),
+
+                // ✅ Línea secundaria: primeros 2 nombres + "..." si hay más
+                puesto: (() => {
+                    if (listaEmpleados.length === 0) return "Sin asignar";
+                    const primeros = listaEmpleados.slice(0, 2)
+                        .map(e => `${e.nombre || ""} ${e.apellido || ""}`.trim())
+                        .join(", ");
+                    return listaEmpleados.length > 2 ? `${primeros}...` : primeros;
+                })(),
+                // Todos los nombres para mostrar en hover
+                puestoCompleto: listaEmpleados.length === 0 
+                    ? "Sin asignar"
+                    : listaEmpleados.map(e => `${e.nombre || ""} ${e.apellido || ""}`.trim()).join(", "),
+
+                // ✅ NUEVO: Guardar vacantes disponibles para el modal
+                plazasVacantes: parseInt(cargo.plazasVacantes) || 0,
+                totalPlazas: parseInt(cargo.totalPlazas) || 0,
+                
                 cargoDepto:
                   (primerEmpleado
                     ? primerEmpleado.nombreDepartamento
@@ -3553,6 +3820,10 @@
                   (primerEmpleado
                     ? primerEmpleado.nombreProposito
                     : cargo.nombreProposito) || "N/A", // NUEVO
+                area: determinarArea(primerEmpleado
+                    ? primerEmpleado.nombreLineaNegocio
+                    : cargo.nombreLineaNegocio),
+
                 // departamento:
                 //   (primerEmpleado
                 //     ? primerEmpleado.nombreDepartamento
@@ -3563,7 +3834,7 @@
 
                 // Campos de 'persona' que la Vista Cargo no usa (los dejamos null)
                 nombre: cargoPersonaDisplay,
-                puesto: cargo.puesto || "Puesto N/A",
+                // puesto: cargo.puesto || "Puesto N/A",
                 // img: cargoPersonaImgDisplay,
 
                 // userid: null, //empleado ? empleado.userid : null,
@@ -3602,10 +3873,47 @@
           errorDiv.style.display = "block";
         }
       }
+      ///////////// TODO: Código para consultar los cargos que no tienen nivel Jerarquico
+      // const codigosVistos = new Set();
+
+      // const empleadosSinNivel2 = allNodes
+      //   .filter(nodo => {
+      //     // 1. Filtros base: Nivel 99, no grupos, no fantasmas
+      //     const esBase = nodo.order === 99 && !nodo.tags.includes("group") && !nodo.tags.includes("fantasma");
+          
+      //     // 2. Que tenga código y NO contenga "-V" (o "V")
+      //     const codigoLimpio = nodo.codPosicion && !nodo.codPosicion.includes("V");
+          
+      //     // 3. DISTINCT: Validar que no hayamos visto este código antes
+      //     const esUnico = !codigosVistos.has(nodo.codPosicion);
+
+      //     // Si cumple todo, lo anotamos como visto y lo dejamos pasar
+      //     if (esBase && codigoLimpio && esUnico) {
+      //       codigosVistos.add(nodo.codPosicion);
+      //       return true;
+      //     }
+      //     return false;
+      //   })
+      //   .map(nodo => ({
+      //     "Código Posición": nodo.codPosicion,
+      //     "Cargo / Puesto": nodo.puesto,
+      //     "Nombre": nodo.nombre, // Mostrará al primer empleado que encuentre con ese código
+      //     "Línea Negocio": nodo.lineaNegocio,
+      //     "Centro Costo": nodo.centroCosto
+      //   }));
+
+      // // Imprime la tabla
+      // console.table(empleadosSinNivel2);
+
+      // // Te dice cuántos son exactamente
+      // console.log(`Total de posiciones ÚNICAS con Nivel 99: ${empleadosSinNivel2.length}`);
+      ////////////
 
       // --- Llamada inicial ---
       document.addEventListener("DOMContentLoaded", function () {
         // --- INICIO CÓDIGO DEL BOTÓN (MODIFICADO PARA DESCARGA) ---
+
+        document.getElementById("modo-select").value = "Persona";
         const btnManual = document.getElementById("btn-download-app-manual");
 
         if (btnManual) {

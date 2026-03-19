@@ -631,11 +631,12 @@ div.boc-node.level-6[data-n-id] {
   border-radius: 16px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
   width: 90%;
-  max-width: 600px; /* Ancho como pediste */
+  max-width: 600px;
   padding: 24px;
   text-align: center;
   font-family: Arial, sans-serif;
-
+  max-height: 90vh;
+  overflow-y: visible; /* ✅ visible, no auto */
   /* Animación de entrada */
   transform: scale(0.95);
   opacity: 0;
@@ -757,11 +758,26 @@ div.boc-node.level-6[data-n-id] {
 /* Estilos para la lista de empleados en el modal (Modo Cargo) */
 .details-employee-list {
   text-align: left;
-  max-height: 150px; /* Altura máxima, por si hay muchos empleados */
-  overflow-y: auto; /* Scroll si es necesario */
+  max-height: 200px;
   border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
   margin-top: 10px;
+  margin-bottom: 10px;
   padding-top: 10px;
+  /* SimpleBar maneja el scroll, no necesitas overflow */
+}
+
+/* Personalizar el color del scrollbar de SimpleBar */
+.simplebar-scrollbar::before {
+    background-color: #666 !important;
+    border-radius: 4px;
+    opacity: 1 !important; /* ✅ Siempre visible */
+}
+
+.simplebar-track.simplebar-vertical {
+    width: 8px;
+    background: #f0f0f0;
+    border-radius: 4px;
 }
 
 .employee-list-item {
@@ -810,6 +826,7 @@ div.boc-search {
   opacity: 0 !important;
   visibility: hidden !important;
   transition: opacity 0.3s ease 0s;
+  width: 400px;
 }
 
 /* 2. Clase para mostrar el buscador cuando hacemos clic */
@@ -822,6 +839,29 @@ div.boc-search.is-visible {
   /* Icono (70px) + Ancho icono (40px) + Espacio (10px) = 120px */
   right: 120px !important;
   top: 20px !important;
+}
+
+/* Estilo base - truncado */
+.boc-search-result td:nth-child(2) > div:last-child {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 400px;
+    transition: all 0.2s ease;
+}
+/* Obliga al subtítulo del buscador a quedarse siempre en 1 línea con "..." */
+.boc-search-table td:nth-child(2) div:last-child {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 230px !important;
+}
+
+/* Al hacer hover - expandido */
+.boc-search-result tr:hover td:nth-child(2) > div:last-child {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
 }
 
 /* 3. Estilo para NUESTRO icono (el que crearemos con JS) */
@@ -1342,19 +1382,3 @@ div[data-ctrl-search] {
     stroke: #d081fb !important;
     fill: #d081fb !important;
 }
-
-/* CLINKS */
-/* 1. OCULTAR POR DEFECTO:
-   Seleccionamos cualquier path SVG que tenga el color naranja exacto.
-   Usamos !important para vencer al estilo en línea de Balkan. 
-path[stroke="#F57C00"] {
-    opacity: 0 !important;
-    transition: opacity 0.3s ease-in-out;
-}
-
-/* 2. MOSTRAR AL HACER HOVER:
-   Esta clase se la pondremos con JS. 
-path[stroke="#F57C00"].visible {
-    opacity: 1 !important;
-    stroke-width: 3px !important; /* Un poco más grueso para resaltar 
-} */
