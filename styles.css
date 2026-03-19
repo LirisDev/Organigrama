@@ -826,7 +826,7 @@ div.boc-search {
   opacity: 0 !important;
   visibility: hidden !important;
   transition: opacity 0.3s ease 0s;
-  width: 400px;
+  width: 400px !important;
 }
 
 /* 2. Clase para mostrar el buscador cuando hacemos clic */
