@@ -2150,7 +2150,13 @@
                   nombre: "PUESTO VACANTE",
 
                   // Esto pondrá el nombre del puesto (ej. "DIRECTOR...") en la segunda línea
-                  puesto: emp.puesto || "Puesto N/A", // Usamos 'N/A' como default
+                  //puesto: emp.puesto || "Puesto N/A", // Usamos 'N/A' como default
+                  puesto: (() => {
+                      const cargo = emp.puesto || "Puesto N/A";
+                      const depto = emp.nombreDepartamento || "";
+                      return depto && depto !== "N/A" ? `${cargo} - ${depto}` : cargo;
+                  })(),
+
 
                   // --- Rellenar el resto de campos para filtros y consistencia ---
                   codPosicion: emp.codigoPosicion || "N/A",
@@ -2664,8 +2670,8 @@
             showYScroll: true,
             showXScroll: true,
             enableSearch: true,
-            // searchFields: ["displayNombre", "puesto"],
-            searchFields: ["displayNombre", "puesto", "puestocompleto"],
+            searchFields: ["displayNombre", "puesto"],
+            // searchFields: ["displayNombre", "puesto", "puestocompleto"],
             template: "fichaTemplate", // Plantilla base fichaTemplate, olivia, ana, etc
             // mode: 'dark',
             layout: OrgChart.normal,
@@ -2686,8 +2692,7 @@
               displayNombre: 100, 
               puesto: 95, 
               //searchIndex: 40,
-              puestoCompleto: 80,
-              puesto: 95, 
+              //puestoCompleto: 80,
             },
 
             orderBy: [
@@ -3273,8 +3278,11 @@
               chart.config.template = "fichaTemplate";
               chart.config.nodeBinding = personaBinding;
               chart.config.searchDisplayField = "displayNombre";
-              chart.config.searchFields = ["displayNombre", "puesto"];
-
+              chart.config.searchFields = ["puesto", "displayNombre"];
+              chart.config.searchFieldsWeight = {
+                  displayNombre: 100,
+                  puesto: 80
+              };
               // Repoblar filtros con data de personas
               populateSelect("area-select", "area", allNodes);
 
@@ -3446,56 +3454,81 @@
             // =================================================================
             // ✅ NUEVO INTERCEPTOR: Reordena la lista al teclear en el buscador
             // =================================================================
-            chart.searchUI.input.addEventListener("input", function (e) {
-                const query = e.target.value.toLowerCase().trim();
-                if (!query) return;
+chart.searchUI.input.addEventListener("input", function (e) {
+    const query = e.target.value.toLowerCase().trim();
+    if (!query) return;
 
-                // Le damos 50 milisegundos a Balkan para que dibuje la lista de resultados
-                setTimeout(() => {
-                    const rows = document.querySelectorAll("tr[data-search-item-id]");
-                    
-                    rows.forEach(row => {
-                        const nodeId = row.getAttribute("data-search-item-id");
-                        const nodeData = chart.get(nodeId);
-                        
-                        // Solo aplicamos esto en modo Cargo y si hay lista de empleados
-                        if (nodeData && nodeData.listaEmpleados && document.getElementById("modo-select").value === "Cargo") {
-                            
-                            let listaNombres = nodeData.listaEmpleados.map(emp => `${emp.nombre || ""} ${emp.apellido || ""}`.trim());
-                            
-                            // ¿Escribió el nombre de alguien que está en esta lista?
-                            const matchIndex = listaNombres.findIndex(n => n.toLowerCase().includes(query));
-                            
-                            if (matchIndex > 0) {
-                                // 💡 ¡Lo sacamos de su posición y lo ponemos de #1!
-                                const matchName = listaNombres.splice(matchIndex, 1)[0];
-                                listaNombres.unshift(matchName);
-                            }
+    const procesarFilas = () => {
+        const rows = document.querySelectorAll("tr[data-search-item-id]");
+        if (rows.length === 0) return;
+        
+        rows.forEach(row => {
+            const nodeId = row.getAttribute("data-search-item-id");
+            const nodeData = chart.get(nodeId);
+            
+            if (!nodeData?.listaEmpleados || 
+                document.getElementById("modo-select").value !== "Cargo" ||
+                nodeData.listaEmpleados.length <= 2) return;
+            
+            const td = row.querySelector("td.boc-search-text-td");
+            if (!td) return;
+            const br = td.querySelector("br");
+            if (!br) return;
 
-                            // Reconstruimos el texto limitado a 2 personas
-                            let textLimitado = "";
-                            if (listaNombres.length === 0) textLimitado = "Sin asignar";
-                            else if (listaNombres.length <= 2) textLimitado = listaNombres.join(", ");
-                            else textLimitado = listaNombres.slice(0, 2).join(", ") + "...";
+            // Reordenar nombres
+            let listaNombres = nodeData.listaEmpleados
+                .map(emp => `${emp.nombre || ""} ${emp.apellido || ""}`.trim());
+            
+            const matchIndex = listaNombres.findIndex(n => 
+                n.toLowerCase().includes(query));
+            if (matchIndex > 0) {
+                const matchName = listaNombres.splice(matchIndex, 1)[0];
+                listaNombres.unshift(matchName);
+            }
 
-                            // Buscamos el div del subtítulo para actualizarlo visualmente
-                            const divs = row.querySelectorAll("td div");
-                            if (divs.length > 1) {
-                                const targetDiv = divs[divs.length - 1]; // El último div es el subtítulo
-                                
-                                // Lo actualizamos solo si el usuario no tiene el mouse encima
-                                if (!targetDiv.getAttribute("data-truncado")) {
-                                    targetDiv.textContent = textLimitado;
-                                }
-                                
-                                // Guardamos la lista reordenada en el nodo para que el Hover la use
-                                nodeData._puestoReordenado = listaNombres.join(", ");
-                            }
-                        }
-                    });
-                }, 50); 
-            });
+            // Resaltar query
+            const resaltar = (nombre) => {
+                const idx = nombre.toLowerCase().indexOf(query);
+                if (idx === -1) return nombre;
+                return nombre.substring(0, idx) + 
+                       `<mark>${nombre.substring(idx, idx + query.length)}</mark>` + 
+                       nombre.substring(idx + query.length);
+            };
 
+            let nuevoHtml = resaltar(listaNombres[0]);
+            if (listaNombres[1]) nuevoHtml += ", " + resaltar(listaNombres[1]);
+            if (listaNombres.length > 2) nuevoHtml += "...";
+
+            // Eliminar nodos después del <br>
+            let sibling = br.nextSibling;
+            while (sibling) {
+                const next = sibling.nextSibling;
+                td.removeChild(sibling);
+                sibling = next;
+            }
+
+            // Insertar nuevo HTML
+            const span = document.createElement("span");
+            span.innerHTML = nuevoHtml;
+            while (span.firstChild) {
+                td.appendChild(span.firstChild);
+            }
+        });
+    };
+
+    // ✅ MutationObserver: detecta cuando Balkan termina de renderizar
+    const searchTable = document.querySelector(".boc-search > div:last-child");
+    if (searchTable) {
+        const observer = new MutationObserver(() => {
+            observer.disconnect(); // Solo ejecutar una vez
+            procesarFilas();
+        });
+        observer.observe(searchTable, { childList: true, subtree: true });
+    }
+    
+    // Fallback con timeout por si el observer no detecta cambios
+    setTimeout(procesarFilas, 200);
+});
             const menuElement = this.element.querySelector("[data-ctrl-menu]"); // Las 3 rayitas
             if (searchElement && menuElement && searchInput) {
               // 2. Crear nuestro nuevo icono (la lupa)
@@ -3785,13 +3818,12 @@
                 })(),
 
                 // ✅ Línea secundaria: primeros 2 nombres + "..." si hay más
-                puesto: (() => {
-                    if (listaEmpleados.length === 0) return "Sin asignar";
-                    const primeros = listaEmpleados.slice(0, 2)
+                // ✅ puesto = TODOS los nombres (para búsqueda)
+                puesto: listaEmpleados.length === 0 
+                    ? "Sin asignar"
+                    : listaEmpleados
                         .map(e => `${e.nombre || ""} ${e.apellido || ""}`.trim())
-                        .join(", ");
-                    return listaEmpleados.length > 2 ? `${primeros}...` : primeros;
-                })(),
+                        .join(", "),
                 // Todos los nombres para mostrar en hover
                 puestoCompleto: listaEmpleados.length === 0 
                     ? "Sin asignar"
