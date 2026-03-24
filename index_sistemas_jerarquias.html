@@ -236,7 +236,7 @@
           CARNICERIA:  { id: "00097", order: 3 },
           CARNICOS:    { id: "00003", order: 4 },
           PECUARIOS:   { id: "01047", order: 5 },
-          DERIVADOS:   { id: "01102", order: 6 },
+          // DERIVADOS:   { id: "01102", order: 6 },
           MARKETING:   { id: "01049", order: 7 },
           RETAIL:      { id: "00671", order: 8 },
       };
@@ -254,18 +254,29 @@
               title: "DIVISIÓN INDUSTRIAL",
               order: 3,
               headId: "00003", // codigoPosicion de Santiago
-              subgrupos: ["DERIVADOS", "BALANCEADO", "CARNICOS"],
+              subgrupos: ["BALANCEADO", "CARNICOS"],
           },
+          DERIVADOS: {
+          id: "GRP_MACRO_DERIVADOS",
+          title: "DIVISIÓN DERIVADOS",
+          order: 4,
+          headId: "01102", // ID de Santiago Saab (Cabeza de esta división)
+          subgrupos: [
+            // "DERIVADOS",
+            // "BALANCEADO",
+            // "CARNICOS"
+          ],
+        },
           INMOBILIARIA: {
               id: "GRP_MACRO_INMOBILIARIA",
               title: "DIVISIÓN INMOBILIARIA",
-              order: 4,
+              order: 5,
               subgrupos: [],
           },
           RETAIL: {
               id: "GRP_MACRO_RETAIL",
               title: "DIVISIÓN COMERCIAL",
-              order: 5,
+              order: 6,
               headId: "00671", // codigoPosicion de Juan José Hidalgo (RETAIL)
               subgrupos: ["RETAIL", "MARKETING"],
           },
@@ -1404,35 +1415,6 @@
               // --- NUEVO: EXCEPCIÓN PARA BALANCEADO ---
               // Por defecto cuelgan del Macro (Santiago), pero Balanceado cuelga de Derivados
               let jefeDeLaCaja = idHeadMacroVisual;
-              // if (nombreLinea === "BALANCEADO") {
-              //     jefeDeLaCaja = "GRP_DERIVADOS"; // Lo colgamos de la caja hermana
-              //     // ✅ CREAR GRP_DERIVADOS si no existe todavía (puede no existir si filtramos solo BALANCEADO)
-              //     if (!nodesToRender.has("GRP_DERIVADOS")) {
-              //         const configDerivados = CABEZAS_ACTIVAS["DERIVADOS"] || {};
-              //         nodesToRender.set("GRP_DERIVADOS", {
-              //             id: "GRP_DERIVADOS",
-              //             pid: idHeadMacroVisual,
-              //             nombre: "DERIVADOS",
-              //             cargoPuesto: "DERIVADOS", // ✅ AGREGAR
-              //             title: "Línea de Negocio",
-              //             tags: ["group", "LINEA_DERIVADOS"],
-              //             templateName: "group",
-              //             order: configDerivados.order || 6,
-              //         });
-
-              //         // ✅ AGREGAR TAMBIÉN AL GERENTE DE DERIVADOS dentro de su caja
-              //         const gerenteDerivados = encontrarNodoPorConfig(configDerivados.id);
-              //         if (gerenteDerivados) {
-              //             const idGerenteDerivadosVisual = `HEAD_LINEA_GRP_DERIVADOS_${gerenteDerivados.id}`;
-              //             const nodoGerenteDerivados = Object.assign({}, gerenteDerivados);
-              //             nodoGerenteDerivados.id = idGerenteDerivadosVisual;
-              //             nodoGerenteDerivados.stpid = "GRP_DERIVADOS";
-              //             nodoGerenteDerivados.pid = null;
-              //             nodoGerenteDerivados.displayNombre = `${gerenteDerivados.nombre} (DERIVADOS)`;
-              //             nodesToRender.set(idGerenteDerivadosVisual, nodoGerenteDerivados);
-              //         }
-              //     }
-              // }
 
               nodesToRender.set(subGroupId, {
                 id: subGroupId,
@@ -1652,6 +1634,7 @@
                 "GRP_CORPORATIVO",
                 "GRP_MACRO_PECUARIO",
                 "GRP_MACRO_INDUSTRIAL",
+                "GRP_MACRO_DERIVADOS",
                 "GRP_MACRO_INMOBILIARIA",
                 "GRP_MACRO_RETAIL",
                 "GRP_CARNICERIA",
