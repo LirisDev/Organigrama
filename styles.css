@@ -1382,3 +1382,8 @@ div[data-ctrl-search] {
     stroke: #d081fb !important;
     fill: #d081fb !important;
 }
+/* DERIVADOS (Verde) */
+[data-n-id="GRP_MACRO_DERIVADOS"] rect {
+    stroke: #e9dc21 !important;
+    fill: #e9dc21 !important;
+}
