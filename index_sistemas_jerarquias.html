@@ -179,7 +179,7 @@
           headId: "12", // ID de Santiago Saab (Cabeza de esta división)
           subgrupos: [
             //"BALANCEADO",
-            "CARNICERIA",
+            //"CARNICERIA",
             //"CARNICOS",
             "PECUARIOS",
             //"DERIVADOS",
@@ -198,7 +198,7 @@
         },
         DERIVADOS: {
           id: "GRP_MACRO_DERIVADOS",
-          title: "DIVISIÓN DERIVADOS",
+          title: "COMITÉ",
           order: 4,
           headId: "01102", // ID de Santiago Saab (Cabeza de esta división)
           subgrupos: [
@@ -225,7 +225,7 @@
           title: "DIVISIÓN COMERCIAL",
           order: 6,
           headId: "390", // ID de Juan Jose Hidalgo (Cabeza de esta división)
-          subgrupos: ["RETAIL", "MARKETING"],
+          subgrupos: ["RETAIL", "MARKETING", "CARNICERIA"],
         },
       };
 
@@ -247,7 +247,7 @@
               title: "DIVISIÓN PECUARIO",
               order: 2,
               headId: "00003", // codigoPosicion de Santiago (Gerente General)
-              subgrupos: ["CARNICERIA", "PECUARIOS"],
+              subgrupos: ["PECUARIOS"],
           },
           INDUSTRIAL: {
               id: "GRP_MACRO_INDUSTRIAL",
@@ -258,7 +258,7 @@
           },
           DERIVADOS: {
           id: "GRP_MACRO_DERIVADOS",
-          title: "DIVISIÓN DERIVADOS",
+          title: "COMITÉ",
           order: 4,
           headId: "01102", // ID de Santiago Saab (Cabeza de esta división)
           subgrupos: [
@@ -278,7 +278,7 @@
               title: "DIVISIÓN COMERCIAL",
               order: 6,
               headId: "00671", // codigoPosicion de Juan José Hidalgo (RETAIL)
-              subgrupos: ["RETAIL", "MARKETING"],
+              subgrupos: ["RETAIL", "MARKETING", "CARNICERIA"],
           },
       };
 
@@ -1215,6 +1215,35 @@
                 });
             }
         }
+
+        // // =========================================================
+        // // EXCEPCIÓN: ENRUTAR HIJOS DE OMAR A LA CAJA CARNICERÍA
+        // // =========================================================
+        // // Omar Buritica (ID Posición original en vista Cargo: "00097" o similar)
+        // // En tu CABEZAS_NEGOCIO_CARGO dice que CARNICERIA es "00097". 
+        // // Primero confirmamos si es él y cuál es la caja destino.
+        // const idOmar = CABEZAS_ACTIVAS.CARNICERIA.id; 
+        // const cajaCarniceriaId = "GRP_CARNICERIA";
+        
+        // // El ID que tendrá el Clon visual de Omar que lidera la cajita amarilla
+        // const idOmarClonVisual = `HEAD_LINEA_${cajaCarniceriaId}_${idOmar}`;
+
+        // // Buscamos a todos en el sourceMap
+        // sourceMap.forEach((node) => {
+        //     // Si el empleado le reporta a Omar original...
+        //     if (node.pid === idOmar) {
+        //         const lineaHijo = (node.lineaNegocio || "").toUpperCase().trim();
+                
+        //         // ... Y la línea de negocio del empleado dice "CARNICERIA"
+        //         if (lineaHijo === "CARNICERIA") {
+        //             // ¡Lo divorciamos del Omar original (rojo) y le cambiamos el jefe al Clon (amarillo)!
+        //             // Así, cuando agregarDescendencia arme la caja roja, los ignorará (porque su pid cambió).
+        //             // Y cuando arme la caja amarilla, los atrapará (porque buscará a los hijos del Clon).
+        //             node.pid = idOmarClonVisual; 
+        //         }
+        //     }
+        // });
+        // =========================================================
         // Helper para buscar nodos
         const encontrarNodoPorConfig = (configId) => {
           if (!configId) return null;
@@ -1228,6 +1257,30 @@
         );
         const idAntonio = antonioNode ? antonioNode.id : null;
 
+        // =========================================================
+        // ✅ EXCEPCIÓN OMAR BURITICA (CARNICERÍA)
+        // =========================================================
+        const omarConfig = CABEZAS_ACTIVAS.CARNICERIA;
+        if (omarConfig) {
+            const omarOriginal = encontrarNodoPorConfig(omarConfig.id);
+            if (omarOriginal) {
+                const cajaCarniceriaId = "GRP_CARNICERIA";
+                const idOmarClonVisual = `HEAD_LINEA_${cajaCarniceriaId}_${omarOriginal.id}`;
+
+                // Recorremos la data para buscar a los hijos de Omar que sean de Carnicería
+                sourceMap.forEach((node) => {
+                    if (node.pid === omarOriginal.id) {
+                        const lineaHijo = (node.lineaNegocio || "").toUpperCase().trim();
+                        // Si el hijo pertenece a Carnicería, lo divorciamos del Omar original (rojo)
+                        // y lo conectamos directamente al ID del Clon de Carnicería (amarillo)
+                        if (lineaHijo === "CARNICERIA") {
+                            node.pid = idOmarClonVisual;
+                        }
+                    }
+                });
+            }
+        }
+        // =========================================================
         // =========================================================
         // 1. CORPORATIVO (GRUPO GRIS)
         // =========================================================
@@ -1352,6 +1405,23 @@
 
             // --- FILTRO MACRO: Todo MENOS Corporativo ---
             // Queremos evitar que Angie salga duplicada aquí abajo.
+            // const idSantiagoEnRetail = `HEAD_MACRO_RETAIL_CARNICERIA_12`;
+            // const santiagoOriginal = encontrarNodoPorConfig("00003"); // ID de Santiago
+
+            const idSantiagoDinamico = ESTRUCTURA_ACTIVA.PECUARIO.headId; 
+            const idSantiagoEnRetail = `HEAD_MACRO_RETAIL_CARNICERIA_${idSantiagoDinamico}`;
+            const santiagoOriginal = encontrarNodoPorConfig(idSantiagoDinamico);
+
+            if (santiagoOriginal && macro.id === "GRP_MACRO_RETAIL") {
+                const santiagoClonRetail = Object.assign({}, santiagoOriginal);
+                santiagoClonRetail.id = idSantiagoEnRetail;
+                santiagoClonRetail.stpid = macro.id; // Dentro de la caja Comercial
+                santiagoClonRetail.pid = null;
+                santiagoClonRetail.tags = [...(santiagoClonRetail.tags || []), "head-of-group"];
+                santiagoClonRetail.displayNombre = `${santiagoOriginal.nombre} (CARNICERÍA)`;
+                nodesToRender.set(idSantiagoEnRetail, santiagoClonRetail);
+            }
+
 
             // Lista de exclusión: Gerentes de línea (ya que tendrán sus propias cajas)
             const idsGerentesLinea = [];
@@ -1415,6 +1485,11 @@
               // --- NUEVO: EXCEPCIÓN PARA BALANCEADO ---
               // Por defecto cuelgan del Macro (Santiago), pero Balanceado cuelga de Derivados
               let jefeDeLaCaja = idHeadMacroVisual;
+
+              // ✅ CARNICERIA cuelga del clon de Santiago en Retail
+              if (nombreLinea === "CARNICERIA" && macro.id === "GRP_MACRO_RETAIL") {
+                  jefeDeLaCaja = idSantiagoEnRetail;
+              }
 
               nodesToRender.set(subGroupId, {
                 id: subGroupId,
@@ -1504,6 +1579,15 @@
           // C.2 Extraemos la línea de negocio real del contrato del empleado (normalizada)
           const lineaRealEmpleado = node.lineaNegocio ? node.lineaNegocio.trim().toUpperCase().replace(/\s/g, "") : "N/A";
 
+          if (node.tags && node.tags.includes("head-of-group")) {
+              // ✅ EXCEPCIÓN: A Priscilla (Cabeza de Derivados) SÍ la contamos.
+              if (node.stpid !== "GRP_MACRO_DERIVADOS") return;
+          }
+          // ✅ NUEVO: Todo el personal de Derivados se suma directo a la caja del Comité
+          if (lineaRealEmpleado === "DERIVADOS" || node.stpid === "GRP_MACRO_DERIVADOS") {
+              visualCounts["GRP_MACRO_DERIVADOS"]++;
+              return; // Ya lo sumamos, pasamos al siguiente
+          }
           // C.3 ¿Dónde está sentado visualmente este nodo ahora mismo?
           if (node.stpid) {
             // Está dentro de una caja (ej: GRP_CARNICERIA)
@@ -1680,7 +1764,7 @@
 
         sourceMap.forEach((node) => {
           // ¿El nodo le reporta a este jefe?
-          if (node.pid === idBusqueda) {
+          if (node.pid === idBusqueda || node.pid === idVisualPadre) {
             // 1. Chequeo de lista negra
             if (idsAExcluir.includes(node.id)) return;
 
