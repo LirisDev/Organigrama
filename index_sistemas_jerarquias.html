@@ -179,7 +179,7 @@
           headId: "12", // ID de Santiago Saab (Cabeza de esta división)
           subgrupos: [
             //"BALANCEADO",
-            "CARNICERIA",
+            //"CARNICERIA",
             //"CARNICOS",
             "PECUARIOS",
             //"DERIVADOS",
@@ -192,13 +192,14 @@
           headId: "12", // ID de Santiago Saab (Cabeza de esta división)
           subgrupos: [
             // "DERIVADOS",
+            "CARNICERIA",
             "BALANCEADO",
             "CARNICOS"
           ],
         },
         DERIVADOS: {
           id: "GRP_MACRO_DERIVADOS",
-          title: "DIVISIÓN DERIVADOS",
+          title: "COMITÉ",
           order: 4,
           headId: "01102", // ID de Santiago Saab (Cabeza de esta división)
           subgrupos: [
@@ -247,18 +248,18 @@
               title: "DIVISIÓN PECUARIO",
               order: 2,
               headId: "00003", // codigoPosicion de Santiago (Gerente General)
-              subgrupos: ["CARNICERIA", "PECUARIOS"],
+              subgrupos: ["PECUARIOS"],
           },
           INDUSTRIAL: {
               id: "GRP_MACRO_INDUSTRIAL",
               title: "DIVISIÓN INDUSTRIAL",
               order: 3,
               headId: "00003", // codigoPosicion de Santiago
-              subgrupos: ["BALANCEADO", "CARNICOS"],
+              subgrupos: ["BALANCEADO", "CARNICERIA", "CARNICOS"],
           },
           DERIVADOS: {
           id: "GRP_MACRO_DERIVADOS",
-          title: "DIVISIÓN DERIVADOS",
+          title: "COMITÉ",
           order: 4,
           headId: "01102", // ID de Santiago Saab (Cabeza de esta división)
           subgrupos: [
@@ -489,7 +490,7 @@
             <div class="details-info-line">
                 <span class="details-info-label">Línea Negocio:</span>
                 <span class="details-info-value">${
-                  personData.lineaNegocio || "N/A"
+                  obtenerAliasLinea(personData.lineaNegocio) || "N/A"
                 }</span>
             </div>
             <div class="details-info-line">
@@ -734,6 +735,21 @@
         return "CORPORATIVO"; // Por defecto para personal de apoyo
       }
 
+      // =========================================================
+      // DICCIONARIO DE ALIAS (Para cambiar nombres de la API visualmente)
+      // =========================================================
+      const DICCIONARIO_LINEAS = {
+          "PECUARIOS": "GRANJAS AVÍCOLAS",
+          // Puedes agregar más aquí en el futuro:
+          // "CARNICOS": "PROCESAMIENTO CÁRNICO",
+      };
+
+      // Función helper para aplicar el alias
+      function obtenerAliasLinea(nombreOriginal) {
+          const normalizado = (nombreOriginal || "").toUpperCase().trim();
+          return DICCIONARIO_LINEAS[normalizado] || normalizado; // Si existe el alias lo usa, si no, usa el original
+      }
+
       /* FUNCION PARA HABILITAR/DESHABILITAR FILTROS */
       function actualizarEstadoFiltros() {
         const selectIds =
@@ -786,12 +802,28 @@
 
       /* FUNCION PARA ITERAR AL MOMENTO DE COLAPSAR NODOS */
       function iterate(c, n, collapseIds, excludeId) {
-        if (excludeId != n.id) {
-          collapseIds.push(n.id);
-        }
+            const isFantasma = n.tags && n.tags.includes("fantasma");
+    
+    // El fantasma no se colapsa, pero SÍ se itera su descendencia
+    if (excludeId != n.id && !isFantasma) {
+        collapseIds.push(n.id);
+    }
+
+        // if (excludeId != n.id) {
+        //   collapseIds.push(n.id);
+        // }
         if (n.childrenIds && n.childrenIds.length > 0) {
           for (var i = 0; i < n.childrenIds.length; i++) {
-            iterate(c, c.getNode(n.childrenIds[i]), collapseIds, excludeId);
+            //iterate(c, c.getNode(n.childrenIds[i]), collapseIds, excludeId);
+            const child = c.getNode(n.childrenIds[i]);
+            
+            // ← NUEVO: Si el hijo es fantasma, agregar SUS hijos explícitamente
+            if (isFantasma && child) {
+                iterate(c, child, collapseIds, excludeId);
+            } else {
+                iterate(c, child, collapseIds, excludeId);
+            }
+
           }
         }
       }
@@ -1416,11 +1448,19 @@
               // Por defecto cuelgan del Macro (Santiago), pero Balanceado cuelga de Derivados
               let jefeDeLaCaja = idHeadMacroVisual;
 
+              // ✅ 1. ENGANCHAR LA CAJA DE CARNICERÍA AL OMAR ORIGINAL
+              if (nombreLinea === "CARNICERIA") {
+                  const omarOriginal = encontrarNodoPorConfig(configLinea.id);
+                  if (omarOriginal) {
+                      // La caja cuelga directamente de la ficha de Omar que ya está en Cárnicos
+                      jefeDeLaCaja = omarOriginal.id; 
+                  }
+              }
               nodesToRender.set(subGroupId, {
                 id: subGroupId,
                 pid: jefeDeLaCaja, // Cuelga de Santiago Macro (el clon)
-                nombre: nombreLinea,
-                cargoPuesto: nombreLinea, // ✅ AGREGAR
+                nombre: obtenerAliasLinea(nombreLinea),
+                cargoPuesto: obtenerAliasLinea(nombreLinea), // ✅ AGREGAR
                 title: "Línea de Negocio",
                 tags: ["group", tagLinea],
                 templateName: "group",
@@ -1437,8 +1477,26 @@
                   nodoGerente.id = idGerenteLineaVisual;
                   nodoGerente.stpid = subGroupId;
                   nodoGerente.pid = null;
-                  nodoGerente.displayNombre = `${gerenteOriginal.nombre} (${nombreLinea})`;
+                  // nodoGerente.displayNombre = `${gerenteOriginal.nombre} (${nombreLinea})`;
+                  // ✅ 2. TU IDEA: SI ES CARNICERÍA, EL CLON SE VUELVE FANTASMA
+                  if (nombreLinea === "CARNICERIA") {
+                      nodoGerente.tags = ["fantasma"]; // Le asignamos la plantilla invisible
+                      nodoGerente.template = "ghost"; // Le asignamos la plantilla invisible
+                      nodoGerente.displayNombre = "";
+                      nodoGerente.nombre = "";
+                      nodoGerente.puesto = "";
+                      nodoGerente.img = ""; // Borramos la imagen de la data por seguridad
 
+                      // ⭐ CAMBIOS CRÍTICOS AQUÍ:
+                      delete nodoGerente.state; // Eliminar cualquier estado previo
+                      nodoGerente.collapsed = false; // Forzar expandido
+                      nodoGerente.min = false; // No minimizado
+                      
+                      console.log("🔓 Creando nodo fantasma Carnicería EXPANDIDO:", idGerenteLineaVisual);
+
+                  } else {
+                      nodoGerente.displayNombre = `${gerenteOriginal.nombre} (${obtenerAliasLinea(nombreLinea)})`;
+                  }
                   nodesToRender.set(idGerenteLineaVisual, nodoGerente);
 
                   // Lógica: Si Santiago también es gerente de Cárnicos, usamos filtro estricto
@@ -1566,7 +1624,6 @@
         console.log("📊 Conteos Visuales Finales (Personas Únicas):", visualCounts);
 
         // console.log("📊 nodesToRender.size:", nodesToRender.size);
-        // console.log("📊 visualCounts:", visualCounts);
 
         // sourceMap.forEach((node) => {
         //     if (node.pid === "12") {
@@ -1630,45 +1687,72 @@
             node.expanded = false; // ← Explícito, no solo delete
         });
 
-          // ✅ SIEMPRE setear expand/collapse antes de cargar
-    const lineaFiltro = ($("#linea-negocio-select").val() || "").toUpperCase().trim();
-    const hayFiltroEspecifico = lineaFiltro !== "TODOS";
+        // ✅ SIEMPRE setear expand/collapse antes de cargar
+        const lineaFiltro = ($("#linea-negocio-select").val() || "").toUpperCase().trim();
+        const hayFiltroEspecifico = lineaFiltro !== "TODOS";
 
-    if (hayFiltroEspecifico) {
-        chart.config.expand = { nodes: [], allChildren: true };
-        chart.config.collapse = { level: 99, allChildren: true };
-    } else {
-        chart.config.expand = {
-            nodes: [
-                "GRP_CORPORATIVO",
-                "GRP_MACRO_PECUARIO",
-                "GRP_MACRO_INDUSTRIAL",
-                "GRP_MACRO_DERIVADOS",
-                "GRP_MACRO_INMOBILIARIA",
-                "GRP_MACRO_RETAIL",
-                "GRP_CARNICERIA",
-                "GRP_PECUARIOS",
-                "GRP_CARNICOS",
-                "GRP_DERIVADOS",
-                "GRP_BALANCEADO",
-                "GRP_RETAIL",
-                "GRP_MARKETING"
-            ],
-            allChildren: false,
-        };
-        chart.config.collapse = {
-            level: 1,
-            allChildren: true,
-        };
-    }
+        // ⭐ LISTA DE NODOS A EXPANDIR (incluye fantasmas)
+        const nodosAExpandir = [
+            "GRP_CORPORATIVO",
+            "GRP_MACRO_PECUARIO",
+            "GRP_MACRO_INDUSTRIAL",
+            "GRP_MACRO_DERIVADOS",
+            "GRP_MACRO_INMOBILIARIA",
+            "GRP_MACRO_RETAIL",
+            "GRP_CARNICERIA",
+            "GRP_PECUARIOS",
+            "GRP_CARNICOS",
+            "GRP_DERIVADOS",
+            "GRP_BALANCEADO",
+            "GRP_RETAIL",
+            "GRP_MARKETING"
+        ];
+
+        // ⭐ AGREGAR TODOS LOS FANTASMAS DINÁMICAMENTE
+        finalArray.forEach(node => {
+            if (node.tags && node.tags.includes("fantasma")) {
+                nodosAExpandir.push(node.id);
+                console.log("🔓 Agregando fantasma a expansión:", node.id);
+            }
+        });
+
+        if (hayFiltroEspecifico) {
+            chart.config.expand = { nodes: [], allChildren: true };
+            chart.config.collapse = { level: 99, allChildren: true };
+        } else {
+            chart.config.expand = {
+                nodes: nodosAExpandir,
+                allChildren: false,
+            };
+            chart.config.collapse = {
+                level: 1,
+                allChildren: true,
+            };
+        }
 
         chart.load(finalArray);
-        setTimeout(() => {
-          chart.fit();
-        }, 250);
+        setTimeout(() => expandirFantasmas(), 10);
+        setTimeout(() => chart.fit(), 50);
+
         loaderOverlay.classList.remove("visible");
       }
 
+      function expandirFantasmas() {
+          const fantasmas = chart.config.nodes
+              .filter(n => n.tags && n.tags.includes("fantasma"))
+              .map(n => n.id);
+          
+          if (fantasmas.length === 0) return;
+
+          chart.expand(null, fantasmas, () => {
+              fantasmas.forEach(ghostId => {
+                  const ghostNode = chart.getNode(ghostId);
+                  if (ghostNode?.childrenIds?.length > 0) {
+                      chart.expand(ghostId, ghostNode.childrenIds);
+                  }
+              });
+          });
+      }
       // Función recursiva para agregar hijos con filtros
       // idVisualPadre: El ID del nodo padre en el gráfico (puede ser clon o real)
       // idOriginalPadre: El ID real en la data (para buscar quién le reporta de verdad)
@@ -2455,6 +2539,10 @@
           OrgChart.templates.ghost.plus = ""; // Sin botón +
           OrgChart.templates.ghost.minus = ""; // Sin botón -
           OrgChart.templates.ghost.link = ""; // ✅ Sin líneas de conexión
+          OrgChart.templates.ghost.img_0 = ""; 
+          OrgChart.templates.ghost.field_0 = ""; 
+          OrgChart.templates.ghost.field_1 = ""; 
+          OrgChart.templates.ghost.field_2 = "";
 
           // TEMPLATE GROUP
           OrgChart.templates.group.link = `<path stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} {xb},{yb} {xc},{yc} L{xd},{yd}" />`;
@@ -2998,6 +3086,27 @@
               // 1. Recolectamos TODOS los hijos, nietos, bisnietos...
               iterate(chart, node, collapseIds, nodeId);
 
+              collapseIds.forEach(id => {
+                  const n = chart.getNode(id);
+                  if (n && n.childrenIds) {
+                      n.childrenIds.forEach(childId => {
+                          const child = chart.getNode(childId);
+                          if (child && child.tags && child.tags.includes("fantasma")) {
+                              // Agregar hijos del fantasma
+                              if (child.childrenIds) {
+                                  child.childrenIds.forEach(ghostChildId => {
+                                      if (!collapseIds.includes(ghostChildId)) {
+                                          collapseIds.push(ghostChildId);
+                                          // También su descendencia
+                                          iterate(chart, chart.getNode(ghostChildId), collapseIds, nodeId);
+                                      }
+                                  });
+                              }
+                          }
+                      });
+                  }
+              });
+
               // 2. Le ordenamos al gráfico: "Mantente tú (nodeId) cerrado, y cierra explícitamente a todos estos (collapseIds)"
               // Al pasarle los IDs de los nietos, su estado cambia a expanded: false
               chart.expandCollapse(nodeId, [], collapseIds, function () {
@@ -3064,48 +3173,18 @@
           // 9. LÓGICA DE HOVER (INTEGRADA CON TU CÓDIGO)
           // =========================================================
           chart.on("init", function (sender) {
-          // Sin ningún if de isCollapsingAll - esto corre igual en primera carga y en collapseAll
-          const idsToExpand = sender.config.nodes
-              .filter(n => n.tags && (
-                  n.tags.includes("group") ||
-                  n.tags.includes("head-of-group")
-              ))
-              .map(n => n.id);
+              // Sin ningún if de isCollapsingAll - esto corre igual en primera carga y en collapseAll
+              const idsToExpand = sender.config.nodes
+                  .filter(n => n.tags && (
+                      n.tags.includes("group") ||
+                      n.tags.includes("head-of-group")
+                  ))
+                  .map(n => n.id);
 
-          if (idsToExpand.length > 0) {
-              sender.expand(null, idsToExpand);
-          }
-
-          // Listeners de hover sin cambios
-          sender.element.addEventListener("mouseover", function (e) {
-              let nodeElement = e.target.closest("[data-n-id]");
-              if (nodeElement) {
-                  let nodeId = nodeElement.getAttribute("data-n-id");
-                  if (nodeId) {
-                      const gruposRelacionados = document.querySelectorAll(
-                          `g[data-c-l-from="${nodeId}"], g[data-c-l-to="${nodeId}"]`
-                      );
-                      gruposRelacionados.forEach((grupo) => {
-                          const pathNaranja = grupo.querySelector('path[stroke="#F57C00"]');
-                          if (pathNaranja) {
-                              pathNaranja.classList.add("visible");
-                              if (grupo.parentNode) {
-                                  grupo.parentNode.appendChild(grupo);
-                              }
-                          }
-                      });
-                  }
+              if (idsToExpand.length > 0) {
+                  sender.expand(null, idsToExpand);
               }
           });
-
-          sender.element.addEventListener("mouseout", function (e) {
-              let nodeElement = e.target.closest("[data-n-id]");
-              if (nodeElement && !nodeElement.contains(e.relatedTarget)) {
-                  const pathsVisibles = document.querySelectorAll('path[stroke="#F57C00"].visible');
-                  pathsVisibles.forEach((p) => p.classList.remove("visible"));
-              }
-          });
-      });
           
           function debounce(func, wait) {
               let timeout;
