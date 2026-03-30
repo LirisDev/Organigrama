@@ -149,6 +149,15 @@
       let filteredNodes = [];
       let isCollapsingAll = false;
 
+      // NUEVAS VARIABLES PARA EL FOCO
+      let focusState = {
+          active: false,           // ¿Está el modo foco activo?
+          targetNodeId: null,      // ID del nodo enfocado
+          savedNodes: null,        // Backup del estado anterior
+          savedExpand: null,       // Backup de configuración de expansión
+          savedCollapse: null      // Backup de configuración de colapso
+      };
+
       // --- Referencias a divs de estado ---
       const loaderOverlay = document.getElementById("chart-loader-overlay");
       const loaderText = document.getElementById("loader-text");
@@ -165,7 +174,7 @@
         CARNICERIA: { id: "00097", order: 3, reportFuncional: "12" }, // "00097" o "00003",
         CARNICOS: { id: "00003", order: 4, reportFuncional: "12" },
         PECUARIOS: { id: "01047", order: 5, reportFuncional: "12" },
-        // DERIVADOS: { id: "01102", order: 6, reportFuncional: "15" }, // reporta al Presidente (Antonio "15")
+        DERIVADOS: { id: "01102", order: 6, reportFuncional: "15" }, // reporta al Presidente (Antonio "15")
         MARKETING: { id: "01049", order: 7, reportFuncional: "15" }, // "00671",
         RETAIL: { id: "00671", order: 8, reportFuncional: "15" },
       };
@@ -237,7 +246,7 @@
           CARNICERIA:  { id: "00097", order: 3 },
           CARNICOS:    { id: "00003", order: 4 },
           PECUARIOS:   { id: "01047", order: 5 },
-          // DERIVADOS:   { id: "01102", order: 6 },
+          DERIVADOS:   { id: "01102", order: 6 },
           MARKETING:   { id: "01049", order: 7 },
           RETAIL:      { id: "00671", order: 8 },
       };
@@ -721,6 +730,7 @@
           if (macroId === "GRP_MACRO_INDUSTRIAL") return "INDUSTRIAL";
           if (macroId === "GRP_MACRO_INMOBILIARIA") return "INMOBILIARIA";
           if (macroId === "GRP_MACRO_RETAIL") return "RETAIL";
+          if (macroId === "GRP_MACRO_DERIVADOS") return "COMITÉ"; // ✅ ¡NUEVO! Asignamos el nombre al Macro Grupo
           return "";
       };
 
@@ -728,6 +738,7 @@
       function determinarArea(linea) {
         const l = (linea || "").toUpperCase().trim();
         if (l === "CORPORATIVO") return "CORPORATIVO";
+        if (l === "DERIVADOS") return "COMITÉ"; // ✅ ¡NUEVO! Bautizamos a la gente de derivados con el área "Comité"
         if (ESTRUCTURA_MACRO.PECUARIO.subgrupos.includes(l)) return "PECUARIA";
         if (ESTRUCTURA_MACRO.INDUSTRIAL.subgrupos.includes(l)) return "INDUSTRIAL";
         if (ESTRUCTURA_MACRO.INMOBILIARIA.subgrupos.includes(l)) return "INMOBILIARIA";
@@ -1137,6 +1148,278 @@
         return sortedValues;
       }
 
+      /**
+       * Construye un árbol filtrado mostrando solo:
+       * - El nodo objetivo
+       * - Su ascendencia (padres hasta la raíz)
+       * - Su descendencia (todos los hijos)
+       * - Los grupos necesarios para mantener la estructura
+       */
+      function construirArbolFoco(targetNodeId) {
+          console.log("🎯 Construyendo árbol de foco para:", targetNodeId);
+          const sourceNodes = focusState.active ? Array.from(focusState.savedNodes.values()) : chart.config.nodes;
+          const currentMode = document.getElementById("modo-select").value;
+          // const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
+          const sourceMap = new Map(sourceNodes.map(n => [n.id, Object.assign({}, n)]));
+          
+          const nodosDelFoco = new Map();
+          const targetNode = sourceMap.get(targetNodeId);
+          console.log(targetNodeId)
+          console.log(targetNode)
+          if (!targetNode) {
+              console.error("❌ Nodo objetivo no encontrado");
+              return null;
+          }
+
+          // =========================================================
+          // 1. AGREGAR EL NODO OBJETIVO
+          // =========================================================
+          nodosDelFoco.set(targetNodeId, Object.assign({}, targetNode));
+
+          // =========================================================
+          // 2. AGREGAR ASCENDENCIA (Subir hasta la raíz)
+          // =========================================================
+          function agregarAscendencia(nodeId) {
+              const node = sourceMap.get(nodeId);
+              if (!node) return;
+              
+              // Agregar el nodo actual
+              if (!nodosDelFoco.has(node.id)) {
+                  nodosDelFoco.set(node.id, Object.assign({}, node));
+              }
+              
+              // Si tiene padre, seguir subiendo
+              if (node.pid) {
+                  agregarAscendencia(node.pid);
+              }
+              
+              // // Si tiene stpid (está dentro de un grupo), agregar el grupo
+              // if (node.stpid) {
+              //     const grupoNode = sourceMap.get(node.stpid);
+              //     if (grupoNode && !nodosDelFoco.has(grupoNode.id)) {
+              //         nodosDelFoco.set(grupoNode.id, Object.assign({}, grupoNode));
+              //         // El grupo también puede tener padre
+              //         if (grupoNode.pid) {
+              //             agregarAscendencia(grupoNode.pid);
+              //         }
+              //     }
+              // }
+          }
+          const Presidente = sourceNodes.find((n) => n.codPosicion === "00001" || n.id === "00001"  ); // Busca el ID en tu config maestra
+          if (Presidente) {
+              if (Presidente && !nodosDelFoco.has(Presidente.id)) {
+                  // Le forzamos el pid null y lo metemos al Corporativo para que salga perfecto arriba
+                  const presiClon = Object.assign({}, Presidente);
+                  presiClon.pid = null; 
+                  presiClon.stpid = "GRP_CORPORATIVO";
+                  nodosDelFoco.set(presiClon.id, presiClon);
+              }
+          }
+          
+          agregarAscendencia(targetNodeId);
+
+          // =========================================================
+          // 3. AGREGAR DESCENDENCIA (Todos los hijos recursivamente)
+          // =========================================================
+          function agregarDescendenciaFoco(nodeId) {
+              sourceMap.forEach((node) => {
+                  if (node.pid === nodeId && !nodosDelFoco.has(node.id)) {
+                      nodosDelFoco.set(node.id, Object.assign({}, node));
+                      // Recursión para nietos, bisnietos...
+                      agregarDescendenciaFoco(node.id);
+                  }
+              });
+
+              // 👻 PUENTE HACIA ABAJO: Si el nodo que estamos revisando tiene un clon Fantasma, traemos a sus hijos
+              const posibleFantasmaId = `HEAD_LINEA_GRP_CARNICERIA_${nodeId}`;
+              if (sourceMap.has(posibleFantasmaId) && !nodosDelFoco.has(posibleFantasmaId)) {
+                  const fantasma = sourceMap.get(posibleFantasmaId);
+                  nodosDelFoco.set(fantasma.id, Object.assign({}, fantasma));
+                  agregarDescendenciaFoco(fantasma.id);
+              }
+          }
+          
+          agregarDescendenciaFoco(targetNodeId);
+
+          /// 4. ASEGURAR CAJAS Y GRUPOS (stpid y pid dinámicos)
+          // Un bucle que atrapa automáticamente a qué división o macrogrupo pertenece la persona
+          let agregados;
+          do {
+              agregados = false;
+              const actuales = Array.from(nodosDelFoco.values());
+              actuales.forEach(node => {
+                  // Si el nodo vive dentro de una caja (stpid) y la caja no está, la traemos
+                  if (node.stpid && !nodosDelFoco.has(node.stpid)) {
+                      const grupo = sourceMap.get(node.stpid);
+                      if (grupo) {
+                          nodosDelFoco.set(grupo.id, Object.assign({}, grupo));
+                          agregados = true;
+                      }
+                  }
+                  // Si la caja (o el nodo) reporta a un jefe (pid) y no está, lo traemos
+                  if (node.pid && !nodosDelFoco.has(node.pid)) {
+                      const padre = sourceMap.get(node.pid);
+                      if (padre) {
+                          nodosDelFoco.set(padre.id, Object.assign({}, padre));
+                          agregados = true;
+                      }
+                  }
+              });
+          } while (agregados); // Repetir hasta que todas las paredes estructurales estén firmes
+
+          console.log(`✅ Árbol de foco construido: ${nodosDelFoco.size} nodos`);
+          return nodosDelFoco;
+      }
+
+      /**
+       * Activa el modo foco para un nodo específico
+       */
+      function activarModoFoco(nodeId) {
+          console.log("🔍 Activando modo foco para:", nodeId);
+          // 1. Guardar la foto exacta del organigrama (solo si no estamos ya en foco)
+          if (!focusState.active) {
+              focusState.savedNodes = new Map(chart.config.nodes.map(n => [n.id, Object.assign({}, n)]));
+              focusState.savedExpand = Object.assign({}, chart.config.expand);
+              focusState.savedCollapse = Object.assign({}, chart.config.collapse);
+          }
+          
+          focusState.targetNodeId = nodeId;
+          focusState.active = true;
+
+          // NUEVO: Deshabilitar filtros
+          deshabilitarFiltros();
+
+          const arbolFoco = construirArbolFoco(nodeId);
+          if (!arbolFoco) {
+              console.error("❌ No se pudo construir el árbol de foco");
+              return;
+          }
+          
+          // 2. Inyectar el tag "focused-node" al seleccionado (para que el CSS cambie el botón a Rojo/X)
+          const finalArray = Array.from(arbolFoco.values());
+          finalArray.forEach(n => {
+              if (!n.tags) n.tags = [];
+              if (n.id === nodeId) {
+                  n.tags.push("focused-node");
+              }
+          });
+
+          // Agregar clase visual al contenedor
+          document.getElementById("tree-container").classList.add("focus-mode-active");
+          
+          // Marcar el botón específico como activo
+          setTimeout(() => {
+              const activeBtn = document.querySelector(`[data-focus-btn="${nodeId}"]`);
+              if (activeBtn) {
+                  activeBtn.classList.add("active");
+              }
+            },300 );
+
+          // 3. Configurar expansión total (queremos ver todo el árbol del nodo)
+          chart.config.expand = {
+              nodes: Array.from(arbolFoco.keys()),
+              allChildren: true
+          };
+          chart.config.collapse = {
+              level: 99, // No colapsar nada
+              allChildren: false
+          };
+          
+          // 4. Activar bandera CSS en el contenedor principal para ocultar los botones de los demás
+          document.getElementById("tree").classList.add("foco-activo");
+          
+          // 5. Cargar el nuevo árbol
+          chart.load(finalArray);
+          setTimeout(() => expandirFantasmas(), 10);
+          setTimeout(() => chart.fit(), 50);
+
+          
+          // 5. Centrar en el nodo objetivo después de un momento
+          setTimeout(() => {
+              chart.center(nodeId, { anim: true, duration: 400 }, () => {
+                  console.log("✅ Modo foco activado");
+              });
+          }, 200);
+      }
+      
+      /**
+       * Desactiva el modo foco y restaura la vista anterior
+       */
+      function desactivarModoFoco() {
+          console.log("🔙 Desactivando modo foco");
+          if (!focusState.active) return;
+          
+          // 1. Restaurar configuración
+          chart.config.expand = focusState.savedExpand;
+          chart.config.collapse = focusState.savedCollapse;
+          
+          // Deshabilitar filtros
+          habilitarFiltros();
+          
+          // 2. Quitar el tag "focused-node" de nuestro backup para que el botón rojo vuelva a ser naranja
+          const nodosRestaurados = Array.from(focusState.savedNodes.values());
+          nodosRestaurados.forEach(n => {
+              if (n.tags) {
+                  n.tags = n.tags.filter(t => t !== "focused-node");
+              }
+          });
+
+          // Remover clase visual
+          document.getElementById("tree-container").classList.remove("focus-mode-active");
+          
+          // Remover marca del botón
+          const activeBtn = document.querySelector(".focus-btn.active");
+          if (activeBtn) {
+              activeBtn.classList.remove("active");
+          }
+
+
+          // 3. Quitar bandera CSS general
+          document.getElementById("tree").classList.remove("foco-activo");   
+          
+          // 4. Restaurar el mapa a como estaba
+          chart.load(nodosRestaurados);
+          setTimeout(() => expandirFantasmas(), 10);
+          setTimeout(() => chart.fit(), 50);
+
+          const lastFocusId = focusState.targetNodeId;
+
+          // 5. Limpiar variables de estado
+          focusState.active = false;
+          focusState.targetNodeId = null;
+          focusState.savedNodes = null;
+          focusState.savedExpand = null;
+          focusState.savedCollapse = null;
+          
+          setTimeout(() => {
+              chart.center(lastFocusId, { anim: true, duration: 400 });
+          }, 150);
+      }
+
+      /**
+       * Deshabilita los filtros visualmente y funcionalmente
+       */
+      function deshabilitarFiltros() {
+          // Deshabilitar los select
+          $("#area-select, #linea-negocio-select, #modo-select").prop("disabled", true);
+          
+          // Notificar a Select2
+          $("#area-select, #linea-negocio-select, #modo-select").trigger("change.select2");
+          console.log("🔒 Filtros deshabilitados");
+      }
+
+      /**
+       * Habilita los filtros nuevamente
+       */
+      function habilitarFiltros() {
+          // Habilitar los select
+          $("#area-select, #linea-negocio-select, #modo-select").prop("disabled", false);
+          
+          // Notificar a Select2
+          $("#area-select, #linea-negocio-select, #modo-select").trigger("change.select2");
+          console.log("🔓 Filtros habilitados");
+      }
+
       function renderOrganigramaGrupos() {
         if (!chart) return;
 
@@ -1347,11 +1630,26 @@
         Object.values(ESTRUCTURA_ACTIVA).forEach((macro) => {
           // --- CAMBIO 3: Filtro de División ---
           // Solo mostramos esta división si es "TODOS" o si la línea seleccionada está dentro de sus subgrupos.
+          // const areaDeEsteMacro = getAreaDeMacro(macro.id);
+          // if (!esTodasAreas && areaFiltro !== areaDeEsteMacro) return;
+
+          // // --- NUEVO: ¿Este Macro Grupo contiene la Línea elegida? ---
+          // const contieneLaLinea = macro.subgrupos.includes(lineaFiltro);
+          // if (!esTodasLineas && !contieneLaLinea) return; // Ignoramos la caja entera
+
+          // --- CAMBIO 3: Filtro de División ---
+          // Solo mostramos esta división si es "TODOS" o si la línea seleccionada está dentro de sus subgrupos.
           const areaDeEsteMacro = getAreaDeMacro(macro.id);
           if (!esTodasAreas && areaFiltro !== areaDeEsteMacro) return;
 
           // --- NUEVO: ¿Este Macro Grupo contiene la Línea elegida? ---
-          const contieneLaLinea = macro.subgrupos.includes(lineaFiltro);
+          let contieneLaLinea = macro.subgrupos.includes(lineaFiltro);
+          
+          // EXCEPCIÓN: Si la línea filtrada es el nombre de la División Macro (ej. DERIVADOS), lo aceptamos
+          if (lineaFiltro === macro.id.replace("GRP_MACRO_", "")) {
+              contieneLaLinea = true;
+          }
+
           if (!esTodasLineas && !contieneLaLinea) return; // Ignoramos la caja entera
 
           // 2.1 Crear la Caja del Macro Grupo
@@ -1438,7 +1736,23 @@
             macro.subgrupos.forEach((nombreLinea, index) => {
               // --- Filtro de Línea Específica ---
               // Solo mostramos esta caja si es "TODOS" o es EXACTAMENTE la línea que pidió el usuario.
-              if (!esTodasLineas && lineaFiltro !== nombreLinea) return;
+              //if (!esTodasLineas && lineaFiltro !== nombreLinea) return;
+
+              // =========================================================
+              // 🧠 1. LÓGICA INTELIGENTE DE SOPORTE (Evita que Carnicería flote)
+              // =========================================================
+              let renderizarEstaLinea = false;
+              let esSoporteParaOtraLinea = false;
+
+              if (esTodasLineas || lineaFiltro === nombreLinea) {
+                  renderizarEstaLinea = true;
+              } else if (lineaFiltro === "CARNICERIA" && nombreLinea === "CARNICOS") {
+                  // Si busco Carnicería, fuerzo a dibujar Cárnicos SOLO para sostener a Omar
+                  renderizarEstaLinea = true;
+                  esSoporteParaOtraLinea = true; 
+              }
+
+              if (!renderizarEstaLinea) return; // Si no pasa las reglas, saltamos esta línea
 
               const subGroupId = `GRP_${nombreLinea.replace(/\s/g, "")}`;
               const tagLinea = `LINEA_${nombreLinea.replace(/\s/g, "_")}`;
@@ -1487,41 +1801,56 @@
                       nodoGerente.puesto = "";
                       nodoGerente.img = ""; // Borramos la imagen de la data por seguridad
 
-                      // ⭐ CAMBIOS CRÍTICOS AQUÍ:
+                      // CAMBIOS CRÍTICOS AQUÍ:
                       delete nodoGerente.state; // Eliminar cualquier estado previo
                       nodoGerente.collapsed = false; // Forzar expandido
                       nodoGerente.min = false; // No minimizado
                       
-                      console.log("🔓 Creando nodo fantasma Carnicería EXPANDIDO:", idGerenteLineaVisual);
+                      nodesToRender.set(idGerenteLineaVisual, nodoGerente);
+
+                      const filtroLinea = (nodo) => {
+                        const lineaHijo = (nodo.lineaNegocio || "").toUpperCase().trim();
+                        return lineaHijo === "CARNICERIA" || String(nodo.id).includes("CLON_");
+                      };
+
+                      agregarDescendencia(idGerenteLineaVisual, gerenteOriginal.id, nodesToRender, sourceMap, [], filtroLinea);
+                      // console.log("🔓 Creando nodo fantasma Carnicería EXPANDIDO:", idGerenteLineaVisual);
 
                   } else {
+                      // nodoGerente.displayNombre = `${gerenteOriginal.nombre} (${obtenerAliasLinea(nombreLinea)})`;
                       nodoGerente.displayNombre = `${gerenteOriginal.nombre} (${obtenerAliasLinea(nombreLinea)})`;
+                      nodesToRender.set(idGerenteLineaVisual, nodoGerente);
+
+                      // 🛡️ CERCA ELÉCTRICA: Lista de exclusión
+                      let idsExcluir = [];
+                      
+                      // Si es Cárnicos, metemos en la lista negra a todos los de Carnicería
+                      if (nombreLinea === "CARNICOS") {
+                          sourceMap.forEach(n => {
+                              const ln = (n.lineaNegocio || "").toUpperCase().trim();
+                              if (ln === "CARNICERIA") {
+                                  idsExcluir.push(n.id);
+                              }
+                          });
+                      }
+
+                      const filtroLinea = (nodo) => {
+                        const lineaHijo = (nodo.lineaNegocio || "").toUpperCase().trim();
+                        
+                        // Si Cárnicos solo se está dibujando como SOPORTE para Carnicería...
+                        if (esSoporteParaOtraLinea && lineaFiltro === "CARNICERIA") {
+                            const idOmar = CABEZAS_ACTIVAS["CARNICERIA"]?.id;
+                            // SOLO dejamos pasar a Omar. Bloqueamos al resto (incluso clones)
+                            return nodo.codPosicion === idOmar || String(nodo.id).includes(idOmar);
+                        }
+
+                        return lineaHijo === nombreLinea || String(nodo.id).includes("CLON_");
+                      };
+
+                      const aplicarProfundo = esSoporteParaOtraLinea && lineaFiltro === "CARNICERIA";
+                      agregarDescendencia(idGerenteLineaVisual, gerenteOriginal.id, nodesToRender, sourceMap, idsExcluir, filtroLinea, aplicarProfundo);
+                  
                   }
-                  nodesToRender.set(idGerenteLineaVisual, nodoGerente);
-
-                  // Lógica: Si Santiago también es gerente de Cárnicos, usamos filtro estricto
-                  // let filtroLinea = null;
-                  // if (gerenteOriginal.id === headNodeOriginal.id) {
-                  //     filtroLinea = (n) => (n.lineaNegocio || "").toUpperCase().trim() === nombreLinea;
-                  // }
-
-                  const filtroLinea = (nodo) => {
-                    const lineaHijo = (nodo.lineaNegocio || "")
-                      .toUpperCase()
-                      .trim();
-                    //return lineaHijo === nombreLinea;
-                    return lineaHijo === nombreLinea || String(nodo.id).includes("CLON_");
-                  };
-
-                  // Traer equipo de la línea
-                  agregarDescendencia(
-                    idGerenteLineaVisual,
-                    gerenteOriginal.id,
-                    nodesToRender,
-                    sourceMap,
-                    [],
-                    filtroLinea,
-                  );
                 }
               }
             });
@@ -1582,7 +1911,7 @@
             } else {
                 // El empleado está de invitado en otra caja (ej. Omar Buritica en Carnicería).
                 // ¡No sumamos nada! Fantasma numérico.
-                console.log(`Empleado ${node.nombre} ignorado en ${nombreCaja} porque pertenece a ${lineaRealEmpleado}`);
+                // console.log(`Empleado ${node.nombre} ignorado en ${nombreCaja} porque pertenece a ${lineaRealEmpleado}`);
             }
           } else {
             // Fallback: usar su línea de negocio original si no tiene stpid (ej: staff directo raíz)
@@ -1643,7 +1972,11 @@
         // AGREGAR ESTO: Asegurar displayNombre en todos los nodos
         finalArray.forEach((node) => {
             if (!node.displayNombre) {
-                node.displayNombre = node.nombre || node.cargoPuesto || "";
+              node.displayNombre = node.nombre || node.cargoPuesto || "";
+            }
+            // (Esto debería estar por defecto, pero lo forzamos por si acaso)
+            if (!node.id) {
+                console.error("❌ Nodo sin ID:", node);
             }
         });
 
@@ -1691,7 +2024,7 @@
         const lineaFiltro = ($("#linea-negocio-select").val() || "").toUpperCase().trim();
         const hayFiltroEspecifico = lineaFiltro !== "TODOS";
 
-        // ⭐ LISTA DE NODOS A EXPANDIR (incluye fantasmas)
+        // LISTA DE NODOS A EXPANDIR (incluye fantasmas)
         const nodosAExpandir = [
             "GRP_CORPORATIVO",
             "GRP_MACRO_PECUARIO",
@@ -1708,27 +2041,67 @@
             "GRP_MARKETING"
         ];
 
-        // ⭐ AGREGAR TODOS LOS FANTASMAS DINÁMICAMENTE
+        // AGREGAR TODOS LOS FANTASMAS DINÁMICAMENTE
         finalArray.forEach(node => {
             if (node.tags && node.tags.includes("fantasma")) {
                 nodosAExpandir.push(node.id);
-                console.log("🔓 Agregando fantasma a expansión:", node.id);
+                // console.log("🔓 Agregando fantasma a expansión:", node.id);
             }
         });
 
-        if (hayFiltroEspecifico) {
-            chart.config.expand = { nodes: [], allChildren: true };
-            chart.config.collapse = { level: 99, allChildren: true };
-        } else {
-            chart.config.expand = {
-                nodes: nodosAExpandir,
-                allChildren: false,
-            };
-            chart.config.collapse = {
-                level: 1,
-                allChildren: true,
-            };
+        // 🧠 EXCEPCIÓN VIP EXCLUSIVA PARA CARNICERÍA
+        if (lineaFiltro === "CARNICERIA") {
+            const configActiva = esCargo ? CABEZAS_NEGOCIO_CARGO : CABEZAS_NEGOCIO_TEMP;
+            const idOmar = configActiva["CARNICERIA"]?.id;
+            const idSantiago = configActiva["CARNICOS"]?.id;
+            
+            finalArray.forEach(n => {
+                if (n.codPosicion === idOmar || String(n.id).includes(idOmar) || String(n.id).includes(`HEAD_LINEA_GRP_CARNICOS_${idSantiago}`)) {
+                    nodosAExpandir.push(n.id);
+                }
+            });
         }
+        
+        // EXCEPCIÓN VIP DINÁMICA PARA EL FILTRO ACTIVO (¡EL CAMBIO CLAVE!)
+        // Si hay un filtro específico (como 'PECUARIOS' o 'GRANJAS AVÍCOLAS'), forzamos su nodo de grupo a expandirse.
+        if (hayFiltroEspecifico) {
+            // El ID del nodo de grupo es GRP_ + el valor del filtro (reemplazando espacios por guiones bajos)
+            // Ej: "PECUARIOS" -> "GRP_PECUARIOS", "GRANJAS AVÍCOLAS" -> "GRP_GRANJAS_AVÍCOLAS"
+            const grpId = `GRP_${lineaFiltro.replace(/\s+/g, '_')}`;
+            const macroGrpId = `GRP_MACRO_${lineaFiltro.replace(/\s+/g, '_')}`;
+
+            console.log(grpId)
+            console.log(macroGrpId)
+            // 1. Si es una Línea normal (Ej. PECUARIOS)
+            if(finalArray.some(n => n.id === grpId)){
+                nodosAExpandir.push(grpId);
+            } 
+            // 2. Si es una División Macro sin sub-líneas (Ej. DERIVADOS)
+            else if (finalArray.some(n => n.id === macroGrpId)) {
+                nodosAExpandir.push(macroGrpId);
+                
+                // Buscamos a la cabeza del comité utilizando el prefijo que nosotros mismos le pusimos al clon.
+                // ¡Esto no fallará nunca por culpa de los ceros a la izquierda!
+                const prefijoCabeza = `HEAD_MACRO_${macroGrpId}_`;
+                const nodoCabeza = finalArray.find(n => String(n.id).startsWith(prefijoCabeza));
+                console.log(nodoCabeza)
+                if (nodoCabeza) {
+                    nodosAExpandir.push(nodoCabeza.id);
+                    nodoCabeza.expanded = true; 
+                }
+            }
+        }
+
+        // ❌ ELIMINAMOS EL allChildren: true. 
+        // Ahora, haya filtro o no, siempre respetará el Nivel 1, pero forzaremos las excepciones que definimos arriba.
+        chart.config.expand = {
+            nodes: nodosAExpandir,
+            allChildren: false,
+        };
+        chart.config.collapse = {
+            level: 1,
+            allChildren: true,
+        };
 
         chart.load(finalArray);
         setTimeout(() => expandirFantasmas(), 10);
@@ -1767,6 +2140,7 @@
         sourceMap,
         idsAExcluir = [],
         filtroEstricto = null,
+        filtroProfundo = false // NUEVO: Bandera para heredar el filtro
       ) {
         // Si no especificamos original, es el mismo que el visual
         const idBusqueda = idOriginalPadre || idVisualPadre;
@@ -1800,6 +2174,8 @@
                 nodesToRender,
                 sourceMap,
                 idsAExcluir,
+                filtroProfundo ? filtroEstricto : null, // Se hereda si es profundo
+                filtroProfundo
               );
             }
           }
@@ -2033,6 +2409,8 @@
 
         if (finalArray.length > 0) {
           chart.load(finalArray);
+          setTimeout(() => expandirFantasmas(), 10);
+          setTimeout(() => chart.fit(), 50);
         } else {
           chart.load([]);
         }
@@ -2355,7 +2733,7 @@
 
           // --- Ajustar foreignObject y añadir ellipsis ---
           OrgChart.templates.fichaTemplate.field_0 = // Nombre
-            '<foreignObject x="85" y="25" width="155" height="40">' + // Contenedor
+            '<foreignObject x="85" y="25" width="130" height="40">' + // Contenedor
             // Div interno: auto height, max-height for 2 lines approx, ellipsis
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; font-weight: bold; color: #D35400; line-height: 1.2; height: auto; max-height: 34px; /* Approx 2 lines */ overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
             "{val}" +
@@ -2363,48 +2741,25 @@
             "</foreignObject>";
 
           OrgChart.templates.fichaTemplate.field_1 = // Puesto
-            '<foreignObject x="85" y="60" width="155" height="30">' + // Contenedor
+            '<foreignObject x="85" y="60" width="130" height="30">' + // Contenedor
             // Div interno: similar adjustments for ellipsis
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 11px; color: #797D7F; line-height: 1.2; height: auto; max-height: 27px; /* Approx 2 lines */ overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
             "{val}" +
             "</div>" +
             "</foreignObject>";
 
-          // OrgChart.templates.fichaTemplate.field_2 =
-          //   '<rect x="85" y="88" width="70" height="18" fill="#4285F4" rx="4" ry="4"></rect>' +
-          //   '<text style="font-size: 10px; cursor: pointer;" fill="#ffffff" x="120" y="100" text-anchor="middle">{val}</text>';
+          OrgChart.templates.fichaTemplate.field_2 = ""
 
-          // =========================================================
-          // BOTÓN DE EXPANDIR (32px Alto - Todo Naranja)
-          // =========================================================
-          // OrgChart.templates.fichaTemplate.plus =
-          //     // 1. EL FONDO (Rectángulo de 32px de alto)
-          //     '<rect x="-11" y="2" height="32" width="50" rx="7" ry="7" stroke-width="0" fill="#F57C00"></rect>' +
-
-          //     // 2. LÍNEA SEPARADORA (Centrada verticalmente en y=18 para dividir el espacio de 32px)
-          //     '<line x1="-5" y1="18" x2="33" y2="18" stroke-width="0.5" stroke="rgba(255,255,255,0.4)"></line>' +
-
-          //     // -----------------------------------------------------
-          //     // 3. PARTE SUPERIOR: Hijos Directos (Icono Disco)
-          //     // -----------------------------------------------------
-          //     // Coordenadas ajustadas para la mitad superior (y < 18)
-          //     '<circle stroke="#ffffff" stroke-width="1.2" fill="none" cx="6" cy="9" r="1.5"></circle>' +
-          //     '<rect x="3" y="11" rx="0.5" ry="0.5" height="1.5" width="6" stroke-width="0" fill="#ffffff"></rect>' +
-          //     '<line x1="2.5" y1="13" x2="9.5" y2="13" stroke-width="1.2" stroke="#ffffff"></line>' +
-
-          //     // Texto Superior (Alineado en y=13 para centrar visualmente con el icono)
-          //     '<text text-anchor="middle" style="font-size: 9px; cursor:pointer;" font-weight="bold" fill="#ffffff" x="28" y="13">{collapsed-children-count}</text>' +
-
-          //     // -----------------------------------------------------
-          //     // 4. PARTE INFERIOR: Acumulado Total (Icono Grupo)
-          //     // -----------------------------------------------------
-          //     // Icono SVG reducido a 10x10 y posicionado en y=20 (para la mitad inferior)
-          //     '<svg x="-3" y="20" width="10" height="10" viewBox="0 0 15 15" fill="#ffffff">' +
-          //         '<path d="M7.461 2.356c-1.292 0 -2.339 1.223 -2.339 2.731 0 1.046 0.504 1.954 1.243 2.413l-0.858 0.398 -2.282 1.059c-0.221 0.11 -0.331 0.297 -0.331 0.562v2.514c0.018 0.314 0.207 0.607 0.512 0.612h8.12c0.349 -0.03 0.526 -0.312 0.529 -0.612V9.518c0 -0.265 -0.11 -0.452 -0.331 -0.562l-2.2 -1.059 -0.914 -0.433c0.709 -0.469 1.188 -1.358 1.188 -2.377 0 -1.508 -1.047 -2.731 -2.339 -2.731m-3.773 0.96c-0.556 0.021 -0.996 0.262 -1.331 0.645 -0.37 0.461 -0.551 1.009 -0.554 1.554 0.023 0.806 0.383 1.569 1.025 1.968L0.265 8.675C0.088 8.741 0 8.895 0 9.138v2.017c0.014 0.268 0.153 0.492 0.413 0.496h1.704V9.518c0.028 -0.57 0.296 -1.032 0.777 -1.257l1.703 -0.81c0.132 -0.077 0.259 -0.182 0.38 -0.314 -0.702 -1.083 -0.8 -2.381 -0.347 -3.523 -0.294 -0.18 -0.625 -0.296 -0.943 -0.298m7.607 0c-0.364 0.008 -0.7 0.141 -0.975 0.331 0.44 1.152 0.319 2.45 -0.331 3.457 0.143 0.165 0.293 0.292 0.447 0.38l1.637 0.777c0.499 0.274 0.756 0.739 0.761 1.257v2.134h1.753c0.288 -0.025 0.411 -0.255 0.414 -0.496V9.138c0 -0.221 -0.088 -0.375 -0.265 -0.463l-2.53 -1.208c0.656 -0.484 0.986 -1.209 0.992 -1.951 -0.017 -0.588 -0.197 -1.133 -0.554 -1.554 -0.373 -0.405 -0.836 -0.641 -1.348 -0.645"/>' +
-          //     '</svg>' +
-
-          //     // Texto Inferior (Alineado en y=28 para la mitad inferior)
-          //     '<text text-anchor="middle" style="font-size: 9px; cursor:pointer;" font-weight="bold" fill="#ffffff" x="28" y="28">{collapsed-children-total-count}</text>';
+          OrgChart.templates.fichaTemplate.field_3 = 
+              '<g class="focus-btn" data-focus-btn="{val}" style="cursor:pointer;" transform="translate(220, 5)">' +
+                '<rect x="0" y="0" width="24" height="24" rx="4" fill="#F57C00" opacity="0.9"></rect>' +
+                '<circle cx="12" cy="12" r="8" stroke="white" stroke-width="1.5" fill="none"></circle>' +
+                '<circle cx="12" cy="12" r="3" fill="white"></circle>' +
+                '<line x1="12" y1="4" x2="12" y2="8" stroke="white" stroke-width="1.5"></line>' +
+                '<line x1="12" y1="16" x2="12" y2="20" stroke="white" stroke-width="1.5"></line>' +
+                '<line x1="4" y1="12" x2="8" y2="12" stroke="white" stroke-width="1.5"></line>' +
+                '<line x1="16" y1="12" x2="20" y2="12" stroke="white" stroke-width="1.5"></line>' +
+            '</g>';
 
           // --- DEFINIMOS LOS 3 ESTILOS DE BOTÓN ---
 
@@ -2498,7 +2853,7 @@
             "</foreignObject>";
 
           // 5. ¡IMPORTANTE! Matamos el field_2
-          OrgChart.templates.vacanteTemplate.field_2 = "";
+          //OrgChart.templates.vacanteTemplate.field_2 = "";
 
           // --- AHORA CREAMOS LAS 3 VARIANTES PARA VACANTES ---
 
@@ -2543,6 +2898,7 @@
           OrgChart.templates.ghost.field_0 = ""; 
           OrgChart.templates.ghost.field_1 = ""; 
           OrgChart.templates.ghost.field_2 = "";
+          OrgChart.templates.ghost.field_3 = "";
 
           // TEMPLATE GROUP
           OrgChart.templates.group.link = `<path stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} {xb},{yb} {xc},{yc} L{xd},{yd}" />`;
@@ -2595,21 +2951,10 @@
           const personaBinding = {
             field_0: "nombre",
             field_1: "puesto",
+            field_3: "id",
             img_0: "img",
-            conteo: "conteo", // <--- //TODO: Descomentar para mostrar el contador
+            conteo: "conteo", // <--- //CONTADOR
             miGlobo: "conteo",
-            //column: "order" // jerarquía
-          };
-
-          // Binding para la vista de Cargo
-          // Mapea los campos que crearemos en el .map() de cargo
-          const cargoBinding = {
-            field_0: "cargoPuesto", // Puesto (ej. "GERENTE GENERAL")
-            field_1: "cargoPersona", // Persona (ej. "SANTIAGO SAAB")
-            field_2: "cargoDepto", // Depto (ej. "DIRECTORIO")
-            conteo: "conteo", // <--- //TODO: Descomentar para mostrar el contador
-            miGlobo: "conteo",
-
             //column: "order" // jerarquía
           };
 
@@ -2625,27 +2970,28 @@
 
           // Ajustamos los campos de texto (sin foto, movemos todo a la izquierda)
           OrgChart.templates.cargoTemplate.field_0 = // Puesto
-            '<foreignObject x="15" y="15" width="220" height="35">' + // y=15, h=35
+            '<foreignObject x="15" y="15" width="200" height="35">' + // y=15, h=35
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 16px; font-weight: bold; color: #D35400; line-height: 1.2; height: auto; max-height: 34px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
             "{val}" +
             "</div>" +
             "</foreignObject>";
 
           OrgChart.templates.cargoTemplate.field_1 = // Persona
-            '<foreignObject x="15" y="50" width="220" height="35">' + // y=50 (15+35), h=35
+            '<foreignObject x="15" y="50" width="200" height="35">' + // y=50 (15+35), h=35
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; color: #333; line-height: 1.2; height: auto; max-height: 34px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
             "{val}" +
             "</div>" +
             "</foreignObject>";
 
           OrgChart.templates.cargoTemplate.field_2 = // Departamento
-            '<foreignObject x="15" y="85" width="220" height="20">' + // y=85 (50+35), h=20
+            '<foreignObject x="15" y="85" width="200" height="20">' + // y=85 (50+35), h=20
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 12px; font-style: italic; color: #797D7F; line-height: 1.2; text-align: left;">' +
             "{val}" +
             "</div>" +
             "</foreignObject>";
 
-          
+          OrgChart.templates.cargoTemplate.field_3 = OrgChart.templates.fichaTemplate.field_3// Departamento
+
           // --- CREAMOS LOS 3 TEMPLATES ---
           // 1. Template COMPLEX (El de siempre)
           OrgChart.templates.cargoComplex = Object.assign(
@@ -2671,6 +3017,20 @@
           OrgChart.templates.cargoSingle.plus = botonPersona;
           OrgChart.templates.cargoSingle.minus = botonPersona;
           //OrgChart.templates.cargoTemplate.field_2 = ""; // Departamento
+
+                    // Binding para la vista de Cargo
+          // Mapea los campos que crearemos en el .map() de cargo
+          const cargoBinding = {
+            field_0: "cargoPuesto", // Puesto (ej. "GERENTE GENERAL")
+            field_1: "cargoPersona", // Persona (ej. "SANTIAGO SAAB")
+            field_2: "cargoDepto", // Depto (ej. "DIRECTORIO")
+            field_3: "id", // Depto (ej. "DIRECTORIO")
+            conteo: "conteo", //CONTADOR
+            miGlobo: "conteo",
+
+            //column: "order" // jerarquía
+          };
+
 
           // 6. Configuración de Tags
           const tagsConfig = {
@@ -2943,8 +3303,8 @@
             // subtreeSeparation: 30
           };
 
-          OrgChart.scroll.smooth = 5;
-          OrgChart.scroll.speed = 18;
+          OrgChart.scroll.smooth = 2;
+          OrgChart.scroll.speed =  10;
 
           //PERSONALIZAR IA
           // Aquí se le pueden dar instrucciones al sistema de IA para que entienda el contexto de la empresa
@@ -3165,7 +3525,7 @@
               .getElementById("tree")
               .addEventListener("mousedown", function (e) {
                 // Usamos jQuery para cerrar cualquier select2 abierto
-                $(".control-select").select2("close");
+                // $(".control-select").select2("close");
               });
           });
 
@@ -3419,9 +3779,37 @@
             sender.hide();
             
              // ✅ Si es nodo virtual, navegar al nodo real
-            const nodeData = allCargoNodes.find(n => n.id === args.nodeId);
+            // const nodeData = allCargoNodes.find(n => n.id === args.nodeId);
             const targetNodeId = args.nodeId; // ← Guardar ANTES de cualquier operación async
             
+            // =======================================================
+            // COMPORTAMIENTO SI ESTAMOS EN MODO FOCO
+            // =======================================================
+            if (focusState && focusState.active) {
+                console.log("🔍 Búsqueda dentro de MODO FOCO. Centrando en:", targetNodeId);
+                
+                // Solo centramos y abrimos los padres necesarios, SIN recargar todo el mapa
+                chart.center(
+                    targetNodeId,
+                    { 
+                        anim: true, 
+                        duration: 500,
+                        parentState: OrgChart.COLLAPSE_PARENT // Si el nodo está oculto, abre sus padres
+                    },
+                    function () {
+                        // Resaltamos el nodo buscado
+                        const nodoDOM = document.querySelector(`[data-n-id="${targetNodeId}"]`);
+                        if (nodoDOM) {
+                            nodoDOM.classList.add("nodo-destacado");
+                            setTimeout(() => {
+                                nodoDOM.classList.remove("nodo-destacado");
+                            }, 8000);
+                        }
+                    }
+                );
+                return false; // Cortamos la ejecución aquí para que no siga bajando
+            }
+
             // PASO 1: Resetear config de expansión a estado inicial
             chart.config.expand = {
                 nodes: [
@@ -3536,81 +3924,82 @@
             // =================================================================
             // ✅ NUEVO INTERCEPTOR: Reordena la lista al teclear en el buscador
             // =================================================================
-chart.searchUI.input.addEventListener("input", function (e) {
-    const query = e.target.value.toLowerCase().trim();
-    if (!query) return;
+            chart.searchUI.input.addEventListener("input", function (e) {
+                const query = e.target.value.toLowerCase().trim();
+                if (!query) return;
 
-    const procesarFilas = () => {
-        const rows = document.querySelectorAll("tr[data-search-item-id]");
-        if (rows.length === 0) return;
-        
-        rows.forEach(row => {
-            const nodeId = row.getAttribute("data-search-item-id");
-            const nodeData = chart.get(nodeId);
-            
-            if (!nodeData?.listaEmpleados || 
-                document.getElementById("modo-select").value !== "Cargo" ||
-                nodeData.listaEmpleados.length <= 2) return;
-            
-            const td = row.querySelector("td.boc-search-text-td");
-            if (!td) return;
-            const br = td.querySelector("br");
-            if (!br) return;
+                const procesarFilas = () => {
+                    const rows = document.querySelectorAll("tr[data-search-item-id]");
+                    if (rows.length === 0) return;
+                    
+                    rows.forEach(row => {
+                        const nodeId = row.getAttribute("data-search-item-id");
+                        const nodeData = chart.get(nodeId);
+                        
+                        if (!nodeData?.listaEmpleados || 
+                            document.getElementById("modo-select").value !== "Cargo" ||
+                            nodeData.listaEmpleados.length <= 2) return;
+                        
+                        const td = row.querySelector("td.boc-search-text-td");
+                        if (!td) return;
+                        const br = td.querySelector("br");
+                        if (!br) return;
 
-            // Reordenar nombres
-            let listaNombres = nodeData.listaEmpleados
-                .map(emp => `${emp.nombre || ""} ${emp.apellido || ""}`.trim());
-            
-            const matchIndex = listaNombres.findIndex(n => 
-                n.toLowerCase().includes(query));
-            if (matchIndex > 0) {
-                const matchName = listaNombres.splice(matchIndex, 1)[0];
-                listaNombres.unshift(matchName);
-            }
+                        // Reordenar nombres
+                        let listaNombres = nodeData.listaEmpleados
+                            .map(emp => `${emp.nombre || ""} ${emp.apellido || ""}`.trim());
+                        
+                        const matchIndex = listaNombres.findIndex(n => 
+                            n.toLowerCase().includes(query));
+                        if (matchIndex > 0) {
+                            const matchName = listaNombres.splice(matchIndex, 1)[0];
+                            listaNombres.unshift(matchName);
+                        }
 
-            // Resaltar query
-            const resaltar = (nombre) => {
-                const idx = nombre.toLowerCase().indexOf(query);
-                if (idx === -1) return nombre;
-                return nombre.substring(0, idx) + 
-                       `<mark>${nombre.substring(idx, idx + query.length)}</mark>` + 
-                       nombre.substring(idx + query.length);
-            };
+                        // Resaltar query
+                        const resaltar = (nombre) => {
+                            const idx = nombre.toLowerCase().indexOf(query);
+                            if (idx === -1) return nombre;
+                            return nombre.substring(0, idx) + 
+                                  `<mark>${nombre.substring(idx, idx + query.length)}</mark>` + 
+                                  nombre.substring(idx + query.length);
+                        };
 
-            let nuevoHtml = resaltar(listaNombres[0]);
-            if (listaNombres[1]) nuevoHtml += ", " + resaltar(listaNombres[1]);
-            if (listaNombres.length > 2) nuevoHtml += "...";
+                        let nuevoHtml = resaltar(listaNombres[0]);
+                        if (listaNombres[1]) nuevoHtml += ", " + resaltar(listaNombres[1]);
+                        if (listaNombres.length > 2) nuevoHtml += "...";
 
-            // Eliminar nodos después del <br>
-            let sibling = br.nextSibling;
-            while (sibling) {
-                const next = sibling.nextSibling;
-                td.removeChild(sibling);
-                sibling = next;
-            }
+                        // Eliminar nodos después del <br>
+                        let sibling = br.nextSibling;
+                        while (sibling) {
+                            const next = sibling.nextSibling;
+                            td.removeChild(sibling);
+                            sibling = next;
+                        }
 
-            // Insertar nuevo HTML
-            const span = document.createElement("span");
-            span.innerHTML = nuevoHtml;
-            while (span.firstChild) {
-                td.appendChild(span.firstChild);
-            }
-        });
-    };
+                        // Insertar nuevo HTML
+                        const span = document.createElement("span");
+                        span.innerHTML = nuevoHtml;
+                        while (span.firstChild) {
+                            td.appendChild(span.firstChild);
+                        }
+                    });
+                };
 
-    // ✅ MutationObserver: detecta cuando Balkan termina de renderizar
-    const searchTable = document.querySelector(".boc-search > div:last-child");
-    if (searchTable) {
-        const observer = new MutationObserver(() => {
-            observer.disconnect(); // Solo ejecutar una vez
-            procesarFilas();
-        });
-        observer.observe(searchTable, { childList: true, subtree: true });
-    }
-    
-    // Fallback con timeout por si el observer no detecta cambios
-    setTimeout(procesarFilas, 200);
-});
+                // ✅ MutationObserver: detecta cuando Balkan termina de renderizar
+                const searchTable = document.querySelector(".boc-search > div:last-child");
+                if (searchTable) {
+                    const observer = new MutationObserver(() => {
+                        observer.disconnect(); // Solo ejecutar una vez
+                        procesarFilas();
+                    });
+                    observer.observe(searchTable, { childList: true, subtree: true });
+                }
+                
+                // Fallback con timeout por si el observer no detecta cambios
+                setTimeout(procesarFilas, 200);
+            });
+
             const menuElement = this.element.querySelector("[data-ctrl-menu]"); // Las 3 rayitas
             if (searchElement && menuElement && searchInput) {
               // 2. Crear nuestro nuevo icono (la lupa)
@@ -3651,6 +4040,25 @@ chart.searchUI.input.addEventListener("input", function (e) {
                 "onInit: No se pudieron encontrar los elementos de la UI de Balkan (search, menu, input).",
               );
             }
+
+            // Event Listener para botones de foco
+            this.element.addEventListener("mousedown", function(e) {
+                const focusBtn = e.target.closest("[data-focus-btn]");
+                if (focusBtn) {
+                    e.stopImmediatePropagation(); // Detiene TODOS los listeners
+                    e.preventDefault();
+                    
+                    const nodeId = focusBtn.getAttribute("data-focus-btn");
+                    
+                    if (focusState.active && focusState.targetNodeId === nodeId) {
+                        desactivarModoFoco();
+                    } else {
+                        activarModoFoco(nodeId);
+                    }
+                    
+                    return false;
+                }
+            }, true); // Captura en fase de captura
 
             // chart.config.scaleInitial = OrgChart.match.boundary;
             // chart._draw(true, OrgChart.action.init, { method: 'fit' });
@@ -3874,7 +4282,6 @@ chart.searchUI.input.addEventListener("input", function (e) {
                     }
                     return "Sin Asignar";
                 })(),
-                //TODO: resolver que para cargos me deje buscar una persona y me lleve a su nodo de cargo
 
                 // ✅ Índice completo para búsqueda (todos los nombres, sin truncar)
                 searchIndex: (() => {

@@ -1303,6 +1303,15 @@ div[data-ctrl-search] {
   stroke: #F57C00 !important;
   stroke-width: 4px !important;
 }
+/* Poner en gris los selectores nativos cuando están deshabilitados (Ej. Modo) */
+#modo-select:disabled,
+.control-select:disabled {
+    background-color: #e9ecef !important;
+    color: #888888 !important;
+    cursor: not-allowed !important;
+    border-color: #cccccc !important;
+    opacity: 0.7;
+}
 
 /* ==========================================================================
   Colores para las líneas de negocio
@@ -1386,4 +1395,78 @@ div[data-ctrl-search] {
 [data-n-id="GRP_MACRO_DERIVADOS"] rect {
     stroke: #e9dc21 !important;
     fill: #e9dc21 !important;
+}
+
+/* =======================================================
+   ESTILOS DEL MODO FOCO (SPOTLIGHT)
+   ======================================================= */
+
+/* 1. Fondo sutil para el contenedor principal cuando hay un foco activo */
+#tree-container.focus-mode-active {    
+    background-color: #fff8f0 !important; 
+    transition: background-color 0.3s ease;
+}
+
+/* 2. Ocultar por defecto TODOS los botones de lupa cuando el foco está activo */
+#tree-container.focus-mode-active [data-focus-btn] {    
+    display: none;
+}
+
+/* 3. Mostrar ÚNICAMENTE el botón del nodo específico que tiene el foco */
+#tree-container.focus-mode-active .focused-node [data-focus-btn] {    
+    display: block;
+}
+
+/* 4. Cambiar el fondo de ESE botón a Rojo para indicar "Cerrar" */
+#tree-container.focus-mode-active .focused-node [data-focus-btn] rect {    
+    fill: #E74C3C !important;
+    transition: fill 0.3s ease;
+}
+
+/* 5. Rotar las líneas del botón para formar una 'X'.
+   Como el SVG mide 24x24, su centro local exacto es 12px 12px */
+#tree-container.focus-mode-active .focused-node [data-focus-btn] line {    
+    transform-origin: 12px 12px; 
+    transform: rotate(45deg);    
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Tooltip que aparece al hacer hover sobre cualquier nodo en modo foco */
+/* Tooltip que aparece en modo foco */
+#tree-container.focus-mode-active::before {
+    content: "🎯 Modo Foco Activo - Click en el botón rojo ⊕ para salir";
+    position: fixed;
+    top: 90px; /* Ajustado para que no choque con filtros */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #F57C00;
+    color: white;
+    padding: 10px 20px; /* Más padding */
+    border-radius: 25px; /* Más redondeado */
+    font-size: 13px; /* Un poco más grande */
+    font-weight: bold;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(245, 124, 0, 0.3); /* Sombra naranja */
+    pointer-events: none;
+    animation: slideDown 0.3s ease-out;
+}
+
+/* Ajustar en móviles */
+@media (max-width: 768px) {
+    #tree-container.focus-mode-active::before {
+        top: 70px;
+        font-size: 11px;
+        padding: 8px 16px;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
 }
