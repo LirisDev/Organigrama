@@ -813,22 +813,25 @@
 
       /* FUNCION PARA ITERAR AL MOMENTO DE COLAPSAR NODOS */
       function iterate(c, n, collapseIds, excludeId) {
-            const isFantasma = n.tags && n.tags.includes("fantasma");
-    
-    // El fantasma no se colapsa, pero SÍ se itera su descendencia
-    if (excludeId != n.id && !isFantasma) {
-        collapseIds.push(n.id);
-    }
+        if (!n) return; // Validación de seguridad
+
+        const isFantasma = n.tags && n.tags.includes("fantasma");
+  
+        // 1. Marcar el nodo actual para colapsar (si no es el que excluímos ni un fantasma)
+        if (excludeId != n.id && !isFantasma) {
+            collapseIds.push(n.id);
+        }
 
         // if (excludeId != n.id) {
         //   collapseIds.push(n.id);
         // }
+        // 2. Recorrer los hijos directos "normales"
         if (n.childrenIds && n.childrenIds.length > 0) {
           for (var i = 0; i < n.childrenIds.length; i++) {
             //iterate(c, c.getNode(n.childrenIds[i]), collapseIds, excludeId);
             const child = c.getNode(n.childrenIds[i]);
             
-            // ← NUEVO: Si el hijo es fantasma, agregar SUS hijos explícitamente
+            // Si el hijo es fantasma, agregar SUS hijos explícitamente
             if (isFantasma && child) {
                 iterate(c, child, collapseIds, excludeId);
             } else {
@@ -836,6 +839,19 @@
             }
 
           }
+        }
+        // 3. LA NOVEDAD: Si este nodo es un "grupo", buscar a todos los que viven adentro (stpid)
+        if (n.tags && n.tags.includes("group")) {
+            // Recorrer TODOS los nodos del gráfico buscando a los habitantes de esta caja
+            c.config.nodes.forEach(potencialHabitante => {
+                if (potencialHabitante.stpid === n.id) {
+                    const habitanteNodo = c.getNode(potencialHabitante.id);
+                    if (habitanteNodo) {
+                        // Si encontramos un habitante, ¡le aplicamos la misma lógica recursiva!
+                        iterate(c, habitanteNodo, collapseIds, excludeId);
+                    }
+                }
+            });
         }
       }
 
@@ -1316,14 +1332,14 @@
             },300 );
 
           // 3. Configurar expansión total (queremos ver todo el árbol del nodo)
-          chart.config.expand = {
-              nodes: Array.from(arbolFoco.keys()),
-              allChildren: true
-          };
-          chart.config.collapse = {
-              level: 99, // No colapsar nada
-              allChildren: false
-          };
+          // chart.config.expand = {
+          //     nodes: Array.from(arbolFoco.keys()),
+          //     allChildren: false
+          // };
+          // chart.config.collapse = {
+          //     level: 99, // No colapsar nada
+          //     allChildren: false
+          // };
           
           // 4. Activar bandera CSS en el contenedor principal para ocultar los botones de los demás
           document.getElementById("tree").classList.add("foco-activo");
@@ -1633,7 +1649,7 @@
           // const areaDeEsteMacro = getAreaDeMacro(macro.id);
           // if (!esTodasAreas && areaFiltro !== areaDeEsteMacro) return;
 
-          // // --- NUEVO: ¿Este Macro Grupo contiene la Línea elegida? ---
+          // // ¿Este Macro Grupo contiene la Línea elegida? ---
           // const contieneLaLinea = macro.subgrupos.includes(lineaFiltro);
           // if (!esTodasLineas && !contieneLaLinea) return; // Ignoramos la caja entera
 
@@ -1719,7 +1735,7 @@
               });
               
               if (perteneceAOtraDivision) return false;
-              return true; // ✅ AGREGAR ESTO
+              return true;
             };
 
             // Traemos hijos de Santiago (Operativos) y los colgamos del Clon Macro
@@ -1803,8 +1819,6 @@
 
                       // CAMBIOS CRÍTICOS AQUÍ:
                       delete nodoGerente.state; // Eliminar cualquier estado previo
-                      nodoGerente.collapsed = false; // Forzar expandido
-                      nodoGerente.min = false; // No minimizado
                       
                       nodesToRender.set(idGerenteLineaVisual, nodoGerente);
 
@@ -1954,11 +1968,6 @@
 
         // console.log("📊 nodesToRender.size:", nodesToRender.size);
 
-        // sourceMap.forEach((node) => {
-        //     if (node.pid === "12") {
-        //         console.log(`Hijo de Santiago: ${node.id} - ${node.nombre} - linea: ${node.lineaNegocio} - pasaFiltro: ${(node.lineaNegocio || "").toUpperCase().trim() === "CARNICOS"}`);
-        //     }
-        // });
         // Disparar renderizado final
         cargarYFinalizar(nodesToRender);
       }
@@ -1983,10 +1992,6 @@
         // ✅ DETECTAR MODO
         const currentMode = document.getElementById("modo-select").value;
         const esCargo = currentMode === "Cargo";
-        // if (currentMode === "Cargo") {
-        //     const virtuales = allCargoNodes;
-        //     finalArray = [...finalArray, ...virtuales];
-        // }
 
         finalArray.forEach((node) => {
             if (node.tags && (node.tags.includes("group") || node.tags.includes("fantasma"))) return;
@@ -2032,7 +2037,7 @@
             "GRP_MACRO_DERIVADOS",
             "GRP_MACRO_INMOBILIARIA",
             "GRP_MACRO_RETAIL",
-            "GRP_CARNICERIA",
+            // "GRP_CARNICERIA",
             "GRP_PECUARIOS",
             "GRP_CARNICOS",
             "GRP_DERIVADOS",
@@ -2044,25 +2049,14 @@
         // AGREGAR TODOS LOS FANTASMAS DINÁMICAMENTE
         finalArray.forEach(node => {
             if (node.tags && node.tags.includes("fantasma")) {
+                if (String(node.id).includes("CARNICERIA") && lineaFiltro !== "CARNICERIA") {
+                    return; 
+                }
                 nodosAExpandir.push(node.id);
-                // console.log("🔓 Agregando fantasma a expansión:", node.id);
             }
         });
 
         // 🧠 EXCEPCIÓN VIP EXCLUSIVA PARA CARNICERÍA
-        if (lineaFiltro === "CARNICERIA") {
-            const configActiva = esCargo ? CABEZAS_NEGOCIO_CARGO : CABEZAS_NEGOCIO_TEMP;
-            const idOmar = configActiva["CARNICERIA"]?.id;
-            const idSantiago = configActiva["CARNICOS"]?.id;
-            
-            finalArray.forEach(n => {
-                if (n.codPosicion === idOmar || String(n.id).includes(idOmar) || String(n.id).includes(`HEAD_LINEA_GRP_CARNICOS_${idSantiago}`)) {
-                    nodosAExpandir.push(n.id);
-                }
-            });
-        }
-        
-        // EXCEPCIÓN VIP DINÁMICA PARA EL FILTRO ACTIVO (¡EL CAMBIO CLAVE!)
         // Si hay un filtro específico (como 'PECUARIOS' o 'GRANJAS AVÍCOLAS'), forzamos su nodo de grupo a expandirse.
         if (hayFiltroEspecifico) {
             // El ID del nodo de grupo es GRP_ + el valor del filtro (reemplazando espacios por guiones bajos)
@@ -2070,8 +2064,6 @@
             const grpId = `GRP_${lineaFiltro.replace(/\s+/g, '_')}`;
             const macroGrpId = `GRP_MACRO_${lineaFiltro.replace(/\s+/g, '_')}`;
 
-            console.log(grpId)
-            console.log(macroGrpId)
             // 1. Si es una Línea normal (Ej. PECUARIOS)
             if(finalArray.some(n => n.id === grpId)){
                 nodosAExpandir.push(grpId);
@@ -2099,20 +2091,28 @@
             allChildren: false,
         };
         chart.config.collapse = {
-            level: 1,
+            level: 2,
             allChildren: true,
         };
 
         chart.load(finalArray);
         setTimeout(() => expandirFantasmas(), 10);
-        setTimeout(() => chart.fit(), 50);
+        // setTimeout(() => chart.fit(), 50);
 
         loaderOverlay.classList.remove("visible");
       }
 
+      // REEMPLAZAR FUNCIÓN COMPLETA
       function expandirFantasmas() {
+          const lineaFiltro = ($("#linea-negocio-select").val() || "").toUpperCase().trim();
+          
           const fantasmas = chart.config.nodes
-              .filter(n => n.tags && n.tags.includes("fantasma"))
+              .filter(n => {
+                  if (!n.tags || !n.tags.includes("fantasma")) return false;
+                  // No forzamos la animación si es Carnicería y estamos en la vista general
+                  if (String(n.id).includes("CARNICERIA") && lineaFiltro !== "CARNICERIA") return false;
+                  return true;
+              })
               .map(n => n.id);
           
           if (fantasmas.length === 0) return;
@@ -3483,11 +3483,25 @@
                 // Lógica para abrir grupos automáticamente si el hijo es un fantasma
                 node.childrenIds.forEach((childId) => {
                   const childNode = chart.getNode(childId);
+
+                  // 1. Si el hijo es un fantasma normal
                   if (childNode && childNode.tags.includes("fantasma")) {
                     if (childNode.childrenIds) {
                       idsToShow.push(...childNode.childrenIds);
                     }
                   }
+
+                  if (childNode && childNode.tags && childNode.tags.includes("group")) {
+                      chart.config.nodes.forEach(n => {
+                          if (n.stpid === childId && n.tags && n.tags.includes("fantasma")) {
+                              idsToShow.push(n.id); // Agregamos el fantasma
+                              const ghostInternalNode = chart.getNode(n.id);
+                              if (ghostInternalNode && ghostInternalNode.childrenIds) {
+                                  idsToShow.push(...ghostInternalNode.childrenIds); // Agregamos a la gente de Carnicería
+                              }
+                          }
+                      });
+                  }          
                 });
 
                 chart.expand(nodeId, idsToShow);
@@ -3533,17 +3547,6 @@
           // 9. LÓGICA DE HOVER (INTEGRADA CON TU CÓDIGO)
           // =========================================================
           chart.on("init", function (sender) {
-              // Sin ningún if de isCollapsingAll - esto corre igual en primera carga y en collapseAll
-              const idsToExpand = sender.config.nodes
-                  .filter(n => n.tags && (
-                      n.tags.includes("group") ||
-                      n.tags.includes("head-of-group")
-                  ))
-                  .map(n => n.id);
-
-              if (idsToExpand.length > 0) {
-                  sender.expand(null, idsToExpand);
-              }
           });
           
           function debounce(func, wait) {
@@ -3621,41 +3624,6 @@
           $("#linea-negocio-select").on("change", function () {
             renderOrganigramaGrupos();
           });
-
-          // 1. LISTENER: LÍNEA DE NEGOCIO
-          // $("#linea-negocio-select").on("change", function () {
-          //   const selectedLinea = $(this).val();
-          //   const sourceNodes = document.getElementById("modo-select").value === "Cargo" ? allCargoNodes : allNodes;
-
-          //   // Filtrar nodos de esta Línea
-          //   const nodosDeLinea = sourceNodes.filter((n) => n.lineaNegocio === selectedLinea);
-
-          //   // Poblar Centro de Costos con las opciones VÁLIDAS para esta línea
-          //   const opcionesCostos = populateSelect("centro-costos-select", "centroCosto", nodosDeLinea);
-
-          //   // --- LÓGICA DE SELECCIÓN AUTOMÁTICA ---
-          //   if (opcionesCostos.length > 1) {
-          //       // Hay muchas opciones -> populateSelect agregó "TODOS" -> Lo seleccionamos
-          //       $("#centro-costos-select").val("todos").trigger("change");
-          //   } else if (opcionesCostos.length === 1) {
-          //       // Solo hay 1 opción -> "TODOS" no existe -> Seleccionamos la única
-          //       $("#centro-costos-select").val(opcionesCostos[0]).trigger("change");
-          //   } else {
-          //       $("#centro-costos-select").val(null).trigger("change");
-          //   }
-          // });
-
-          // 1. LISTENER: LÍNEA DE NEGOCIO (El único que importa ahora)
-          // $("#linea-negocio-select").on("change", function () {
-          //   // OCULTAR visualmente los otros selectores
-          //   // Select2 crea un contenedor hermano, así que ocultamos ese contenedor
-          //   $("#centro-costos-select").next(".select2-container").hide();
-          //   $("#proposito-select").next(".select2-container").hide();
-          //   $("#modo-select").next(".select2-container").hide();
-
-          //   // Llamamos a la función constructora
-          //   renderOrganigramaGrupos();
-          // });
 
           // 2. LISTENER: CENTRO DE COSTOS
           $("#centro-costos-select").on("change", function () {
@@ -4099,7 +4067,6 @@
         }
 
         // Esta función repobla y restaura los filtros para la vista de Cargo
-        // Esta función repobla y restaura los filtros para la vista de Cargo
         function poblarYRestaurarFiltrosCargo() {
           const sourceNodes = allCargoNodes;
           console.log("Restaurando filtros para vista Cargo...");
@@ -4307,7 +4274,6 @@
                 })(),
 
                 // ✅ Línea secundaria: primeros 2 nombres + "..." si hay más
-                // ✅ puesto = TODOS los nombres (para búsqueda)
                 puesto: listaEmpleados.length === 0 
                     ? "Sin asignar"
                     : listaEmpleados
