@@ -1301,6 +1301,9 @@
       /**
        * Activa el modo foco para un nodo específico
        */
+/**
+       * Activa el modo foco para un nodo específico
+       */
       function activarModoFoco(nodeId) {
           console.log("🔍 Activando modo foco para:", nodeId);
           // 1. Guardar la foto exacta del organigrama (solo si no estamos ya en foco)
@@ -1331,13 +1334,17 @@
               return;
           }
           
-          // 2. Inyectar el tag "focused-node" al seleccionado (para que el CSS cambie el botón a Rojo/X)
+// 2. Inyectar el tag "focused-node" al seleccionado
           const finalArray = Array.from(arbolFoco.values());
           finalArray.forEach(n => {
               if (!n.tags) n.tags = [];
               if (n.id === nodeId) {
                   n.tags.push("focused-node");
               }
+              // Borramos la basura interna del historial
+              delete n.state;
+              delete n.expanded;
+              delete n.collapsed;
           });
 
           // Agregar clase visual al contenedor
@@ -1349,27 +1356,38 @@
               if (activeBtn) {
                   activeBtn.classList.add("active");
               }
-            },300 );
+            }, 300);
 
-          // 3. Activar bandera CSS en el contenedor principal para ocultar los botones de los demás
+          // 3. Activar bandera CSS en el contenedor principal
           document.getElementById("tree").classList.add("foco-activo");
           
+          // ⭐ APAGAMOS EXPANSIÓN GLOBAL
+          chart.config.expand = { nodes: [], allChildren: false };
+          // Quitamos la regla global de collapse para no confundir al motor
+          chart.config.collapse = null; 
+
           // 4. Cargar el nuevo árbol
           chart.load(finalArray);
           setTimeout(() => expandirFantasmas(), 10);
-          // setTimeout(() => chart.fit(), 150);
-
           
-          // 5. Centrar en el nodo objetivo después de un momento
+          // ⭐ 5. LA CURA DEFINITIVA: FORZAR EL COLAPSO DESPUÉS DE CARGAR
           setTimeout(() => {
-              chart.center(nodeId, { anim: true, duration: 150 }, () => {
-                  console.log("✅ Modo foco activado y centrado");
-                  // Ahora el árbol ya tiene su tamaño final, así que el fit() calculará perfecto.
-                  chart.fit();                  
+              // 1. Obligamos al gráfico a cerrar al nodo objetivo explícitamente.
+              // Le pasamos un arreglo vacío para decirle "no muestres a ninguno de tus hijos".
+              chart.expandCollapse(nodeId, [], chart.getNode(nodeId).childrenIds || [], () => {
+                  
+                  // 2. Una vez que el nodo está cerrado a la fuerza, centramos la cámara.
+                  chart.center(nodeId, { 
+                      anim: true, 
+                      duration: 200, 
+                      parentState: OrgChart.COLLAPSE_PARENT 
+                  }, () => {
+                      console.log("✅ Modo foco activado, colapsado y centrado");
+                      chart.fit(); // Ajustamos la cámara al terminar
+                  });
               });
-          }, 50);
+          }, 50); // Pequeño respiro para que Balkan termine de dibujar
       }
-      
       /**
        * Desactiva el modo foco y restaura la vista anterior
        */
