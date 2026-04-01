@@ -1239,21 +1239,31 @@
           // =========================================================
           function agregarDescendenciaFoco(nodeId) {
               sourceMap.forEach((node) => {
-                  if (node.pid === nodeId && !nodosDelFoco.has(node.id)) {
+                  // 1. RELACIÓN DIRECTA: Si el nodo reporta directamente a este jefe (pid)
+                  // 2. HABITANTES DE CAJA: Si el nodeId es una CAJA, buscamos a los que viven adentro (stpid)
+                  if ((node.pid === nodeId || node.stpid === nodeId) && !nodosDelFoco.has(node.id)) {
                       nodosDelFoco.set(node.id, Object.assign({}, node));
-                      // Recursión para nietos, bisnietos...
+                      // Recursión para nietos, bisnietos, etc.
+                      agregarDescendenciaFoco(node.id);
+                  }
+
+                  // 3. PUENTE UNIVERSAL PARA CLONES Y FANTASMAS:
+                  // Buscamos cualquier nodo visual que sea un "Clon" del empleado actual.
+                  if (String(node.id).endsWith(`_${nodeId}`) && !nodosDelFoco.has(node.id)) {
+                      nodosDelFoco.set(node.id, Object.assign({}, node));
+                      // Recursión para traer a los equipos que cuelgan de este clon
                       agregarDescendenciaFoco(node.id);
                   }
               });
-
-              // 👻 PUENTE HACIA ABAJO: Si el nodo que estamos revisando tiene un clon Fantasma, traemos a sus hijos
-              const posibleFantasmaId = `HEAD_LINEA_GRP_CARNICERIA_${nodeId}`;
-              if (sourceMap.has(posibleFantasmaId) && !nodosDelFoco.has(posibleFantasmaId)) {
-                  const fantasma = sourceMap.get(posibleFantasmaId);
-                  nodosDelFoco.set(fantasma.id, Object.assign({}, fantasma));
-                  agregarDescendenciaFoco(fantasma.id);
-              }
           }
+              // 👻 PUENTE HACIA ABAJO: Si el nodo que estamos revisando tiene un clon Fantasma, traemos a sus hijos
+          //     const posibleFantasmaId = `HEAD_LINEA_GRP_CARNICERIA_${nodeId}`;
+          //     if (sourceMap.has(posibleFantasmaId) && !nodosDelFoco.has(posibleFantasmaId)) {
+          //         const fantasma = sourceMap.get(posibleFantasmaId);
+          //         nodosDelFoco.set(fantasma.id, Object.assign({}, fantasma));
+          //         agregarDescendenciaFoco(fantasma.id);
+          //     }
+          // }
           
           agregarDescendenciaFoco(targetNodeId);
 
@@ -1295,8 +1305,17 @@
           // 1. Guardar la foto exacta del organigrama (solo si no estamos ya en foco)
           if (!focusState.active) {
               focusState.savedNodes = new Map(chart.config.nodes.map(n => [n.id, Object.assign({}, n)]));
-              focusState.savedExpand = Object.assign({}, chart.config.expand);
-              focusState.savedCollapse = Object.assign({}, chart.config.collapse);
+              
+              // Solo guardamos los IDs de los nodos que están abiertos en pantalla
+              let abiertos = [];
+              chart.config.nodes.forEach(n => {
+                  const uiNode = chart.getNode(n.id);
+                  // Si el nodo está en la interfaz y está explícitamente abierto (no colapsado)
+                  if (uiNode && uiNode.collapsed === false) {
+                      abiertos.push(n.id);
+                  }
+              });
+              focusState.nodosAbiertos = abiertos; // Lo guardamos en memoria
           }
           
           focusState.targetNodeId = nodeId;
@@ -1331,31 +1350,23 @@
               }
             },300 );
 
-          // 3. Configurar expansión total (queremos ver todo el árbol del nodo)
-          // chart.config.expand = {
-          //     nodes: Array.from(arbolFoco.keys()),
-          //     allChildren: false
-          // };
-          // chart.config.collapse = {
-          //     level: 99, // No colapsar nada
-          //     allChildren: false
-          // };
-          
-          // 4. Activar bandera CSS en el contenedor principal para ocultar los botones de los demás
+          // 3. Activar bandera CSS en el contenedor principal para ocultar los botones de los demás
           document.getElementById("tree").classList.add("foco-activo");
           
-          // 5. Cargar el nuevo árbol
+          // 4. Cargar el nuevo árbol
           chart.load(finalArray);
           setTimeout(() => expandirFantasmas(), 10);
-          setTimeout(() => chart.fit(), 50);
+          // setTimeout(() => chart.fit(), 150);
 
           
           // 5. Centrar en el nodo objetivo después de un momento
           setTimeout(() => {
-              chart.center(nodeId, { anim: true, duration: 400 }, () => {
-                  console.log("✅ Modo foco activado");
+              chart.center(nodeId, { anim: true, duration: 150 }, () => {
+                  console.log("✅ Modo foco activado y centrado");
+                  // Ahora el árbol ya tiene su tamaño final, así que el fit() calculará perfecto.
+                  chart.fit();                  
               });
-          }, 200);
+          }, 50);
       }
       
       /**
@@ -1365,22 +1376,7 @@
           console.log("🔙 Desactivando modo foco");
           if (!focusState.active) return;
           
-          // 1. Restaurar configuración
-          chart.config.expand = focusState.savedExpand;
-          chart.config.collapse = focusState.savedCollapse;
-          
-          // Deshabilitar filtros
-          habilitarFiltros();
-          
-          // 2. Quitar el tag "focused-node" de nuestro backup para que el botón rojo vuelva a ser naranja
-          const nodosRestaurados = Array.from(focusState.savedNodes.values());
-          nodosRestaurados.forEach(n => {
-              if (n.tags) {
-                  n.tags = n.tags.filter(t => t !== "focused-node");
-              }
-          });
-
-          // Remover clase visual
+          // 1. Limpieza visual (quitamos las clases del modo foco)
           document.getElementById("tree-container").classList.remove("focus-mode-active");
           
           // Remover marca del botón
@@ -1388,28 +1384,31 @@
           if (activeBtn) {
               activeBtn.classList.remove("active");
           }
-
-
-          // 3. Quitar bandera CSS general
           document.getElementById("tree").classList.remove("foco-activo");   
           
-          // 4. Restaurar el mapa a como estaba
-          chart.load(nodosRestaurados);
-          setTimeout(() => expandirFantasmas(), 10);
-          setTimeout(() => chart.fit(), 50);
-
+          habilitarFiltros();
+          
+          // 2. Guardamos el ID para que la cámara no se pierda luego
           const lastFocusId = focusState.targetNodeId;
 
-          // 5. Limpiar variables de estado
+          // 3. APAGAMOS el estado del foco ANTES de recargar
           focusState.active = false;
           focusState.targetNodeId = null;
           focusState.savedNodes = null;
-          focusState.savedExpand = null;
-          focusState.savedCollapse = null;
+          // (No borramos nodosAbiertos todavía, lo necesitamos para el render)
           
+          // Pasar el "borrador" por la base de datos global para quitar botones rojos viejos
+          allNodes.forEach(n => { if (n.tags) n.tags = n.tags.filter(t => t !== "focused-node"); });
+          allCargoNodes.forEach(n => { if (n.tags) n.tags = n.tags.filter(t => t !== "focused-node"); });
+
+          // 4. Mandamos a reconstruir todo el mapa limpio desde cero
+          renderOrganigramaGrupos();
+          
+          // 5. Centramos la cámara y ahora sí limpiamos la foto
           setTimeout(() => {
-              chart.center(lastFocusId, { anim: true, duration: 400 });
-          }, 150);
+              chart.center(lastFocusId, { anim: true, duration: 200 });
+              focusState.nodosAbiertos = []; // Vaciamos la memoria
+          }, 200);
       }
 
       /**
@@ -2082,6 +2081,10 @@
                     nodoCabeza.expanded = true; 
                 }
             }
+        }
+
+        if (focusState && focusState.nodosAbiertos && focusState.nodosAbiertos.length > 0) {
+            nodosAExpandir.push(...focusState.nodosAbiertos);
         }
 
         // ❌ ELIMINAMOS EL allChildren: true. 
@@ -3210,38 +3213,55 @@
                 title: "Colapsar todo",
                 onClick: function () {
                   loaderOverlay.classList.add("visible");
-                  // PASO 1: Cargar array vacío para destruir el árbol interno
-                  chart.config.expand = {
-                      nodes: [
-                          "GRP_CORPORATIVO",
-                          "GRP_MACRO_PECUARIO",
-                          "GRP_MACRO_INDUSTRIAL",
-                          "GRP_MACRO_INMOBILIARIA",
-                          "GRP_MACRO_RETAIL",
-                          "GRP_CARNICERIA",
-                          "GRP_PECUARIOS",
-                          "GRP_CARNICOS",
-                          "GRP_DERIVADOS",
-                          "GRP_BALANCEADO",
-                          "GRP_RETAIL",
-                          "GRP_MARKETING"
-                      ],
-                      allChildren: false,
-                  };
-                  chart.config.collapse = {
-                      level: 1,
-                      allChildren: true,
-                  };
+                  // Verificamos dónde estamos parados
+                  if (focusState && focusState.active) {
+                      // ----------------------------------------------------
+                      // MODO FOCO: Reiniciamos la vista del foco a su estado inicial.
+                      // Esto borra las expansiones manuales dentro del foco sin salir al mapa general
+                      // y SIN sobreescribir la foto original (porque focusState.active ya es true).
+                      // ----------------------------------------------------
+                      activarModoFoco(focusState.targetNodeId);
+                      
+                      setTimeout(() => {
+                          loaderOverlay.classList.remove("visible");
+                      }, 50);
+                  } else {
+                      // ----------------------------------------------------
+                      // MODO NORMAL: Tu lógica original para el organigrama global
+                      // ----------------------------------------------------
+                      // PASO 1: Cargar array vacío para destruir el árbol interno
+                      chart.config.expand = {
+                          nodes: [
+                              "GRP_CORPORATIVO",
+                              "GRP_MACRO_PECUARIO",
+                              "GRP_MACRO_INDUSTRIAL",
+                              "GRP_MACRO_INMOBILIARIA",
+                              "GRP_MACRO_RETAIL",
+                              "GRP_CARNICERIA",
+                              "GRP_PECUARIOS",
+                              "GRP_CARNICOS",
+                              "GRP_DERIVADOS",
+                              "GRP_BALANCEADO",
+                              "GRP_RETAIL",
+                              "GRP_MARKETING"
+                          ],
+                          allChildren: false,
+                      };
+                      chart.config.collapse = {
+                          level: 1,
+                          allChildren: true,
+                      };
 
-                  // PASO 2: Vaciar el chart primero (destruye el árbol interno)
-                  chart.load([]);
-                  
-                  // PASO 3: Después de un tick, recargar con los datos reales
-                  setTimeout(() => {
-                      renderOrganigramaGrupos();
-                  }, 50);
+                      // PASO 2: Vaciar el chart primero (destruye el árbol interno)
+                      chart.load([]);
+                      
+                      // PASO 3: Después de un tick, recargar con los datos reales
+                      setTimeout(() => {
+                          renderOrganigramaGrupos();
+                      }, 50);
+                    }
+                  },
                 },
-              },
               horizontalLayout: {
                 icon: OrgChart.icon.layout_normal(24, 24, "#7A7A7A"), // Puedes usar un icono personalizado o uno existente
                 title: "Horizontal Layout",
@@ -3504,7 +3524,7 @@
                   }          
                 });
 
-                chart.expand(nodeId, idsToShow);
+                chart.expandCollapse(nodeId, idsToShow, []);
               } else {
                 chart.expand(nodeId, "all");
               }
