@@ -1250,9 +1250,10 @@
                   // 3. PUENTE UNIVERSAL PARA CLONES Y FANTASMAS:
                   // Buscamos cualquier nodo visual que sea un "Clon" del empleado actual.
                   if (String(node.id).endsWith(`_${nodeId}`) && !nodosDelFoco.has(node.id)) {
-                      nodosDelFoco.set(node.id, Object.assign({}, node));
-                      // Recursión para traer a los equipos que cuelgan de este clon
-                      agregarDescendenciaFoco(node.id);
+                      if (String(node.id).startsWith("HEAD_")) {
+                          nodosDelFoco.set(node.id, Object.assign({}, node));
+                          agregarDescendenciaFoco(node.id);
+                      }
                   }
               });
           }
