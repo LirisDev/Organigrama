@@ -173,7 +173,7 @@
         BALANCEADO: { id: "00023", order: 2, reportFuncional: "12" }, // reporta al Gerente General  (Santiago Saab - ID "12")
         CARNICERIA: { id: "00097", order: 3, reportFuncional: "12" }, // "00097" o "00003",
         CARNICOS: { id: "00003", order: 4, reportFuncional: "12" },
-        PECUARIOS: { id: "01047", order: 5, reportFuncional: "12" },
+        PECUARIOS: { id: "00003", order: 5, reportFuncional: "12" }, //01047
         DERIVADOS: { id: "01102", order: 6, reportFuncional: "15" }, // reporta al Presidente (Antonio "15")
         MARKETING: { id: "01049", order: 7, reportFuncional: "15" }, // "00671",
         RETAIL: { id: "00671", order: 8, reportFuncional: "15" },
@@ -245,7 +245,7 @@
           BALANCEADO:  { id: "00023", order: 2 },
           CARNICERIA:  { id: "00097", order: 3 },
           CARNICOS:    { id: "00003", order: 4 },
-          PECUARIOS:   { id: "01047", order: 5 },
+          PECUARIOS:   { id: "00003", order: 5 }, //01047
           DERIVADOS:   { id: "01102", order: 6 },
           MARKETING:   { id: "01049", order: 7 },
           RETAIL:      { id: "00671", order: 8 },
@@ -1361,7 +1361,7 @@
           // 3. Activar bandera CSS en el contenedor principal
           document.getElementById("tree").classList.add("foco-activo");
           
-          // ⭐ APAGAMOS EXPANSIÓN GLOBAL
+          // APAGAMOS EXPANSIÓN GLOBAL
           chart.config.expand = { nodes: [], allChildren: false };
           // Quitamos la regla global de collapse para no confundir al motor
           chart.config.collapse = null; 
@@ -1370,7 +1370,7 @@
           chart.load(finalArray);
           setTimeout(() => expandirFantasmas(), 10);
           
-          // ⭐ 5. LA CURA DEFINITIVA: FORZAR EL COLAPSO DESPUÉS DE CARGAR
+          // 5. LA CURA DEFINITIVA: FORZAR EL COLAPSO DESPUÉS DE CARGAR
           setTimeout(() => {
               // 1. Obligamos al gráfico a cerrar al nodo objetivo explícitamente.
               // Le pasamos un arreglo vacío para decirle "no muestres a ninguno de tus hijos".
