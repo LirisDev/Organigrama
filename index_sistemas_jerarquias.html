@@ -174,7 +174,7 @@
         CARNICERIA: { id: "00097", order: 3, reportFuncional: "12" }, // "00097" o "00003",
         CARNICOS: { id: "00003", order: 4, reportFuncional: "12" },
         PECUARIOS: { id: "00003", order: 5, reportFuncional: "12" }, //01047
-        DERIVADOS: { id: "01102", order: 6, reportFuncional: "15" }, // reporta al Presidente (Antonio "15")
+        // DERIVADOS: { id: "01102", order: 6, reportFuncional: "15" }, // reporta al Presidente (Antonio "15")
         MARKETING: { id: "01049", order: 7, reportFuncional: "15" }, // "00671",
         RETAIL: { id: "00671", order: 8, reportFuncional: "15" },
       };
@@ -206,16 +206,23 @@
             "CARNICOS"
           ],
         },
-        DERIVADOS: {
-          id: "GRP_MACRO_DERIVADOS",
-          title: "COMITÉ",
+        // DERIVADOS: {
+        //   id: "GRP_MACRO_DERIVADOS",
+        //   title: "COMITÉ",
+        //   order: 4,
+        //   headId: "01102", // ID de Santiago Saab (Cabeza de esta división)
+        //   subgrupos: [
+        //     // "DERIVADOS",
+        //     // "BALANCEADO",
+        //     // "CARNICOS"
+        //   ],
+        // },
+        RETAIL: {
+          id: "GRP_MACRO_RETAIL",
+          title: "DIVISIÓN COMERCIAL",
           order: 4,
-          headId: "01102", // ID de Santiago Saab (Cabeza de esta división)
-          subgrupos: [
-            // "DERIVADOS",
-            // "BALANCEADO",
-            // "CARNICOS"
-          ],
+          headId: "390", // ID de Juan Jose Hidalgo (Cabeza de esta división)
+          subgrupos: ["RETAIL", "MARKETING"],
         },
         INMOBILIARIA: {
           id: "GRP_MACRO_INMOBILIARIA",
@@ -229,13 +236,6 @@
             // "PECUARIOS",
             // "DERIVADOS",
           ],
-        },
-        RETAIL: {
-          id: "GRP_MACRO_RETAIL",
-          title: "DIVISIÓN COMERCIAL",
-          order: 6,
-          headId: "390", // ID de Juan Jose Hidalgo (Cabeza de esta división)
-          subgrupos: ["RETAIL", "MARKETING"],
         },
       };
 
@@ -467,7 +467,9 @@
         const isVacant = personData.tags && personData.tags.includes("vacante");
 
         this.nameEl.textContent = personData.nombre;
-        this.puestoEl.textContent = personData.puesto;
+        // this.puestoEl.textContent = personData.puesto;
+        this.puestoEl.innerHTML = personData.puesto;
+        
 
         // --- Lógica de la imagen (corregida para el bug del "flash") ---
         // 1. Configura la 'src' PRIMERO (mientras sigue oculto)
@@ -1607,7 +1609,8 @@
 
               // Santiago (ID 12) tiene linea "CORPORATIVO", así que él SÍ pasa.
               // Juan José tiene linea "NEGOCIO RETAIL" (o similar), así que él NO pasa.
-              if (lineaNode !== "CORPORATIVO" || node.puesto === "COMITE" || node.puesto === "COMITE COMITE")
+              // Inlcuimos a la gente de derivados
+              if (lineaNode !==  "CORPORATIVO" && lineaNode !== "DERIVADOS" )       // || node.puesto === "COMITE" || node.puesto === "COMITE COMITE"
                 return;
 
               // ¿Es este nodo una Cabeza de División (Santiago o Juan Jose)?
@@ -1621,6 +1624,14 @@
               // Agregamos al nodo (Santiago ID 12 entra aquí como hijo normal de Antonio)
               const nodoHijo = Object.assign({}, node);
               //nodoHijo.stpid = groupCorpId; // Va dentro del grupo gris
+
+              if (nodoHijo.puesto === "COMITE" || nodoHijo.puesto === "COMITE COMITE") {
+                  nodoHijo.nombre = "COMITÉ DE PRODUCTOS DERIVADOS";
+                  nodoHijo.displayNombre = "COMITÉ DE PRODUCTOS DERIVADOS"; // Lo dejamos también por si la búsqueda lo usa                  // Inyectamos las 6 líneas separadas por salto de línea (<br/>)
+                  nodoHijo.puesto = "• PRESIDENTE<br/>• GERENTE GENERAL<br/>• GERENTE FINANCIERO<br/>• GERENTE DE PRODUCTOS DERIVADOS<br/>• TRADER SERNIOR DE PRODUCTOS DERIVADOS<br/>• TRADER DE PRODUCTOS DERIVADOS";
+                  if (!nodoHijo.tags) nodoHijo.tags = [];
+                  nodoHijo.tags.push("comite"); // Esta etiqueta activa el cuadro más alto
+              }
 
               // IMPORTANTE: Si es Santiago, usamos su ID ORIGINAL ("12") aquí arriba.
               // Esto hará que Angie ("pid": "12") se conecte a él automáticamente.
@@ -1687,15 +1698,33 @@
           if (!esTodasLineas && !contieneLaLinea) return; // Ignoramos la caja entera
 
           // 2.1 Crear la Caja del Macro Grupo
+          let pidDelMacro = groupCorpId;
+          let stpidDelMacro = null; // Por defecto las divisiones viven afuera
+
+          // ⭐ MAGIA PARA EL COMITÉ: Lo metemos a la caja del Corporativo
+          if (macro.id === "GRP_MACRO_DERIVADOS") {
+              pidDelMacro = idAntonio; // Reporta directamente a Antonio
+              // stpidDelMacro = groupCorpId;            // Vive físicamente dentro de la caja gris
+          }
           nodesToRender.set(macro.id, {
             id: macro.id,
-            pid: groupCorpId, // Visualmente cuelga del grupo Corp
+            pid: pidDelMacro, 
+            stpid: stpidDelMacro,
             nombre: macro.title,
             cargoPuesto: macro.title, // ✅ AGREGAR
             tags: ["group", "macro-group"],
             templateName: "group",
             order: macro.order,
           });
+          // nodesToRender.set(macro.id, {
+          //   id: macro.id,
+          //   pid: groupCorpId, // Visualmente cuelga del grupo Corp
+          //   nombre: macro.title,
+          //   cargoPuesto: macro.title, // ✅ AGREGAR
+          //   tags: ["group", "macro-group"],
+          //   templateName: "group",
+          //   order: macro.order,
+          // });
 
           // 2.2 Crear la Cabeza Macro (CLON de Santiago)
           const headNodeOriginal = encontrarNodoPorConfig(macro.headId);
@@ -1707,6 +1736,13 @@
 
             headNode.id = idHeadMacroVisual;
             headNode.stpid = macro.id; // Dentro de la caja de color
+
+            // if (macro.id === "GRP_MACRO_DERIVADOS" && idAntonio) {
+            //     headNode.pid = idAntonio;
+            // } else {
+            //     headNode.pid = null; // Las demás cabezas de división son raíces de su propia caja
+            // }
+
             headNode.pid = null; // Raíz visual de esta caja
             headNode.tags = [...(headNode.tags || []), "head-of-group"];
             
@@ -2017,6 +2053,7 @@
             const directos = node._directos || 0;
             const total = node._total || 0;
             const esVacante = node.tags && node.tags.includes("vacante");
+            const esComite = node.tags && node.tags.includes("comite"); // ⭐ Detectamos si es el comité
 
             if (directos > 0) {
                 if (directos === total) {
@@ -2030,6 +2067,7 @@
                 }
             } else {
                 if (esVacante) node.tags.push("vacanteSimple");
+                else if (esComite) node.tags.push("comiteTemplate"); // El comité si no tiene hijos visibles
             }
         });
 
@@ -2966,6 +3004,43 @@
           OrgChart.templates.orange.link_field_0 =
             '<text text-anchor="middle" fill="#F57C00" font-size="10px" x="{x}" y="{y}">{val}</text>';
 
+
+
+
+
+          // --- NUEVO TEMPLATE ESPECIAL PARA EL COMITÉ ---
+          OrgChart.templates.comiteTemplate = Object.assign({}, OrgChart.templates.fichaTemplate);
+          OrgChart.templates.comiteTemplate.size = [250, 160]; // ⭐ Aumentamos la altura total a 180px
+          
+          OrgChart.templates.comiteTemplate.node = 
+              '<rect x="0" y="0" width="250" height="180" fill="url(#fichaGradient)" stroke="#FDBE86" rx="6" ry="6"></rect>' +
+              // ⭐ Ajustamos el trazo naranja izquierdo a la nueva altura (180)
+              '<path d="M0 6 L 0 174 Q 0 180 6 180 L 6 180 Q 0 180 0 174 L 0 6 Q 0 0 6 0 L 6 0 Q 0 0 0 6 Z" fill="#F57C00"></path>';
+          
+          // ⭐ Le damos más altura al contenedor del título (height="50") para que quepan 3 o 4 líneas holgadas
+          OrgChart.templates.comiteTemplate.field_0 = 
+              '<foreignObject x="85" y="15" width="150" height="50">' +
+              '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 13px; font-weight: bold; color: #D35400; line-height: 1.1; text-align: left;">{val}</div></foreignObject>';
+          
+          // ⭐ Bajamos la lista de cargos (cambiamos y="45" a y="65") para que no choque con el título
+          OrgChart.templates.comiteTemplate.field_1 = 
+              '<foreignObject x="85" y="65" width="155" height="90">' +
+              '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 8.5px; color: #555; line-height: 1.2; text-align: left;">{val}</div></foreignObject>';
+
+          // (Opcional pero recomendado) Ajustar el efecto "Ripple" (la onda al hacer clic) al nuevo tamaño
+          OrgChart.templates.comiteTemplate.ripple = {
+            radius: 15,
+            color: "#F57C00",
+            rect: { x: 0, y: 0, width: 250, height: 160, rx: 15, ry: 15 },
+          };
+
+          OrgChart.templates.comiteComplex = Object.assign({}, OrgChart.templates.comiteTemplate);
+          OrgChart.templates.comiteComplex.plus = botonDoble; OrgChart.templates.comiteComplex.minus = botonDoble;
+          OrgChart.templates.comiteGroup = Object.assign({}, OrgChart.templates.comiteTemplate);
+          OrgChart.templates.comiteGroup.plus = botonGrupo; OrgChart.templates.comiteGroup.minus = botonGrupo;
+          OrgChart.templates.comiteSingle = Object.assign({}, OrgChart.templates.comiteTemplate);
+          OrgChart.templates.comiteSingle.plus = botonPersona; OrgChart.templates.comiteSingle.minus = botonPersona;
+
           OrgChart.VERTICAL_CHILDREN_ASSISTANT = true;
 
           // --- 2.1 DEFINIR BINDINGS (MAPEOS) ---
@@ -3095,6 +3170,12 @@
             cargoComplex: { template: "cargoComplex" },
             cargoGroup:   { template: "cargoGroup" },
             cargoSingle:  { template: "cargoSingle" },
+
+            // En tagsConfig, agregar:
+            comiteComplex: { template: "comiteComplex" },
+            comiteGroup:   { template: "comiteGroup" },
+            comiteSingle:  { template: "comiteSingle" },
+            comiteTemplate:{ template: "comiteTemplate" },
 
             // Tag bas"e (se mantiene por si acaso)
             vacanteSimple: { template: "vacanteSimple" }, //template: "vacanteTemplate" },
