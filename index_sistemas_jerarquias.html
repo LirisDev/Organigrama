@@ -2018,13 +2018,13 @@
                 nodosAExpandir.push(antonioParaSlink.id);
             }
             if (finalArray.some(n => n.id === "GRP_RETAIL")) {
-                _slinksManuales.push({ from: antonioParaSlink.id, to: "GRP_RETAIL" });
+                _slinksManuales.push({ from: antonioParaSlink.id, to: "GRP_RETAIL", color: "#27ae60", laneOffset: 40 });
             }
             const idSantiago = "12";
             ["GRP_BALANCEADO", "GRP_CARNICOS", "GRP_PECUARIOS"].forEach(grpId => {
                 if (finalArray.some(n => n.id === grpId)) {
-                    _slinksManuales.push({ from: idSantiago, to: grpId });
-                }
+                    _slinksManuales.push({ from: idSantiago, to: grpId, color: "#5b9bd5", laneOffset: 25 });
+_                }
             });
             // GRP_CARNICERIA: línea visible desde Omar Buritica (pid del grupo ya apunta a él)
             if (finalArray.some(n => n.id === "GRP_CARNICERIA")) {
@@ -3604,13 +3604,10 @@
                   const fy = fromNode.y + fromNode.h;
                   const tx = toNode.x + toNode.w / 2;
                   const ty = toNode.y;
-                  // Carril horizontal justo encima del grupo destino (espacio libre entre filas)
-                  const laneY = ty - 30;
-                  // Path ortogonal: baja desde from → carril → va a X del to → entra al to
+                  const laneY = ty - (link.laneOffset || 30);
+                  const color = link.color || "#b0b0b0";
                   const d = `M ${fx} ${fy} L ${fx} ${laneY} L ${tx} ${laneY} L ${tx} ${ty}`;
-                  // TODO: Estilo de línea — cambiar stroke para color, stroke-width para grosor,
-                  //       stroke-opacity para transparencia, añadir stroke-dasharray="7,4" para punteada.
-                  svgLines += `<path d="${d}" fill="none" stroke="#b0b0b0" stroke-width="1.5" stroke-opacity="0.7" stroke-linecap="round" stroke-linejoin="round"/>`;
+                  svgLines += `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.8" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/>`;
               });
               // Prepend: líneas quedan detrás de los nodos
               args.content = svgLines + args.content;
