@@ -1329,6 +1329,12 @@ div[data-ctrl-search] {
     fill: #2c3e50 !important;
 }
 
+/* INDUSTRIAL — grupo contenedor de Cárnicos y Pecuarios (TODO: renombrar cuando se defina) */
+[data-n-id="GRP_INDUSTRIAL"] rect {
+    stroke: #7f8c8d !important;
+    fill: #7f8c8d !important;
+}
+
 /* BALANCEADO (Naranja) */
 [data-n-id="GRP_BALANCEADO"] rect {
     stroke: #88470e !important;

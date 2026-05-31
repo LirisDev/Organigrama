@@ -1678,6 +1678,20 @@
         // Se mantiene: cerca eléctrica, ghost de Carnicería, soporte CARNICOS→CARNICERIA,
         //              clones de gerente HEAD_LINEA_*, toda la lógica anti-duplicación.
         // =========================================================
+
+        // Grupo contenedor de CARNICOS y PECUARIOS
+        // TODO: Cambiar nombre del grupo cuando se defina
+        nodesToRender.set("GRP_INDUSTRIAL", {
+            id: "GRP_INDUSTRIAL",
+            pid: groupCorpId,
+            nombre: "", //NOMBRE
+            cargoPuesto: "", //NOMBRE
+            title: "División",
+            tags: ["group", "groupNoLink"],
+            templateName: "groupNoLink",
+            order: 3,
+        });
+
         Object.entries(CABEZAS_ACTIVAS).forEach(([nombreLinea, configLinea]) => {
           // CORPORATIVO ya fue renderizado arriba
           if (nombreLinea === "CORPORATIVO") return;
@@ -1717,9 +1731,12 @@
               ? ["group", tagLinea, "groupNoLink"]
               : ["group", tagLinea];
 
+          const esSubgrupoIndustrial = ["CARNICOS", "PECUARIOS"].includes(nombreLinea);
           nodesToRender.set(subGroupId, {
             id: subGroupId,
-            pid: pidDelGrupo,
+            ...(esSubgrupoIndustrial
+                ? { stpid: "GRP_INDUSTRIAL" }
+                : { pid: pidDelGrupo }),
             nombre: obtenerAliasLinea(nombreLinea),
             cargoPuesto: obtenerAliasLinea(nombreLinea),
             title: "Línea de Negocio",
@@ -1739,8 +1756,9 @@
               nodoGerente.stpid = subGroupId;
               nodoGerente.pid = null;
 
-              if (nombreLinea === "CARNICERIA") {
-                // Nodo fantasma: clon invisible de Omar dentro de la caja CARNICERIA
+              // CARNICERIA, CARNICOS, PECUARIOS: cabeza invisible (nodo fantasma sin ancho ni alto)
+              const esFantasma = ["CARNICERIA", "CARNICOS", "PECUARIOS"].includes(nombreLinea);
+              if (esFantasma) {
                 nodoGerente.tags = ["fantasma"];
                 nodoGerente.template = "ghost";
                 nodoGerente.displayNombre = "";
@@ -1748,8 +1766,12 @@
                 nodoGerente.puesto = "";
                 nodoGerente.img = "";
                 delete nodoGerente.state;
-                nodesToRender.set(idGerenteLineaVisual, nodoGerente);
+              } else {
+                nodoGerente.displayNombre = `${gerenteOriginal.nombre} (${obtenerAliasLinea(nombreLinea)})`;
+              }
+              nodesToRender.set(idGerenteLineaVisual, nodoGerente);
 
+              if (nombreLinea === "CARNICERIA") {
                 const filtroLinea = (nodo) => {
                   const lineaHijo = (nodo.lineaNegocio || "").toUpperCase().trim();
                   return lineaHijo === "CARNICERIA" || String(nodo.id).includes("CLON_");
@@ -1757,9 +1779,6 @@
                 agregarDescendencia(idGerenteLineaVisual, gerenteOriginal.id, nodesToRender, sourceMap, [], filtroLinea);
 
               } else {
-                nodoGerente.displayNombre = `${gerenteOriginal.nombre} (${obtenerAliasLinea(nombreLinea)})`;
-                nodesToRender.set(idGerenteLineaVisual, nodoGerente);
-
                 // 🛡️ CERCA ELÉCTRICA: excluir empleados de Carnicería de la caja de Cárnicos
                 let idsExcluir = [];
                 if (nombreLinea === "CARNICOS") {
@@ -1956,11 +1975,12 @@
         // TODO: Borrar IDs comentados si se confirma que el diseño plano es definitivo.
         const nodosAExpandir = [
             "GRP_CORPORATIVO",
-            // "GRP_MACRO_PECUARIO",    // TODO: eliminar, no existe en diseño plano
-            // "GRP_MACRO_INDUSTRIAL",  // TODO: eliminar, no existe en diseño plano
-            // "GRP_MACRO_DERIVADOS",   // TODO: eliminar, no existe en diseño plano
-            // "GRP_MACRO_INMOBILIARIA",// TODO: eliminar, no existe en diseño plano
-            // "GRP_MACRO_RETAIL",      // TODO: eliminar, no existe en diseño plano
+            // "GRP_MACRO_PECUARIO",    // Eliminar, no existe en diseño plano
+            // "GRP_MACRO_INDUSTRIAL",  // Eliminar, no existe en diseño plano
+            // "GRP_MACRO_DERIVADOS",   // Eliminar, no existe en diseño plano
+            // "GRP_MACRO_INMOBILIARIA",// Eliminar, no existe en diseño plano
+            // "GRP_MACRO_RETAIL",      // Eliminar, no existe en diseño plano
+            "GRP_INDUSTRIAL",
             "GRP_PECUARIOS",
             "GRP_CARNICOS",
             "GRP_DERIVADOS",
@@ -2023,9 +2043,19 @@
             const idSantiago = "12";
             ["GRP_BALANCEADO", "GRP_CARNICOS", "GRP_PECUARIOS"].forEach(grpId => {
                 if (finalArray.some(n => n.id === grpId)) {
-                    _slinksManuales.push({ from: idSantiago, to: grpId, color: "#5b9bd5", laneOffset: 25 });
-              }
+                    _slinksManuales.push({ from: idSantiago, to: grpId, color: "#E74C3C", laneOffset: 25 });
+                }
             });
+            // TODO: Evaluar si conviene apuntar el slink al HEAD fantasma (en vez del GRP)
+            // para que la línea roja entre al grupo y se una visualmente con las líneas internas.
+            // Opción A (actual): to: grpId → línea termina en borde superior del grupo
+            // Opción B (probar): buscar HEAD_LINEA_${grpId}_ en finalArray y usar ese id como to
+            //   → línea entra al grupo y termina en el fantasma, donde arrancan las líneas grises
+            // ["GRP_CARNICOS", "GRP_PECUARIOS"].forEach(grpId => {
+            //     const headPrefix = `HEAD_LINEA_${grpId}_`;
+            //     const headNode = finalArray.find(n => String(n.id).startsWith(headPrefix));
+            //     if (headNode) toId = headNode.id; // usar en el push de _slinksManuales
+            // });
             // GRP_CARNICERIA: línea visible desde Omar Buritica (pid del grupo ya apunta a él)
             if (finalArray.some(n => n.id === "GRP_CARNICERIA")) {
                 const omarNode = finalArray.find(n =>
@@ -2086,6 +2116,7 @@
                       chart.expand(ghostId, ghostNode.childrenIds);
                   }
               });
+              setTimeout(() => chart.fit(), 200);
           });
       }
       // Función recursiva para agregar hijos con filtros
@@ -2863,7 +2894,7 @@
           OrgChart.templates.ghost.field_3 = "";
 
           // TEMPLATE GROUP — sin línea al padre y sin botón +/- en GRP_CORPORATIVO
-          // TODO: Para restaurar el botón +/- del grupo corporativo, eliminar las dos líneas de plus/minus
+          // Para restaurar el botón +/- del grupo corporativo, eliminar las dos líneas de plus/minus
           OrgChart.templates.group.link = "";
           OrgChart.templates.group.nodeMenuButton = "";
           OrgChart.templates.group.plus = "";
@@ -3415,6 +3446,21 @@
           //   }
           // });
 
+          // Colapsa/expande CARNICOS y PECUARIOS al hacer click en su grupo
+          const GRUPOS_COLAPSABLES = ["GRP_CARNICOS", "GRP_PECUARIOS"];
+          chart.on("click", function (sender, args) {
+            if (!GRUPOS_COLAPSABLES.includes(args.node.id)) return;
+            if (args.node.min) {
+              sender.maximize(args.node.id);
+              chart.fit();
+            } else {
+              sender.minimize(args.node.id);
+              chart.setScale(1);
+              chart.center(args.node.id, null, true);
+            }
+            return false;
+          });
+          
           //FUNCIONES PARA QUE LA IA UTILICE
           // TODO: REVISAR QUE FUNCIONES SERÍAN UTILES IMPLEMENTAR
           chart.onAIToolCalls(function (args) {
