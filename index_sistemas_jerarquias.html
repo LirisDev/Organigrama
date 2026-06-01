@@ -145,7 +145,7 @@
       let chart = null;
       let allNodes = []; // Aquí guardaremos todos los nodos (Estos son los nodos de "Persona")
       let _slinksManuales = []; // Líneas de reporte visual (inyectadas en render, no via chart.config.slinks)
-      let corporativoExpandido = false; // Líneas de negocio ocultas hasta expandir CORPORATIVO
+      let corporativoExpandido = true; // Líneas de negocio visibles desde el inicio
       let antonioId = null; // ID del nodo Presidente (se setea en cargarYFinalizar)
       let allCargoNodes = []; // Aquí guardaremos los nodos de "Cargo"
       let isCargoDataReady = false; // Bandera para saber si ya cargamos la data de cargo
@@ -2907,6 +2907,7 @@
           OrgChart.templates.group.min.link = "";
           OrgChart.templates.group.min.imgs = `{val}`;
           OrgChart.templates.group.min.img_0 = ``;
+          OrgChart.templates.group.min.size = [310, 190];
 
           // =========================================================
           // GLOBO CONTADOR (ESQUINA SUPERIOR DERECHA DINÁMICA)
@@ -3423,7 +3424,7 @@
 
               const count = personIds.length;
               if (count === 0) { args.value = ""; return; }
-              const imgW = 36, gap = 4;
+              const imgW = 40, gap = 4;
               const total = count * imgW + (count - 1) * gap;
               const startX = args.node.w / 2 - total / 2;
               const imgY = args.node.h / 2 - imgW / 2;
@@ -3762,7 +3763,7 @@
                   const personIds = [];
                   const allConfigNodes = chart.config.nodes || [];
                   function collectPeople(nodeId) {
-                      if (personIds.length >= 5) return;
+                      if (personIds.length >= 6) return;
                       const sid = String(nodeId);
                       const data = sender.get(nodeId);
                       if (!data) return;
@@ -3782,17 +3783,30 @@
                       .filter(function(n) { return String(n.stpid) === groupId || String(n.pid) === groupId; })
                       .forEach(function(n) { collectPeople(n.id); });
 
-                  const pCount = Math.min(personIds.length, 5);
+                  const pCount = Math.min(personIds.length, 6);
                   if (pCount === 0) return;
-                  const imgW = 38, gap = 4;
-                  const totalW = pCount * imgW + (pCount - 1) * gap;
-                  const startX = grpNode.x + grpNode.w / 2 - totalW / 2;
-                  const imgY = grpNode.y + grpNode.h / 2 - imgW / 2;
-                  // Definir clipPaths con coordenadas absolutas (userSpaceOnUse)
+                  const imgW = 55, gap = 8;
+                  // Grid 3+3: fila 1 = primeras 3, fila 2 = restantes centradas
+                  const row1 = Math.min(pCount, 3);
+                  const row2 = pCount - row1;
+                  const totalRows = row2 > 0 ? 2 : 1;
+                  const totalH = totalRows * imgW + (totalRows - 1) * gap;
+                  // Centrar entre el texto del título (~40px desde top) y el borde inferior
+                  const titleH = 20;
+                  const areaTop = grpNode.y + titleH;
+                  const areaH = grpNode.h - titleH;
+                  const baseY = areaTop + areaH / 2 - totalH / 2;
+                  const row1W = row1 * imgW + (row1 - 1) * gap;
+                  const row1X = grpNode.x + grpNode.w / 2 - row1W / 2;
+                  const row2W = row2 * imgW + (row2 - 1) * gap;
+                  const row2X = grpNode.x + grpNode.w / 2 - row2W / 2;
                   let defs = `<defs>`;
                   for (let i = 0; i < pCount; i++) {
-                      const cx = startX + i * (imgW + gap) + imgW / 2;
-                      const cy = imgY + imgW / 2;
+                      const row = i < row1 ? 0 : 1;
+                      const col = i < row1 ? i : i - row1;
+                      const startX = row === 0 ? row1X : row2X;
+                      const cx = startX + col * (imgW + gap) + imgW / 2;
+                      const cy = baseY + row * (imgW + gap) + imgW / 2;
                       defs += `<clipPath id="cpgrp-${groupId}-${i}"><circle cx="${cx}" cy="${cy}" r="${imgW / 2}"/></clipPath>`;
                   }
                   defs += `</defs>`;
@@ -3800,9 +3814,13 @@
                   for (let i = 0; i < pCount; i++) {
                       const data = sender.get(personIds[i]);
                       if (data && data.img) {
-                          const x = startX + i * (imgW + gap);
+                          const row = i < row1 ? 0 : 1;
+                          const col = i < row1 ? i : i - row1;
+                          const startX = row === 0 ? row1X : row2X;
+                          const x = startX + col * (imgW + gap);
+                          const y = baseY + row * (imgW + gap);
                           args.content +=
-                              `<image href="${data.img}" x="${x}" y="${imgY}" ` +
+                              `<image href="${data.img}" x="${x}" y="${y}" ` +
                               `width="${imgW}" height="${imgW}" preserveAspectRatio="xMidYMid slice" ` +
                               `clip-path="url(#cpgrp-${groupId}-${i})"/>`;
                       }
