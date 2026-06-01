@@ -3483,11 +3483,8 @@
             if (!GRUPOS_COLAPSABLES.includes(args.node.id)) return;
             if (args.node.min) {
               sender.maximize(args.node.id);
-              chart.fit();
             } else {
               sender.minimize(args.node.id);
-              chart.setScale(1);
-              chart.center(args.node.id, null, true);
             }
             return false;
           });
@@ -3553,8 +3550,8 @@
 
             // Sincronizar líneas de negocio con expand/collapse de Antonio (Presidente)
             if (antonioId && String(nodeId) === antonioId) {
-                corporativoExpandido = !args.collapsing; // expanding → true, collapsing → false
-                renderOrganigramaGrupos();
+                corporativoExpandido = !args.collapsing;
+                setTimeout(() => renderOrganigramaGrupos(), 0);
                 return false;
             }
 
@@ -3692,7 +3689,7 @@
                           if (!tn || (grpN && grpN.min)) {
                               tn = grpN;
                               // HEAD is ~60px inside group top; collapsed GRP uses small offset to match
-                              offset = link.fallbackLaneOffset != null ? link.fallbackLaneOffset : 10;
+                              offset = link.fallbackLaneOffset != null ? link.fallbackLaneOffset : 12;
                           }
                       }
                       return { tn, offset };
@@ -3727,12 +3724,12 @@
                           const grpCorp = sender.getNode("GRP_CORPORATIVO");
                           const rightX = grpCorp ? grpCorp.x + grpCorp.w + 30 : fx + 200;
                           const dropY = fy + 55;
-                          if (tx < rightX) {
-                              // RETAIL a la izquierda del punto de salida — desvío C: derecha, baja, izquierda a RETAIL
-                              d = `M ${fx} ${fy} L ${fx} ${dropY} L ${rightX} ${dropY} L ${rightX} ${laneY} L ${tx} ${laneY} L ${tx} ${ty}`;
+                          if (tx >= rightX) {
+                              // RETAIL a la derecha del borde — L-shape: baja a dropY, va directo a tx, baja a RETAIL
+                              d = `M ${fx} ${fy} L ${fx} ${dropY} L ${tx} ${dropY} L ${tx} ${ty}`;
                           } else {
-                              // RETAIL a la derecha del punto de salida — va recto, horizontal hasta tx, baja sola
-                              d = `M ${fx} ${fy} L ${fx} ${laneY} L ${tx} ${laneY} L ${tx} ${ty}`;
+                              // RETAIL debajo — C-shape: sale derecha a rightX, baja, regresa izquierda a RETAIL
+                              d = `M ${fx} ${fy} L ${fx} ${dropY} L ${rightX} ${dropY} L ${rightX} ${laneY} L ${tx} ${laneY} L ${tx} ${ty}`;
                           }
                       } else {
                           d = `M ${fx} ${fy} L ${fx} ${laneY} L ${tx} ${laneY} L ${tx} ${ty}`;
