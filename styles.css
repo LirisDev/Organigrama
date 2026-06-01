@@ -250,9 +250,7 @@ div.boc-node.level-6[data-n-id] {
 }
 
 /* Contenedor para los botones personalizados (sin cambios) */
-.boc-edit-form .boc-edit-form-buttons {
-  /* ... */
-}
+
 
 /* Estilo base para los botones personalizados */
 .boc-edit-form button.details-button {
@@ -749,11 +747,11 @@ div.boc-node.level-6[data-n-id] {
 }
 
 /* Ocultar botones de manuales por defecto (se mostrarán con JS si hay data) */
-#btn-manual-funciones,
+/*  #btn-manual-funciones,
 #btn-manual-procedimientos,
 #btn-manual-usuario {
-  /* display: none; */
-}
+  display: none; 
+} */
 
 /* Estilos para la lista de empleados en el modal (Modo Cargo) */
 .details-employee-list {

@@ -1679,19 +1679,6 @@
         //              clones de gerente HEAD_LINEA_*, toda la lógica anti-duplicación.
         // =========================================================
 
-        // Grupo contenedor de CARNICOS y PECUARIOS
-        // TODO: Cambiar nombre del grupo cuando se defina
-        nodesToRender.set("GRP_INDUSTRIAL", {
-            id: "GRP_INDUSTRIAL",
-            pid: groupCorpId,
-            nombre: "", //NOMBRE
-            cargoPuesto: "", //NOMBRE
-            title: "División",
-            tags: ["group", "groupNoLink"],
-            templateName: "groupNoLink",
-            order: 3,
-        });
-
         Object.entries(CABEZAS_ACTIVAS).forEach(([nombreLinea, configLinea]) => {
           // CORPORATIVO ya fue renderizado arriba
           if (nombreLinea === "CORPORATIVO") return;
@@ -1731,12 +1718,9 @@
               ? ["group", tagLinea, "groupNoLink"]
               : ["group", tagLinea];
 
-          const esSubgrupoIndustrial = ["CARNICOS", "PECUARIOS"].includes(nombreLinea);
           nodesToRender.set(subGroupId, {
             id: subGroupId,
-            ...(esSubgrupoIndustrial
-                ? { stpid: "GRP_INDUSTRIAL" }
-                : { pid: pidDelGrupo }),
+            pid: pidDelGrupo,
             nombre: obtenerAliasLinea(nombreLinea),
             cargoPuesto: obtenerAliasLinea(nombreLinea),
             title: "Línea de Negocio",
@@ -1980,7 +1964,6 @@
             // "GRP_MACRO_DERIVADOS",   // Eliminar, no existe en diseño plano
             // "GRP_MACRO_INMOBILIARIA",// Eliminar, no existe en diseño plano
             // "GRP_MACRO_RETAIL",      // Eliminar, no existe en diseño plano
-            "GRP_INDUSTRIAL",
             "GRP_PECUARIOS",
             "GRP_CARNICOS",
             "GRP_DERIVADOS",
@@ -3640,22 +3623,44 @@
           // Dibuja líneas de reporte manual (alternativa a chart.config.slinks que crashea)
           // Se PREPEND a args.content para quedar detrás de los nodos
           chart.on("render", function (sender, args) {
-              if (!_slinksManuales || _slinksManuales.length === 0) return;
               let svgLines = "";
-              _slinksManuales.forEach(function(link) {
-                  const fromNode = sender.getNode(link.from);
-                  const toNode = sender.getNode(link.to);
-                  if (!fromNode || !toNode) return;
-                  const fx = fromNode.x + fromNode.w / 2;
-                  const fy = fromNode.y + fromNode.h;
-                  const tx = toNode.x + toNode.w / 2;
-                  const ty = toNode.y;
-                  const laneY = ty - (link.laneOffset || 30);
-                  const color = link.color || "#b0b0b0";
-                  const d = `M ${fx} ${fy} L ${fx} ${laneY} L ${tx} ${laneY} L ${tx} ${ty}`;
-                  svgLines += `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.8" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+              if (_slinksManuales && _slinksManuales.length > 0) {
+                  _slinksManuales.forEach(function(link) {
+                      const fromNode = sender.getNode(link.from);
+                      const toNode = sender.getNode(link.to);
+                      if (!fromNode || !toNode) return;
+                      const fx = fromNode.x + fromNode.w / 2;
+                      const fy = fromNode.y + fromNode.h;
+                      const tx = toNode.x + toNode.w / 2;
+                      const ty = toNode.y;
+                      const laneY = ty - (link.laneOffset || 30);
+                      const color = link.color || "#b0b0b0";
+                      const d = `M ${fx} ${fy} L ${fx} ${laneY} L ${tx} ${laneY} L ${tx} ${ty}`;
+                      svgLines += `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.8" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/>`;
+                  });
+              }
+
+              // Badge contador para CARNICOS y PECUARIOS cuando están minimizados (click en el grupo).
+              // Usa iterate() — maneja stpid + pid, excluye fantasmas y grupos.
+              // Los clones (ej. Andrés Herrera id 9987) suman +1 cada uno por tener id único.
+              const GRUPOS_COLAPSABLES = ["GRP_CARNICOS", "GRP_PECUARIOS"];
+              GRUPOS_COLAPSABLES.forEach(function(groupId) {
+                  const grpNode = sender.getNode(groupId);
+                  if (!grpNode || !grpNode.min) return;
+                  const ids = [];
+                  iterate(sender, grpNode, ids, groupId);
+                  const count = ids.length;
+                  if (count === 0) return;
+                  const bx = grpNode.x + grpNode.w;
+                  const by = grpNode.y;
+                  args.content +=
+                      `<g transform="translate(${bx},${by})">` +
+                      `<circle r="22" fill="#F57C00" stroke="#ffffff" stroke-width="2.5"/>` +
+                      `<text text-anchor="middle" dominant-baseline="central" fill="#ffffff" style="font-size:13px;font-weight:bold;">${count}</text>` +
+                      `</g>`;
               });
-              // Prepend: líneas quedan detrás de los nodos
+
               args.content = svgLines + args.content;
           });
 
