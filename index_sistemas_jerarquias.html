@@ -250,7 +250,7 @@
           CARNICOS:    { id: "00003", order: 4 },
           PECUARIOS:   { id: "00003", order: 5 }, //01047
           DERIVADOS:   { id: "01102", order: 6 },
-          MARKETING:   { id: "01049", order: 7 },
+          MARKETING:   { id: "01049", order: -1 },
           RETAIL:      { id: "00671", order: 8 },
       };
 
@@ -2070,6 +2070,20 @@
             level: 2,
             allChildren: true,
         };
+
+        // MARKETING izquierda: GRP_MARKETING order:-1, hermanos ordenados por posición en allNodes (orden API)
+        const _retailHead = finalArray.find(n => String(n.id).startsWith("HEAD_LINEA_GRP_RETAIL_"));
+        if (_retailHead) {
+            const _retailSiblings = finalArray.filter(n =>
+                String(n.pid) === String(_retailHead.id) && n.id !== "GRP_MARKETING"
+            );
+            _retailSiblings.sort((a, b) => {
+                const ia = allNodes.findIndex(n => String(n.id) === String(a.id));
+                const ib = allNodes.findIndex(n => String(n.id) === String(b.id));
+                return ia - ib;
+            });
+            _retailSiblings.forEach((n, idx) => { n.order = 100 + idx; });
+        }
 
         chart.load(finalArray);
         setTimeout(() => {
