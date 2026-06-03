@@ -1689,7 +1689,7 @@
                 nodoHijo.nombre = "COMITÉ DE PRODUCTOS DERIVADOS";
                 nodoHijo.displayNombre = "COMITÉ DE PRODUCTOS DERIVADOS"; // Lo dejamos también por si la búsqueda lo usa                  // Inyectamos las 6 líneas separadas por salto de línea (<br/>)
                 nodoHijo.puesto =
-                  "• PRESIDENTE<br/>• GERENTE GENERAL<br/>• GERENTE FINANCIERO<br/>• GERENTE DE PRODUCTOS DERIVADOS<br/>• TRADER SERNIOR DE PRODUCTOS DERIVADOS<br/>• TRADER DE PRODUCTOS DERIVADOS";
+                  "• PRESIDENTE\n• GERENTE GENERAL\n• GERENTE FINANCIERO\n• GERENTE DE PRODUCTOS DERIVADOS\n• TRADER SENIOR DE PRODUCTOS DERIVADOS\n• TRADER DE PRODUCTOS DERIVADOS";
                 if (!nodoHijo.tags) nodoHijo.tags = [];
                 nodoHijo.tags.push("comite"); // activa comiteTemplate (cuadro más alto)
                 nodoHijo.tags.push("left-partner"); // cuelga a la izquierda del Presidente
@@ -3179,9 +3179,11 @@
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 13px; font-weight: bold; color: #D35400; line-height: 1.1; text-align: left;">{val}</div></foreignObject>';
 
           // ⭐ Bajamos la lista de cargos (cambiamos y="45" a y="65") para que no choque con el título
+          // \n + white-space:pre-line — no <br> elements, no bare tags in SVG export
           OrgChart.templates.comiteTemplate.field_1 =
             '<foreignObject x="85" y="65" width="155" height="90">' +
-            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 8.5px; color: #555; line-height: 1.2; text-align: left;">{val}</div></foreignObject>';
+            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 8.5px; color: #555; line-height: 1.2; text-align: left; white-space: pre-line; word-wrap: break-word; overflow: hidden; height: 90px;">{val}</div>' +
+            '</foreignObject>';
 
           // (Opcional pero recomendado) Ajustar el efecto "Ripple" (la onda al hacer clic) al nuevo tamaño
           OrgChart.templates.comiteTemplate.ripple = {
