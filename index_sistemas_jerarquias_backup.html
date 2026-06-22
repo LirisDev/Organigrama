@@ -2025,102 +2025,6 @@
         if (typeof calcularDescendenciaManual === "function") {
           calcularDescendenciaManual(finalArray);
         }
-        // BALANCEADO: todos los nodos hijos del HEAD se desplazan +1 sub-level para alinear
-        // supervisores y coordinadores con los equivalentes de CARNICOS.
-        finalArray.forEach(n => {
-          if (!n.pid || !String(n.pid).startsWith("HEAD_LINEA_GRP_BALANCEADO_")) return;
-          const tags = n.tags || [];
-          const subTag = tags.find(t => /^sub-level-\d+$/.test(t));
-          if (!subTag) return;
-          const cur = parseInt(subTag.replace('sub-level-', ''), 10);
-          const next = cur === 0 ? 1 : cur <= 2 ? cur + 2 : Math.min(cur + 3, 8);
-          n.tags = tags.filter(t => !/^sub-level-/.test(t) && t !== "sublevel-node");
-          n.tags.push(`sub-level-${next}`);
-          if (next > 0) n.tags.push("sublevel-node");
-        });
-
-        // CARNICERIA: GRP_CARNICERIA (hijo de Omar, pid=4673) desplaza a los jefes hermanos.
-        // Fix: eliminar GRP_CARNICERIA y HEAD_LINEA_GRP_CARNICERIA. Mover el nodo persona de
-        // Jean Pierre directamente a pid=4673 (mismo nivel que 9108/4492/2673) con jefe-carniceria.
-        (function() {
-          const grpIdx = finalArray.findIndex(n => n.id === 'GRP_CARNICERIA');
-          const headCarniceria = finalArray.find(n => String(n.id).startsWith('HEAD_LINEA_GRP_CARNICERIA_'));
-          if (grpIdx !== -1 && headCarniceria) {
-            const grpNode = finalArray[grpIdx];
-            finalArray.splice(grpIdx, 1); // quitar GRP_CARNICERIA
-
-            // Jean Pierre: el nodo persona hijo directo del HEAD (no fantasma)
-            const jeanPierre = finalArray.find(n =>
-              String(n.pid) === String(headCarniceria.id) &&
-              !(n.tags || []).includes('fantasma')
-            );
-            if (jeanPierre) {
-              jeanPierre.pid = grpNode.pid;  // 4673 (Omar) — mismo nivel que demás jefes
-              jeanPierre.stpid = null;
-              jeanPierre.order = grpNode.order;
-              // Mismo sub-level que 9108/4492/2673 + template propio con header CARNICERÍA
-              jeanPierre.tags = ['level-5', 'sub-level-1', 'sublevel-node', 'jefe-carniceria'];
-              delete jeanPierre.displayNombre;
-            }
-
-            // Eliminar HEAD (ya no es necesario, Jean Pierre va directo a Omar)
-            const headIdx = finalArray.findIndex(n => String(n.id).startsWith('HEAD_LINEA_GRP_CARNICERIA_'));
-            if (headIdx !== -1) finalArray.splice(headIdx, 1);
-          }
-        })();
-
-        // MARKETING: a diferencia de CARNICERIA, el HEAD_LINEA_GRP_MARKETING *es* el jefe
-        // (no es fantasma). Solo eliminar GRP_MARKETING y promover el HEAD directamente
-        // a pid=HEAD_LINEA_GRP_RETAIL, añadiendo tag jefe-marketing para el template morado.
-        (function() {
-          const grpIdx = finalArray.findIndex(n => n.id === 'GRP_MARKETING');
-          const headMktIdx = finalArray.findIndex(n => String(n.id).startsWith('HEAD_LINEA_GRP_MARKETING_'));
-          const retailHead = finalArray.find(n => String(n.id).startsWith('HEAD_LINEA_GRP_RETAIL_'));
-          if (grpIdx !== -1 && headMktIdx !== -1 && retailHead) {
-            finalArray.splice(grpIdx, 1); // quitar GRP_MARKETING
-
-            // Re-buscar HEAD después del splice (índice puede haber cambiado)
-            const headMarketing = finalArray.find(n => String(n.id).startsWith('HEAD_LINEA_GRP_MARKETING_'));
-            if (headMarketing) {
-              headMarketing.pid = retailHead.id;   // promover: cuelga del head de RETAIL
-              headMarketing.stpid = null;           // ya no pertenece a ningún grupo
-              delete headMarketing.order;             // orden por jerarquía API, no forzado
-              const existingTags = (headMarketing.tags || []).filter(
-                t => !/^(group|groupNoLink|head-of-group|fantasma)$/.test(t)
-              );
-              headMarketing.tags = [...existingTags, 'jefe-marketing'];
-              delete headMarketing.displayNombre;   // usa nombre real del nodo
-            }
-          }
-        })();
-
-        // RETAIL & BALANCEADO: sus HEAD son personas reales (no fantasma) → aparecen en fila 1
-        // del grupo mientras PECUARIOS/CARNICOS tienen fantasma y sus hijos reales en fila 2.
-        // Fix: insertar un nodo fantasma encima de cada HEAD para alinear todas las cabezas reales
-        // en la misma fila vertical.
-        (function() {
-          ['RETAIL', 'BALANCEADO'].forEach(function(linea) {
-            const headNode = finalArray.find(n => String(n.id).startsWith('HEAD_LINEA_GRP_' + linea + '_'));
-            if (!headNode || !headNode.stpid) return;
-            const fantasmaId = 'FANTASMA_HEAD_GRP_' + linea;
-            finalArray.push({
-              id: fantasmaId,
-              stpid: headNode.stpid,  // hereda el grupo (GRP_RETAIL / GRP_BALANCEADO)
-              pid: null,
-              tags: ['fantasma'],
-              template: 'ghost',
-              nombre: '',
-              puesto: '',
-              img: '',
-              displayNombre: '',
-            });
-            headNode.stpid = null;
-            headNode.pid = fantasmaId;
-            headNode.tags = (headNode.tags || [])
-              .filter(t => !/^sub-level-\d+$/.test(t) && t !== 'sublevel-node')
-              .concat(['group-head-align']);
-          });
-        })();
 
         // AGREGAR ESTO: Asegurar displayNombre en todos los nodos
         finalArray.forEach((node) => {
@@ -2140,7 +2044,7 @@
         finalArray.forEach((node) => {
           if (
             node.tags &&
-            (node.tags.includes("group") || node.tags.includes("fantasma") || node.tags.includes("jefe-carniceria") || node.tags.includes("jefe-marketing"))
+            (node.tags.includes("group") || node.tags.includes("fantasma"))
           )
             return;
 
@@ -2350,8 +2254,7 @@
           allChildren: true,
         };
 
-        // Ordenar hijos de RETAIL HEAD por posición en allNodes (orden API).
-        // jefe-marketing no entra — su order es el original del API.
+        // MARKETING izquierda: GRP_MARKETING order:-1, hermanos ordenados por posición en allNodes (orden API)
         const _retailHead = finalArray.find((n) =>
           String(n.id).startsWith("HEAD_LINEA_GRP_RETAIL_"),
         );
@@ -2367,7 +2270,7 @@
             return ia - ib;
           });
           _retailSiblings.forEach((n, idx) => {
-            n.order = idx; // orden relativo entre hermanos, base 0
+            n.order = 100 + idx;
           });
         }
 
@@ -3104,70 +3007,6 @@
           OrgChart.templates.fichaComplex.plus = botonDoble;
           OrgChart.templates.fichaComplex.minus = botonDoble;
 
-          // Template JEFE CARNICERÍA: misma ficha pero con header salmon + label "CARNICERÍA"
-          OrgChart.templates.jefeCarniceria = Object.assign({}, OrgChart.templates.fichaTemplate);
-          OrgChart.templates.jefeCarniceria.plus = botonDoble;
-          OrgChart.templates.jefeCarniceria.minus = botonDoble;
-          OrgChart.templates.jefeCarniceria.node =
-            '<rect x="0" y="0" width="250" height="120" fill="#FFF0EC" stroke="#C0392B" stroke-width="1.5" rx="6" ry="6"></rect>' +
-            '<rect x="0" y="0" width="250" height="22" fill="#C0392B" rx="6" ry="6"></rect>' +
-            '<rect x="0" y="12" width="250" height="10" fill="#C0392B"></rect>' +
-            '<text x="125" y="15" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="bold" font-family="sans-serif" fill="white" letter-spacing="1">CARNICERÍA</text>';
-          OrgChart.templates.jefeCarniceria.size = [250, 120];
-          OrgChart.templates.jefeCarniceria.img_0 =
-            '<clipPath id="{randId}"><circle cx="40" cy="68" r="28"></circle></clipPath>' +
-            '<image preserveAspectRatio="xMidYMid slice" clip-path="url(#{randId})" xlink:href="{val}" x="12" y="40" width="56" height="56"></image>';
-          OrgChart.templates.jefeCarniceria.field_0 =
-            '<foreignObject x="85" y="30" width="130" height="36">' +
-            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size:13px;font-weight:bold;color:#C0392B;line-height:1.2;max-height:34px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' +
-            '{val}</div></foreignObject>';
-          OrgChart.templates.jefeCarniceria.field_1 =
-            '<foreignObject x="85" y="68" width="130" height="28">' +
-            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size:10px;color:#797D7F;line-height:1.2;max-height:26px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' +
-            '{val}</div></foreignObject>';
-          OrgChart.templates.jefeCarniceria.field_3 =
-            '<g class="focus-btn" data-focus-btn="{val}" style="cursor:pointer;" transform="translate(220, 28)">' +
-            '<rect x="0" y="0" width="24" height="24" rx="4" fill="#C0392B" opacity="0.85"></rect>' +
-            '<circle cx="12" cy="12" r="8" stroke="white" stroke-width="1.5" fill="none"></circle>' +
-            '<circle cx="12" cy="12" r="3" fill="white"></circle>' +
-            '<line x1="12" y1="4" x2="12" y2="8" stroke="white" stroke-width="1.5"></line>' +
-            '<line x1="12" y1="16" x2="12" y2="20" stroke="white" stroke-width="1.5"></line>' +
-            '<line x1="4" y1="12" x2="8" y2="12" stroke="white" stroke-width="1.5"></line>' +
-            '<line x1="16" y1="12" x2="20" y2="12" stroke="white" stroke-width="1.5"></line>' +
-            '</g>';
-
-          // Template JEFE MARKETING: header morado + label "MARKETING"
-          OrgChart.templates.jefeMarketing = Object.assign({}, OrgChart.templates.fichaTemplate);
-          OrgChart.templates.jefeMarketing.plus = botonDoble;
-          OrgChart.templates.jefeMarketing.minus = botonDoble;
-          OrgChart.templates.jefeMarketing.node =
-            '<rect x="0" y="0" width="250" height="120" fill="#F5EEF8" stroke="#8E44AD" stroke-width="1.5" rx="6" ry="6"></rect>' +
-            '<rect x="0" y="0" width="250" height="22" fill="#8E44AD" rx="6" ry="6"></rect>' +
-            '<rect x="0" y="12" width="250" height="10" fill="#8E44AD"></rect>' +
-            '<text x="125" y="15" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="bold" font-family="sans-serif" fill="white" letter-spacing="1">MARKETING</text>';
-          OrgChart.templates.jefeMarketing.size = [250, 120];
-          OrgChart.templates.jefeMarketing.img_0 =
-            '<clipPath id="{randId}"><circle cx="40" cy="68" r="28"></circle></clipPath>' +
-            '<image preserveAspectRatio="xMidYMid slice" clip-path="url(#{randId})" xlink:href="{val}" x="12" y="40" width="56" height="56"></image>';
-          OrgChart.templates.jefeMarketing.field_0 =
-            '<foreignObject x="85" y="30" width="130" height="36">' +
-            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size:13px;font-weight:bold;color:#8E44AD;line-height:1.2;max-height:34px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' +
-            '{val}</div></foreignObject>';
-          OrgChart.templates.jefeMarketing.field_1 =
-            '<foreignObject x="85" y="68" width="130" height="28">' +
-            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size:10px;color:#797D7F;line-height:1.2;max-height:26px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' +
-            '{val}</div></foreignObject>';
-          OrgChart.templates.jefeMarketing.field_3 =
-            '<g class="focus-btn" data-focus-btn="{val}" style="cursor:pointer;" transform="translate(220, 28)">' +
-            '<rect x="0" y="0" width="24" height="24" rx="4" fill="#8E44AD" opacity="0.85"></rect>' +
-            '<circle cx="12" cy="12" r="8" stroke="white" stroke-width="1.5" fill="none"></circle>' +
-            '<circle cx="12" cy="12" r="3" fill="white"></circle>' +
-            '<line x1="12" y1="4" x2="12" y2="8" stroke="white" stroke-width="1.5"></line>' +
-            '<line x1="12" y1="16" x2="12" y2="20" stroke="white" stroke-width="1.5"></line>' +
-            '<line x1="4" y1="12" x2="8" y2="12" stroke="white" stroke-width="1.5"></line>' +
-            '<line x1="16" y1="12" x2="20" y2="12" stroke="white" stroke-width="1.5"></line>' +
-            '</g>';
-
           // 2. Template GROUP (Para Patricia)
           OrgChart.templates.fichaGroup = Object.assign(
             {},
@@ -3464,7 +3303,7 @@
           const tagsConfig = {
             // Mapeo de tags de JS a la propiedad 'subLevels'
             "sub-level-0": { subLevels: 0, levelSeparation: 20 },
-            "sub-level-1": { subLevels: 1, levelSeparation: 100 },
+            "sub-level-1": { subLevels: 1, levelSeparation: 20 },
             "sub-level-2": { subLevels: 2, levelSeparation: 20 },
             "sub-level-3": { subLevels: 3, levelSeparation: 20 },
             "sub-level-4": { subLevels: 4, levelSeparation: 20 },
@@ -3474,7 +3313,6 @@
             "sub-level-8": { subLevels: 8, levelSeparation: 20 },
             "sub-level-9": { subLevels: 9, levelSeparation: 20 },
             "sub-level-10": { subLevels: 10, levelSeparation: 20 },
-            "group-head-align": { levelSeparation: 100 },
             // 1. Tag para el NODO GRUPO (La caja contenedora)
             group: {
               template: "group",
@@ -3498,8 +3336,6 @@
             // },
 
             fichaComplex: { template: "fichaComplex" },
-            "jefe-carniceria": { template: "jefeCarniceria" },
-            "jefe-marketing": { template: "jefeMarketing" },
             fichaGroup: { template: "fichaGroup" },
             fichaSingle: { template: "fichaSingle" },
 
