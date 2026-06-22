@@ -2025,19 +2025,6 @@
         if (typeof calcularDescendenciaManual === "function") {
           calcularDescendenciaManual(finalArray);
         }
-        // BALANCEADO: todos los nodos hijos del HEAD se desplazan +1 sub-level para alinear
-        // supervisores y coordinadores con los equivalentes de CARNICOS.
-        finalArray.forEach(n => {
-          if (!n.pid || !String(n.pid).startsWith("HEAD_LINEA_GRP_BALANCEADO_")) return;
-          const tags = n.tags || [];
-          const subTag = tags.find(t => /^sub-level-\d+$/.test(t));
-          if (!subTag) return;
-          const cur = parseInt(subTag.replace('sub-level-', ''), 10);
-          const next = cur === 0 ? 1 : cur <= 2 ? cur + 2 : Math.min(cur + 3, 8);
-          n.tags = tags.filter(t => !/^sub-level-/.test(t) && t !== "sublevel-node");
-          n.tags.push(`sub-level-${next}`);
-          if (next > 0) n.tags.push("sublevel-node");
-        });
 
         // CARNICERIA: GRP_CARNICERIA (hijo de Omar, pid=4673) desplaza a los jefes hermanos.
         // Fix: eliminar GRP_CARNICERIA y HEAD_LINEA_GRP_CARNICERIA. Mover el nodo persona de
@@ -2116,9 +2103,14 @@
             });
             headNode.stpid = null;
             headNode.pid = fantasmaId;
-            headNode.tags = (headNode.tags || [])
+            // Effective FANTASMA nivel = 2 (same as CARNICOS/PECUARIOS FANTASMAs).
+            // Compute correct sub-level so head aligns with same-nivel nodes in other groups.
+            const headSubLevel = Math.max(0, (headNode.order || 0) - 2 - 1);
+            const newTags = (headNode.tags || [])
               .filter(t => !/^sub-level-\d+$/.test(t) && t !== 'sublevel-node')
-              .concat(['group-head-align']);
+              .concat([`sub-level-${headSubLevel}`]);
+            if (headSubLevel > 0) newTags.push('sublevel-node');
+            headNode.tags = newTags;
           });
         })();
 
@@ -3463,17 +3455,17 @@
           // 6. Configuración de Tags
           const tagsConfig = {
             // Mapeo de tags de JS a la propiedad 'subLevels'
-            "sub-level-0": { subLevels: 0, levelSeparation: 20 },
-            "sub-level-1": { subLevels: 1, levelSeparation: 100 },
-            "sub-level-2": { subLevels: 2, levelSeparation: 20 },
-            "sub-level-3": { subLevels: 3, levelSeparation: 20 },
-            "sub-level-4": { subLevels: 4, levelSeparation: 20 },
-            "sub-level-5": { subLevels: 5, levelSeparation: 20 },
-            "sub-level-6": { subLevels: 6, levelSeparation: 20 },
-            "sub-level-7": { subLevels: 7, levelSeparation: 20 },
-            "sub-level-8": { subLevels: 8, levelSeparation: 20 },
-            "sub-level-9": { subLevels: 9, levelSeparation: 20 },
-            "sub-level-10": { subLevels: 10, levelSeparation: 20 },
+            "sub-level-0": { subLevels: 0, levelSeparation: 60 },
+            "sub-level-1": { subLevels: 1, levelSeparation: 60 },
+            "sub-level-2": { subLevels: 2, levelSeparation: 60 },
+            "sub-level-3": { subLevels: 3, levelSeparation: 60 },
+            "sub-level-4": { subLevels: 4, levelSeparation: 60 },
+            "sub-level-5": { subLevels: 5, levelSeparation: 60 },
+            "sub-level-6": { subLevels: 6, levelSeparation: 60 },
+            "sub-level-7": { subLevels: 7, levelSeparation: 60 },
+            "sub-level-8": { subLevels: 8, levelSeparation: 60 },
+            "sub-level-9": { subLevels: 9, levelSeparation: 60 },
+            "sub-level-10": { subLevels: 10, levelSeparation: 60 },
             "group-head-align": { levelSeparation: 100 },
             // 1. Tag para el NODO GRUPO (La caja contenedora)
             group: {
@@ -3796,6 +3788,19 @@
           OrgChart.SEARCH_PLACEHOLDER = "Buscar por nombre o cargo...";
           //OrgChart.SEARCH_RESULT_LIMIT = 5; // Limita la lista a 5 resultados. El valor por defecto es 5.
           OrgChart.SEARCH_RESULT_LIMIT = Number.MAX_SAFE_INTEGER;
+
+          // Phantom subLevel nodes must have same height as real nodes so that skipped
+          // hierarchy levels reserve the same Y-space as if a real node existed there.
+          // Without this, each skipped level loses 110px → cross-group Y misalignment.
+          // Width 250 matches real nodes so horizontal centering is consistent.
+          // The node line fills the 110px phantom height so connectors appear continuous
+          // (Balkan only draws the 60px gap between nodes; without this line the
+          // phantom height creates a visible break in the connector chain).
+          OrgChart.templates.subLevel.size = [250, 110];
+          OrgChart.templates.subLevel.node = '<line x1="125" y1="0" x2="125" y2="110" stroke="#aeaeae" stroke-width="1px"/>';
+          // Disable mixed-layout: it fires before subLevel phantoms are inserted,
+          // causing a double Y-offset on nodes with multiple leaf siblings.
+          OrgChart.MIXED_LAYOUT_IF_NUMBER_OF_CHILDREN_IS_MORE_THEN = 99;
 
           /////////////////////////
           chart = new OrgChart(treeDiv, chartConfig);
@@ -4120,6 +4125,7 @@
           // Dibuja líneas de reporte manual (alternativa a chart.config.slinks que crashea)
           // Se PREPEND a args.content para quedar detrás de los nodos
           chart.on("render", function (sender, args) {
+
             let svgLines = "";
 
             if (_slinksManuales && _slinksManuales.length > 0) {
