@@ -87,8 +87,6 @@
     <div class="org-container">
       <header id="custom-filters">
         <div>
-          <select id="area-select" class="control-select"></select>
-
           <select id="linea-negocio-select" class="control-select"></select>
 
           <!-- <select id="centro-costos-select" class="control-select"></select>
@@ -774,21 +772,17 @@
       /* FUNCION PARA HABILITAR/DESHABILITAR FILTROS */
       function actualizarEstadoFiltros() {
         const selectIds =
-          "#area-select, #linea-negocio-select, #centro-costos-select, #proposito-select";
+          "#linea-negocio-select, #centro-costos-select, #proposito-select";
         const $nivel = $("#nivel-select");
 
         // 1. Verificar valores de los filtros principales
-        const area = $("#area-select").val();
         const linea = $("#linea-negocio-select").val();
         const costo = $("#centro-costos-select").val();
         const prop = $("#proposito-select").val(); // <--- Nuevo
 
         // ¿Hay algún filtro activo? (Es decir, algo distinto a "todos")
         const hayFiltrosActivos =
-          area !== "todos" ||
-          linea !== "todos" ||
-          costo !== "todos" ||
-          prop !== "todos";
+          linea !== "todos" || costo !== "todos" || prop !== "todos";
         // 2. Lógica de Permisos de Usuario (Global)
         if (usuarioPuedeVerTodo) {
           console.log("🔐 Permiso Global: SI");
@@ -1018,8 +1012,7 @@
 
         // 7. ¡DISPARO FINAL!
         // Selecciona el valor y fuerza la ejecución INMEDIATA del gráfico
-        $("#area-select").val("todos").trigger("change");
-        //$("#linea-negocio-select").val(valorInicial).trigger("change");
+        $("#linea-negocio-select").val("todos").trigger("change");
       }
 
       // --- Función Sanitize (para evitar bucles infinitos) ---
@@ -1155,9 +1148,7 @@
         if (sortedValues.length > 1) {
           const optionTodos = document.createElement("option");
           optionTodos.value = "todos";
-          if (selectId === "area-select") {
-            optionTodos.textContent = "TODAS LAS DIVISIONES";
-          } else if (selectId === "linea-negocio-select") {
+          if (selectId === "linea-negocio-select") {
             optionTodos.textContent = "TODAS LAS LÍNEAS";
           } else {
             optionTodos.textContent = "TODOS";
@@ -1479,15 +1470,10 @@
        */
       function deshabilitarFiltros() {
         // Deshabilitar los select
-        $("#area-select, #linea-negocio-select, #modo-select").prop(
-          "disabled",
-          true,
-        );
+        $("#linea-negocio-select, #modo-select").prop("disabled", true);
 
         // Notificar a Select2
-        $("#area-select, #linea-negocio-select, #modo-select").trigger(
-          "change.select2",
-        );
+        $("#linea-negocio-select, #modo-select").trigger("change.select2");
         console.log("🔒 Filtros deshabilitados");
       }
 
@@ -1496,15 +1482,10 @@
        */
       function habilitarFiltros() {
         // Habilitar los select
-        $("#area-select, #linea-negocio-select, #modo-select").prop(
-          "disabled",
-          false,
-        );
+        $("#linea-negocio-select, #modo-select").prop("disabled", false);
 
         // Notificar a Select2
-        $("#area-select, #linea-negocio-select, #modo-select").trigger(
-          "change.select2",
-        );
+        $("#linea-negocio-select, #modo-select").trigger("change.select2");
         console.log("🔓 Filtros habilitados");
       }
 
@@ -1513,20 +1494,22 @@
 
         console.log("🚀 renderOrganigramaGrupos INICIO");
 
-        const selectedAreaRaw = $("#area-select").val();
         const selectedLineaRaw = $("#linea-negocio-select").val();
         if (!selectedLineaRaw || !selectedLineaRaw) return;
 
         // Normalizar valor (ej: "CARNICOS")
-        const areaFiltro = selectedAreaRaw.toUpperCase().trim();
         const lineaFiltro = selectedLineaRaw.toUpperCase().trim();
 
-        const esTodasAreas = areaFiltro === "TODOS";
         const esTodasLineas = lineaFiltro === "TODOS";
 
-        // Si el área es corporativo o la línea es corporativo
-        const esSoloCorp =
-          areaFiltro === "CORPORATIVO" || lineaFiltro === "CORPORATIVO";
+        // Si la línea es corporativo
+        const esSoloCorp = lineaFiltro === "CORPORATIVO";
+
+        // La caja Corporativo (Antonio, Comité, gerentes) solo se arma cuando
+        // se ven todas las líneas o cuando el filtro es explícitamente CORPORATIVO.
+        // Si el usuario filtra por una línea de negocio puntual (ej. BALANCEADO),
+        // esa línea se renderiza como raíz, sin la caja Corporativo encima.
+        const mostrarCorporativo = esTodasLineas || esSoloCorp;
 
         const currentMode = document.getElementById("modo-select").value;
         const sourceNodes = currentMode === "Cargo" ? allCargoNodes : allNodes;
@@ -1638,20 +1621,24 @@
 
         // =========================================================
         // 1. CORPORATIVO (GRUPO GRIS)
+        // Solo se arma si se ven todas las líneas o el filtro es CORPORATIVO.
         // =========================================================
         const groupCorpId = "GRP_CORPORATIVO";
-        nodesToRender.set(groupCorpId, {
-          id: groupCorpId,
-          pid: null,
-          nombre: "CORPORATIVO",
-          cargoPuesto: "CORPORATIVO",
-          title: "Holding",
-          tags: ["group"],
-          templateName: "group",
-          order: 1,
-        });
 
-        if (idAntonio) {
+        if (mostrarCorporativo) {
+          nodesToRender.set(groupCorpId, {
+            id: groupCorpId,
+            pid: null,
+            nombre: "CORPORATIVO",
+            cargoPuesto: "CORPORATIVO",
+            title: "Holding",
+            tags: ["group"],
+            templateName: "group",
+            order: 1,
+          });
+        }
+
+        if (mostrarCorporativo && idAntonio) {
           // A. Antonio (Raíz)
           const nodoAntonio = Object.assign({}, sourceMap.get(idAntonio));
           nodoAntonio.stpid = groupCorpId;
@@ -1767,7 +1754,8 @@
 
             // MARKETING cuelga del HEAD de RETAIL, no del corporativo
             // CARNICERIA cuelga de Omar Buritica (codPosicion 00097), que vive dentro de CARNICOS
-            let pidDelGrupo = groupCorpId;
+            // Si no se muestra Corporativo (filtro por línea puntual), esta línea es la raíz.
+            let pidDelGrupo = mostrarCorporativo ? groupCorpId : null;
             if (nombreLinea === "MARKETING") {
               const retailHead = encontrarNodoPorConfig(
                 CABEZAS_ACTIVAS["RETAIL"]?.id,
@@ -2234,6 +2222,20 @@
           if (finalArray.some((n) => n.id === grpId)) {
             nodosAExpandir.push(grpId);
           }
+
+          // 1.1 Al filtrar por una línea puntual, su cabeza sale expandida
+          // (solo 1 nivel: sus reportes directos) — excepto CORPORATIVO y
+          // CARNICOS, que se muestran como están.
+          if (lineaFiltro !== "CORPORATIVO" && lineaFiltro !== "CARNICOS") {
+            const prefijoCabezaLinea = `HEAD_LINEA_${grpId}_`;
+            const nodoCabezaLinea = finalArray.find((n) =>
+              String(n.id).startsWith(prefijoCabezaLinea),
+            );
+            if (nodoCabezaLinea) {
+              nodosAExpandir.push(nodoCabezaLinea.id);
+              nodoCabezaLinea.expanded = true;
+            }
+          }
           // 2. [CAMBIADO] Rama de División Macro deshabilitada. En diseño plano no existen GRP_MACRO_*.
           // TODO: Borrar este bloque completo cuando se confirme que el diseño plano es definitivo.
           // else if (finalArray.some(n => n.id === macroGrpId)) {
@@ -2397,6 +2399,28 @@
         const lineaFiltro = ($("#linea-negocio-select").val() || "")
           .toUpperCase()
           .trim();
+
+        // Al filtrar por una línea puntual, su cabeza sale expandida (1 nivel:
+        // sus reportes directos) — excepto CORPORATIVO y CARNICOS. Se hace con
+        // chart.expand() imperativo (igual que las cabezas fantasma abajo),
+        // porque el expand.nodes declarativo de la config de carga no alcanza
+        // a dibujar los hijos aunque marque el nodo como no-colapsado.
+        if (
+          lineaFiltro !== "TODOS" &&
+          lineaFiltro !== "CORPORATIVO" &&
+          lineaFiltro !== "CARNICOS"
+        ) {
+          const grpIdFiltro = `GRP_${lineaFiltro.replace(/\s+/g, "_")}`;
+          const cabezaLineaData = chart.config.nodes.find((n) =>
+            String(n.id).startsWith(`HEAD_LINEA_${grpIdFiltro}_`),
+          );
+          if (cabezaLineaData) {
+            const cabezaLineaNodo = chart.getNode(cabezaLineaData.id);
+            if (cabezaLineaNodo?.childrenIds?.length > 0) {
+              chart.expand(cabezaLineaData.id, cabezaLineaNodo.childrenIds);
+            }
+          }
+        }
 
         const fantasmas = chart.config.nodes
           .filter((n) => {
@@ -2987,7 +3011,7 @@
 
           isDataReady = true;
 
-          populateSelect("area-select", "area", sanitizedNodes);
+          populateSelect("linea-negocio-select", "lineaNegocio", sanitizedNodes);
 
           // Poblamos los selects para filtrar por Línea de Negocio, Centro de Costos y Departamento
           // populateSelect(
@@ -4342,48 +4366,13 @@
           // });
 
           // Inicializar Select2
-          $("#area-select, #linea-negocio-select").select2({
+          $("#linea-negocio-select").select2({
             width: "240px",
             minimumResultsForSearch: 10,
           });
 
           // =======================================================
-          // 1. LISTENER: ÁREA (El maestro)
-          // =======================================================
-          $("#area-select").on("change", function () {
-            const selectedArea = $(this).val();
-            const sourceNodes =
-              document.getElementById("modo-select").value === "Cargo"
-                ? allCargoNodes
-                : allNodes;
-
-            // Filtrar nodos por el Área seleccionada
-            const nodosDeArea =
-              selectedArea === "todos"
-                ? sourceNodes
-                : sourceNodes.filter((n) => n.area === selectedArea);
-
-            // Poblar las opciones de "Línea de Negocio" basados en esta Área
-            const opcionesLinea = populateSelect(
-              "linea-negocio-select",
-              "lineaNegocio",
-              nodosDeArea,
-            );
-
-            // Selección Automática
-            if (opcionesLinea.length > 1) {
-              $("#linea-negocio-select").val("todos").trigger("change");
-            } else if (opcionesLinea.length === 1) {
-              $("#linea-negocio-select")
-                .val(opcionesLinea[0])
-                .trigger("change");
-            } else {
-              renderOrganigramaGrupos();
-            }
-          });
-
-          // =======================================================
-          // 2. LISTENER: LÍNEA DE NEGOCIO (El que dibuja)
+          // 1. LISTENER: LÍNEA DE NEGOCIO (El que dibuja)
           // =======================================================
           $("#linea-negocio-select").on("change", function () {
             renderOrganigramaGrupos();
@@ -4441,7 +4430,6 @@
 
             const filtrosGuardados = {
               linea: $("#linea-negocio-select").val(),
-              area: $("#area-select").val(),
             };
 
             const vista = $(this).val();
@@ -4458,30 +4446,7 @@
                 puesto: 80,
               };
               // Repoblar filtros con data de personas
-              populateSelect("area-select", "area", allNodes);
-
-              // Restaurar área guardada si existe
-              if (
-                $("#area-select option[value='" + filtrosGuardados.area + "']")
-                  .length > 0
-              ) {
-                $("#area-select").val(filtrosGuardados.area);
-              } else {
-                $("#area-select").val("todos");
-              }
-
-              // Poblar línea según área
-              const selectedArea = $("#area-select").val();
-              const nodosDeArea =
-                selectedArea === "todos"
-                  ? allNodes
-                  : allNodes.filter((n) => n.area === selectedArea);
-
-              const opcionesLinea = populateSelect(
-                "linea-negocio-select",
-                "lineaNegocio",
-                nodosDeArea,
-              );
+              populateSelect("linea-negocio-select", "lineaNegocio", allNodes);
 
               // Restaurar línea guardada si existe
               if (
@@ -4862,7 +4827,6 @@
           filtrosGuardados = {
             linea: "todos",
             costo: "todos",
-            area: "todos",
             depto: "todos",
           };
         }
@@ -4872,25 +4836,7 @@
           const sourceNodes = allCargoNodes;
           console.log("Restaurando filtros para vista Cargo...");
 
-          // Poblar ÁREA usando los nodos de cargo
-          populateSelect("area-select", "area", sourceNodes);
-
-          if (
-            $("#area-select option[value='" + filtrosGuardados.area + "']")
-              .length > 0
-          ) {
-            $("#area-select").val(filtrosGuardados.area);
-          } else {
-            $("#area-select").val("todos");
-          }
-
-          const selectedArea = $("#area-select").val();
-          const nodosDeArea =
-            selectedArea === "todos"
-              ? sourceNodes
-              : sourceNodes.filter((n) => n.area === selectedArea);
-
-          populateSelect("linea-negocio-select", "lineaNegocio", nodosDeArea);
+          populateSelect("linea-negocio-select", "lineaNegocio", sourceNodes);
 
           if (
             $(
