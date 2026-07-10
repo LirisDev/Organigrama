@@ -5,11 +5,10 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+// Sin StrictMode: en dev duplica mount/unmount/mount, y OrgChartCanvas crea
+// una instancia de Balkan de verdad (SVG + fetch + animación de expand) en
+// cada mount — el doble ciclo se ve como carga lenta + reapertura visible.
+root.render(<App />);
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))
