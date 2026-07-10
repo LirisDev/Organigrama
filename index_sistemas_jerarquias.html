@@ -736,7 +736,7 @@
         if (macroId === "GRP_MACRO_INDUSTRIAL") return "INDUSTRIAL";
         if (macroId === "GRP_MACRO_INMOBILIARIA") return "INMOBILIARIA";
         if (macroId === "GRP_MACRO_RETAIL") return "RETAIL";
-        if (macroId === "GRP_MACRO_DERIVADOS") return "COMITÉ"; // ✅ ¡NUEVO! Asignamos el nombre al Macro Grupo
+        if (macroId === "GRP_MACRO_DERIVADOS") return "DERIVADOS"; // ✅ ¡NUEVO! Asignamos el nombre al Macro Grupo
         return "";
       };
 
@@ -744,7 +744,7 @@
       function determinarArea(linea) {
         const l = (linea || "").toUpperCase().trim();
         if (l === "CORPORATIVO") return "CORPORATIVO";
-        if (l === "DERIVADOS") return "COMITÉ"; // ✅ ¡NUEVO! Bautizamos a la gente de derivados con el área "Comité"
+        if (l === "DERIVADOS") return "DERIVADOS"; // ✅ ¡NUEVO! Bautizamos a la gente de derivados con el área "Comité"
         if (ESTRUCTURA_MACRO.PECUARIO.subgrupos.includes(l)) return "PECUARIA";
         if (ESTRUCTURA_MACRO.INDUSTRIAL.subgrupos.includes(l))
           return "INDUSTRIAL";
@@ -1503,7 +1503,12 @@
         const esTodasLineas = lineaFiltro === "TODOS";
 
         // Si la línea es corporativo
-        const esSoloCorp = lineaFiltro === "CORPORATIVO";
+        // DERIVADOS no tiene caja propia (CABEZAS_NEGOCIO_TEMP.DERIVADOS está
+        // comentado a propósito) — su gente vive dentro del Comité de
+        // Productos Derivados, que cuelga de la caja Corporativo. Filtrar
+        // por Derivados debe mostrar Corporativo (donde está el Comité).
+        const esSoloCorp =
+          lineaFiltro === "CORPORATIVO" || lineaFiltro === "DERIVADOS";
 
         // La caja Corporativo (Antonio, Comité, gerentes) solo se arma cuando
         // se ven todas las líneas o cuando el filtro es explícitamente CORPORATIVO.
@@ -1653,10 +1658,17 @@
 
               // Santiago (ID 12) tiene linea "CORPORATIVO", así que él SÍ pasa.
               // Juan José tiene linea "NEGOCIO RETAIL" (o similar), así que él NO pasa.
-              // Inlcuimos a la gente de derivados
-              if (lineaNode !== "CORPORATIVO" && lineaNode !== "DERIVADOS")
-                // || node.puesto === "COMITE" || node.puesto === "COMITE COMITE"
+              // En "todos" se muestran Corporativo Y Derivados juntos (vista
+              // combinada de siempre). Si el filtro es puntual (CORPORATIVO
+              // o DERIVADOS), solo entra la gente de esa línea específica —
+              // Priscilla (Derivados) no debe aparecer al filtrar Corporativo,
+              // y viceversa.
+              if (esTodasLineas) {
+                if (lineaNode !== "CORPORATIVO" && lineaNode !== "DERIVADOS")
+                  return;
+              } else if (lineaNode !== lineaFiltro) {
                 return;
+              }
 
               // ¿Es este nodo cabeza funcional de alguna línea de negocio?
               // [CAMBIADO] Antes usaba ESTRUCTURA_ACTIVA.headId. Ahora usa reportFuncional
@@ -1744,6 +1756,14 @@
               lineaFiltro === "CARNICERIA" &&
               nombreLinea === "CARNICOS"
             ) {
+              renderizarEstaLinea = true;
+              esSoporteParaOtraLinea = true;
+            } else if (
+              lineaFiltro === "MARKETING" &&
+              nombreLinea === "RETAIL"
+            ) {
+              // Marketing cuelga del HEAD de Retail — hay que dibujar Retail
+              // (solo su cabeza, como soporte) para que exista de quién colgar.
               renderizarEstaLinea = true;
               esSoporteParaOtraLinea = true;
             }
@@ -1867,6 +1887,13 @@
                       return (
                         nodo.codPosicion === idOmar ||
                         String(nodo.id).includes(idOmar)
+                      );
+                    }
+                    if (esSoporteParaOtraLinea && lineaFiltro === "MARKETING") {
+                      const idRetail = CABEZAS_ACTIVAS["RETAIL"]?.id;
+                      return (
+                        nodo.codPosicion === idRetail ||
+                        String(nodo.id).includes(idRetail)
                       );
                     }
                     return (
@@ -2010,9 +2037,6 @@
 
       function cargarYFinalizar(nodesToRender) {
         const finalArray = Array.from(nodesToRender.values());
-        if (typeof calcularDescendenciaManual === "function") {
-          calcularDescendenciaManual(finalArray);
-        }
 
         // CARNICERIA: GRP_CARNICERIA (hijo de Omar, pid=4673) desplaza a los jefes hermanos.
         // Fix: eliminar GRP_CARNICERIA y HEAD_LINEA_GRP_CARNICERIA. Mover el nodo persona de
@@ -2068,6 +2092,16 @@
             }
           }
         })();
+
+        // Contadores (_directos/_total) se calculan DESPUÉS de las
+        // reestructuraciones de arriba (fusión Carnicería, promoción
+        // Marketing bajo Retail) — si se calculan antes, no reflejan el
+        // árbol final (ej. Retail mostraba "1" en vez de contar también
+        // a Marketing y su gente, porque el pid todavía no se había
+        // reasignado).
+        if (typeof calcularDescendenciaManual === "function") {
+          calcularDescendenciaManual(finalArray);
+        }
 
         // RETAIL & BALANCEADO: sus HEAD son personas reales (no fantasma) → aparecen en fila 1
         // del grupo mientras PECUARIOS/CARNICOS tienen fantasma y sus hijos reales en fila 2.
@@ -2234,6 +2268,32 @@
             if (nodoCabezaLinea) {
               nodosAExpandir.push(nodoCabezaLinea.id);
               nodoCabezaLinea.expanded = true;
+              // El array declarativo expand.nodes camina hacia ARRIBA desde
+              // cada id listado (nunca hacia abajo) para saltarse el límite
+              // de collapse.level=0 fijado en el init del chart. Por eso hay
+              // que listar también a los HIJOS de la cabeza explícitamente
+              // — si no, quedan bloqueados por ese nivel aunque su propio
+              // dato diga collapsed:false.
+              finalArray
+                .filter((n) => String(n.pid) === String(nodoCabezaLinea.id))
+                .forEach((hijo) => nodosAExpandir.push(hijo.id));
+            }
+          }
+
+          // 1.2 DERIVADOS es un caso especial: no tiene caja/HEAD_LINEA_*
+          // propio (vive como gente suelta bajo Antonio, con lineaNegocio
+          // "DERIVADOS"). A diferencia de CORPORATIVO, Priscilla (su gente)
+          // sí debe salir expandida al filtrar por Derivados.
+          if (lineaFiltro === "DERIVADOS") {
+            const priscilla = finalArray.find(
+              (n) =>
+                (n.lineaNegocio || "").toUpperCase().trim() === "DERIVADOS",
+            );
+            if (priscilla) {
+              nodosAExpandir.push(priscilla.id);
+              finalArray
+                .filter((n) => String(n.pid) === String(priscilla.id))
+                .forEach((hijo) => nodosAExpandir.push(hijo.id));
             }
           }
           // 2. [CAMBIADO] Rama de División Macro deshabilitada. En diseño plano no existen GRP_MACRO_*.
@@ -2365,30 +2425,104 @@
           });
         }
 
+        // Preset de collapsed A NIVEL DE DATOS, antes de cargar. Evita
+        // depender de llamadas chart.expand()/collapse() post-load, cuyo
+        // efecto no es confiable cuando el usuario usó "Expandir Todo"
+        // antes (Balkan arrastra estado por ID entre renders). Con el
+        // valor ya explícito en cada nodo, chart.load() no tiene ambigüedad:
+        // _setCollpasedProperty solo aplica su default si collapsed es null.
+        // ⚠️ El array declarativo expand.nodes (nodosAExpandir) camina hacia
+        // ARRIBA desde cada id listado para saltarse el límite real de
+        // collapse.level=0 (fijado en el init del chart — reasignarlo
+        // post-init es un no-op, ver 03 - Estado Actual.md). Setear
+        // node.collapsed en la data NO ALCANZA por sí solo: hay que listar
+        // también cada hijo a revelar en nodosAExpandir explícitamente,
+        // el caso genérico (Balanceado/Retail/Marketing) ya lo hace arriba
+        // en el bloque "EXCEPCIÓN VIP". Acá cubrimos CARNICERIA y PECUARIOS,
+        // que no pasan por ese bloque (su HEAD_LINEA_* real no existe igual).
+        (function revelarHijosCasosEspeciales() {
+          if (lineaFiltro === "CARNICERIA") {
+            const jeanPierre = finalArray.find(
+              (n) => n.tags && n.tags.includes("jefe-carniceria"),
+            );
+            if (jeanPierre) {
+              nodosAExpandir.push(jeanPierre.id);
+              finalArray
+                .filter((n) => String(n.pid) === String(jeanPierre.id))
+                .forEach((n) => nodosAExpandir.push(n.id));
+            }
+          } else if (lineaFiltro === "PECUARIOS") {
+            const fantasma = finalArray.find((n) =>
+              String(n.id).startsWith("HEAD_LINEA_GRP_PECUARIOS_"),
+            );
+            if (fantasma) {
+              finalArray
+                .filter((n) => String(n.pid) === String(fantasma.id))
+                .forEach((cabeza) => {
+                  finalArray
+                    .filter((n) => String(n.pid) === String(cabeza.id))
+                    .forEach((n) => nodosAExpandir.push(n.id));
+                });
+            }
+          }
+        })();
+
         chart.load(finalArray);
-        setTimeout(() => {
-          if (corporativoExpandido && antonioId) {
-            const antonioNode = chart.getNode(antonioId);
-            if (
-              antonioNode &&
-              antonioNode.childrenIds &&
-              antonioNode.childrenIds.length > 0
-            ) {
-              chart.expandCollapse(
-                antonioId,
-                antonioNode.childrenIds,
-                [],
-                function () {
-                  expandirFantasmas();
-                },
-              );
+
+        // Balkan puede tardar en inicializar su registro interno de nodos
+        // (más en pestañas en segundo plano, donde Chrome ralentiza los
+        // timers) — chart.getNode() truena internamente en ese caso (no
+        // devuelve null, lanza excepción), lo que aborta esta función ANTES
+        // de llamar a expandirFantasmas(), dejando las cajas de línea sin
+        // dibujar. Reintentamos con backoff en vez de fallar en silencio.
+        function postCargaConReintento(intentosRestantes) {
+          try {
+            if (corporativoExpandido && antonioId) {
+              const antonioNode = chart.getNode(antonioId);
+              if (
+                antonioNode &&
+                antonioNode.childrenIds &&
+                antonioNode.childrenIds.length > 0
+              ) {
+                chart.expandCollapse(
+                  antonioId,
+                  antonioNode.childrenIds,
+                  [],
+                  function () {
+                    expandirFantasmas();
+                  },
+                );
+              } else {
+                expandirFantasmas();
+              }
             } else {
               expandirFantasmas();
             }
-          } else {
-            expandirFantasmas();
+          } catch (e) {
+            if (intentosRestantes > 0) {
+              console.warn(
+                "postCarga: chart aún no listo, reintentando...",
+                e,
+              );
+              setTimeout(
+                () => postCargaConReintento(intentosRestantes - 1),
+                75,
+              );
+            } else {
+              console.error(
+                "postCarga: chart no quedó listo tras varios intentos",
+                e,
+              );
+              // Mejor intentar dibujar fantasmas/líneas igual que dejar todo en blanco.
+              try {
+                expandirFantasmas();
+              } catch (e2) {
+                console.error("expandirFantasmas también falló:", e2);
+              }
+            }
           }
-        }, 10);
+        }
+        setTimeout(() => postCargaConReintento(6), 10);
         // setTimeout(() => chart.fit(), 50);
 
         loaderOverlay.classList.remove("visible");
@@ -2400,27 +2534,14 @@
           .toUpperCase()
           .trim();
 
-        // Al filtrar por una línea puntual, su cabeza sale expandida (1 nivel:
-        // sus reportes directos) — excepto CORPORATIVO y CARNICOS. Se hace con
-        // chart.expand() imperativo (igual que las cabezas fantasma abajo),
-        // porque el expand.nodes declarativo de la config de carga no alcanza
-        // a dibujar los hijos aunque marque el nodo como no-colapsado.
-        if (
-          lineaFiltro !== "TODOS" &&
-          lineaFiltro !== "CORPORATIVO" &&
-          lineaFiltro !== "CARNICOS"
-        ) {
-          const grpIdFiltro = `GRP_${lineaFiltro.replace(/\s+/g, "_")}`;
-          const cabezaLineaData = chart.config.nodes.find((n) =>
-            String(n.id).startsWith(`HEAD_LINEA_${grpIdFiltro}_`),
-          );
-          if (cabezaLineaData) {
-            const cabezaLineaNodo = chart.getNode(cabezaLineaData.id);
-            if (cabezaLineaNodo?.childrenIds?.length > 0) {
-              chart.expand(cabezaLineaData.id, cabezaLineaNodo.childrenIds);
-            }
-          }
-        }
+        // El "1 nivel expandido" de la cabeza de línea (Balanceado, Retail,
+        // Marketing, Pecuarios, Carnicería) ya se resuelve a nivel de datos
+        // en cargarYFinalizar() (presetCollapsedPorFiltro), antes de
+        // chart.load(). No repetirlo acá con chart.expand() imperativo —
+        // eso es lo que causaba que quedara todo expandido si el usuario
+        // había usado "Expandir Todo" antes (Balkan arrastra estado por ID
+        // entre renders y las llamadas imperativas post-load no son
+        // confiables para revertir eso).
 
         const fantasmas = chart.config.nodes
           .filter((n) => {
@@ -2435,7 +2556,12 @@
           })
           .map((n) => n.id);
 
-        if (fantasmas.length === 0) return;
+        if (fantasmas.length === 0) {
+          // Sin fantasmas en esta vista (ej. filtro CORPORATIVO, solo gente
+          // real) — igual hay que ajustar el zoom a lo recién expandido.
+          setTimeout(() => chart.fit(), 200);
+          return;
+        }
 
         chart.expand(null, fantasmas, () => {
           fantasmas.forEach((ghostId) => {
@@ -5169,6 +5295,22 @@
       // // Te dice cuántos son exactamente
       // console.log(`Total de posiciones ÚNICAS con Nivel 99: ${empleadosSinNivel2.length}`);
       ////////////
+
+      // Si la pestaña queda abierta en segundo plano un rato y el usuario
+      // vuelve a ella, Balkan puede quedar en un estado inconsistente (su
+      // _resizeObserver interno dispara un re-layout que no pasa por
+      // nuestro chart.load(), perdiendo el árbol correctamente expandido).
+      // Forzamos un re-render limpio al recuperar visibilidad.
+      document.addEventListener("visibilitychange", function () {
+        if (
+          document.visibilityState === "visible" &&
+          chart &&
+          typeof renderOrganigramaGrupos === "function" &&
+          isDataReady
+        ) {
+          renderOrganigramaGrupos();
+        }
+      });
 
       // --- Llamada inicial ---
       document.addEventListener("DOMContentLoaded", function () {
