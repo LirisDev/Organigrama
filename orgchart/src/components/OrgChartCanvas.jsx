@@ -1,0 +1,241 @@
+import React, { Component } from "react";
+import { registerTemplates, personaBinding, buildTagsConfig } from "../orgchart/templates";
+import { postCargaConReintento } from "../orgchart/expandLogic";
+
+// Wrapper de Balkan OrgChart Pro para React. Sigue el patrón class+ref del
+// esqueleto original (myorg.js): la instancia de Balkan vive fuera del ciclo
+// de vida de React, y se le empuja data nueva vía chart.load() en vez de
+// re-renderizar JSX (Balkan dibuja directo en SVG dentro del div).
+export default class OrgChartCanvas extends Component {
+  constructor(props) {
+    super(props);
+    this.divRef = React.createRef();
+    this.chart = null;
+    this._handleVisibility = this._handleVisibility.bind(this);
+  }
+
+  componentDidMount() {
+    if (!this.divRef.current) return;
+    this.createChart();
+    document.addEventListener("visibilitychange", this._handleVisibility);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (!this.chart) return;
+    const treeChanged = prevProps.tree !== this.props.tree;
+    if (treeChanged) this.loadTree();
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener("visibilitychange", this._handleVisibility);
+    if (this.chart) {
+      try {
+        this.chart.destroy();
+      } catch (e) {
+        console.error("Error al destruir Balkan:", e);
+      }
+    }
+  }
+
+  // Balkan puede desincronizar su estado interno (_resizeObserver) cuando la
+  // pestaña vuelve de segundo plano sin pasar por el chart.load() normal —
+  // forzamos un re-render como red de seguridad.
+  _handleVisibility() {
+    if (document.visibilityState === "visible" && this.chart) {
+      this.loadTree();
+    }
+  }
+
+  createChart() {
+    const OrgChart = window.OrgChart;
+    registerTemplates();
+
+    const tagsConfig = buildTagsConfig(OrgChart);
+
+    const chartConfig = {
+      mouseScrool: OrgChart.action.scroll,
+      showYScroll: true,
+      showXScroll: true,
+      enableSearch: false, // fase 2
+      template: "fichaTemplate",
+      layout: OrgChart.normal,
+      scaleInitial: OrgChart.match.boundary,
+      enableAI: false,
+      scaleMax: 1,
+      scaleMin: 0.1,
+      nodes: [],
+      tags: tagsConfig,
+      nodeBinding: personaBinding,
+      orderBy: [
+        { field: "order", desc: false },
+        { field: "puesto", desc: false },
+        { field: "nombre", desc: false },
+      ],
+      // collapse.level se fija SOLO acá, en el constructor — reasignarlo
+      // post-init (chart.config.collapse = ...) es un no-op silencioso.
+      collapse: { level: 0, allChildren: true },
+      expand: { nodes: [], allChildren: false },
+      controls: {
+        svg_export: { title: "Exportar a SVG" },
+        zoom_in: { title: "Zoom In" },
+        zoom_out: { title: "Zoom Out" },
+        fit: { title: "Ajustar a la pantalla" },
+      },
+      enableDragDrop: false,
+      sortSubLevelsSeparately: true,
+      compareSubLevels: { order: (a, b) => a.order - b.order },
+      nodeExtent: { width: 250, height: 110 },
+      nodeMenu: null,
+      nodeSeparation: 65,
+      siblingSeparation: 100,
+    };
+
+    OrgChart.scroll.smooth = 2;
+    OrgChart.scroll.speed = 10;
+
+    this.chart = new OrgChart(this.divRef.current, chartConfig);
+
+    // Contador (globo naranja) y mini-fotos de grupos colapsados.
+    this.chart.on("field", (sender, args) => {
+      if (args.name === "conteo") {
+        if (args.value) {
+          const x = args.node.w;
+          const y = 0;
+          args.value = `
+            <g transform="translate(${x}, ${y})">
+              <g transform="translate(-15, 15)">
+                <circle r="25" fill="#e67e22" stroke="#ffffff" stroke-width="2"></circle>
+                <text text-anchor="middle" y="5" fill="#ffffff" font-size="14px" font-weight="bold">${args.value}</text>
+              </g>
+            </g>`;
+        } else {
+          args.value = "";
+        }
+      }
+    });
+
+    // Bloquea expand/collapse por click en el botón nativo de GRP_CORPORATIVO.
+    this.chart.on("expcollclick", (sender, isExpand, id) => {
+      if (id === "GRP_CORPORATIVO") return false;
+    });
+
+    // Sincroniza expand/collapse de Antonio (Presidente) con la visibilidad
+    // de las líneas de negocio (corporativoExpandido, estado del padre).
+    this.chart.onExpandCollpaseButtonClick((args) => {
+      const nodeId = args.id;
+      if (this.props.antonioId && String(nodeId) === String(this.props.antonioId)) {
+        if (this.props.onToggleCorporativo) this.props.onToggleCorporativo(!args.collapsing);
+        return false;
+      }
+      return true;
+    });
+
+    // Garantiza que fichaGradient esté siempre en el SVG exportado.
+    this.chart.on("renderdefs", (sender, args) => {
+      if (!args.defs.includes("fichaGradient")) {
+        args.defs +=
+          '<linearGradient id="fichaGradient" x1="0%" y1="0%" x2="0%" y2="100%">' +
+          '<stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1"/>' +
+          '<stop offset="100%" style="stop-color:#FFEFFF;stop-opacity:1"/>' +
+          "</linearGradient>";
+      }
+    });
+
+    // Líneas de reporte visual (_slinksManuales), inyectadas como SVG en el
+    // evento render — nunca via chart.config.slinks (crashea en
+    // _setPositions antes de que todos los nodos tengan posición).
+    this.chart.on("render", (sender, args) => {
+      const slinks = this.props.slinks || [];
+      if (slinks.length === 0) return;
+
+      let svgLines = "";
+      let sharedLaneLeftY = null;
+
+      function resolveTarget(link) {
+        let tn = sender.getNode(link.to);
+        let offset = link.laneOffset || 30;
+        if (link.fallbackTo) {
+          const grpN = sender.getNode(link.fallbackTo);
+          if (!tn || (grpN && grpN.min)) {
+            tn = grpN;
+            offset = link.fallbackLaneOffset != null ? link.fallbackLaneOffset : 12;
+          }
+        }
+        return { tn, offset };
+      }
+
+      slinks
+        .filter((l) => l.routeLeft)
+        .forEach((l) => {
+          const fn = sender.getNode(l.from);
+          const { tn, offset } = resolveTarget(l);
+          if (!fn || !tn) return;
+          const candidate = tn.y - offset;
+          if (sharedLaneLeftY === null || candidate > sharedLaneLeftY) sharedLaneLeftY = candidate;
+        });
+
+      slinks.forEach((link) => {
+        const fromNode = sender.getNode(link.from);
+        const { tn: toNode, offset: effectiveLaneOffset } = resolveTarget(link);
+        if (!fromNode || !toNode) return;
+        const fx = fromNode.x + fromNode.w / 2;
+        const fy = fromNode.y + fromNode.h;
+        const tx = toNode.x + toNode.w / 2;
+        const ty = toNode.y;
+        const laneY = ty - effectiveLaneOffset;
+        const color = link.color || "#b0b0b0";
+        let d;
+        if (link.routeLeft) {
+          const grpCorp = sender.getNode("GRP_CORPORATIVO");
+          const leftX = grpCorp ? grpCorp.x - 30 : fx - 200;
+          const dropY = fy + 30;
+          const useLaneY = sharedLaneLeftY !== null ? sharedLaneLeftY : laneY;
+          d = `M ${fx} ${fy} L ${fx} ${dropY} L ${leftX} ${dropY} L ${leftX} ${useLaneY} L ${tx} ${useLaneY} L ${tx} ${ty}`;
+        } else if (link.routeRight) {
+          const grpCorp = sender.getNode("GRP_CORPORATIVO");
+          const rightX = grpCorp ? grpCorp.x + grpCorp.w + 30 : fx + 200;
+          const dropY = fy + 55;
+          if (tx >= rightX) {
+            d = `M ${fx} ${fy} L ${fx} ${dropY} L ${tx} ${dropY} L ${tx} ${ty}`;
+          } else {
+            d = `M ${fx} ${fy} L ${fx} ${dropY} L ${rightX} ${dropY} L ${rightX} ${laneY} L ${tx} ${laneY} L ${tx} ${ty}`;
+          }
+        } else {
+          d = `M ${fx} ${fy} L ${fx} ${laneY} L ${tx} ${laneY} L ${tx} ${ty}`;
+        }
+        svgLines += `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.8" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/>`;
+      });
+
+      // Prepend (string concat, no .push) para que las líneas queden detrás
+      // de los nodos.
+      args.content = svgLines + args.content;
+    });
+
+    if (this.props.tree && this.props.tree.finalArray.length > 0) {
+      this.loadTree();
+    }
+  }
+
+  loadTree() {
+    const { tree, lineaFiltro, corporativoExpandido } = this.props;
+    if (!this.chart || !tree) return;
+
+    this.chart.config.expand = { nodes: tree.nodosAExpandir, allChildren: false };
+    this.chart.config.collapse = { level: 2, allChildren: true };
+    this.chart.load(tree.finalArray);
+
+    setTimeout(
+      () =>
+        postCargaConReintento(this.chart, {
+          antonioId: tree.antonioId,
+          corporativoExpandido,
+          lineaFiltro,
+        }),
+      10,
+    );
+  }
+
+  render() {
+    return <div ref={this.divRef} style={{ width: "100%", height: "100%" }} />;
+  }
+}

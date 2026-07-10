@@ -2,6 +2,28 @@
   text-align: center;
 }
 
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  font-family: Arial, sans-serif;
+}
+
+.filter-bar label {
+  font-size: 13px;
+  color: #555;
+}
+
+.filter-bar select {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;
