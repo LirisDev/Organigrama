@@ -2265,45 +2265,47 @@
             nodosAExpandir.push(grpId);
           }
 
-          // 1.1 Al filtrar por una línea puntual, su cabeza sale expandida
-          // (solo 1 nivel: sus reportes directos) — excepto CORPORATIVO y
-          // CARNICOS, que se muestran como están.
+          // 1.1 Al filtrar por una línea puntual, su cabeza siempre sale
+          // visible — excepto CORPORATIVO y CARNICOS, que no usan este
+          // patrón HEAD_LINEA_*. Sus reportes directos (el "1 nivel
+          // expandido") solo se revelan para las líneas donde eso es lo
+          // esperado — CARNICERIA, DERIVADOS y MARKETING se muestran SOLO
+          // hasta la cabeza, sin auto-expandir sus reportes.
           if (lineaFiltro !== "CORPORATIVO" && lineaFiltro !== "CARNICOS") {
             const prefijoCabezaLinea = `HEAD_LINEA_${grpId}_`;
             const nodoCabezaLinea = finalArray.find((n) =>
               String(n.id).startsWith(prefijoCabezaLinea),
             );
             if (nodoCabezaLinea) {
-              nodosAExpandir.push(nodoCabezaLinea.id);
-              nodoCabezaLinea.expanded = true;
               // El array declarativo expand.nodes camina hacia ARRIBA desde
               // cada id listado (nunca hacia abajo) para saltarse el límite
-              // de collapse.level=0 fijado en el init del chart. Por eso hay
-              // que listar también a los HIJOS de la cabeza explícitamente
-              // — si no, quedan bloqueados por ese nivel aunque su propio
-              // dato diga collapsed:false.
-              finalArray
-                .filter((n) => String(n.pid) === String(nodoCabezaLinea.id))
-                .forEach((hijo) => nodosAExpandir.push(hijo.id));
+              // de collapse.level=0 fijado en el init del chart — esto es lo
+              // que hace visible a la cabeza misma, con o sin sus hijos.
+              nodosAExpandir.push(nodoCabezaLinea.id);
+
+              const revelarHijosDeLaCabeza =
+                lineaFiltro !== "CARNICERIA" &&
+                lineaFiltro !== "DERIVADOS" &&
+                lineaFiltro !== "MARKETING";
+              if (revelarHijosDeLaCabeza) {
+                nodoCabezaLinea.expanded = true;
+                // Hay que listar también a los HIJOS de la cabeza
+                // explícitamente — si no, quedan bloqueados por
+                // collapse.level=0 aunque su propio dato diga collapsed:false.
+                finalArray
+                  .filter((n) => String(n.pid) === String(nodoCabezaLinea.id))
+                  .forEach((hijo) => nodosAExpandir.push(hijo.id));
+              }
             }
           }
 
-          // 1.2 DERIVADOS es un caso especial: no tiene caja/HEAD_LINEA_*
-          // propio (vive como gente suelta bajo Antonio, con lineaNegocio
-          // "DERIVADOS"). A diferencia de CORPORATIVO, Priscilla (su gente)
-          // sí debe salir expandida al filtrar por Derivados.
-          if (lineaFiltro === "DERIVADOS") {
-            const priscilla = finalArray.find(
-              (n) =>
-                (n.lineaNegocio || "").toUpperCase().trim() === "DERIVADOS",
-            );
-            if (priscilla) {
-              nodosAExpandir.push(priscilla.id);
-              finalArray
-                .filter((n) => String(n.pid) === String(priscilla.id))
-                .forEach((hijo) => nodosAExpandir.push(hijo.id));
-            }
-          }
+          // DERIVADOS: no tiene caja/HEAD_LINEA_* propio (vive como gente
+          // suelta bajo Antonio, con lineaNegocio "DERIVADOS"). Priscilla ya
+          // sale visible por ser hija directa de Antonio (postCargaConReintento
+          // expande sus hijos vía corporativoExpandido) — igual que
+          // CORPORATIVO/CARNICOS/CARNICERIA/MARKETING, se muestra solo hasta
+          // su cabeza, sin revelar sus reportes directos.
+
           // 2. [CAMBIADO] Rama de División Macro deshabilitada. En diseño plano no existen GRP_MACRO_*.
           // TODO: Borrar este bloque completo cuando se confirme que el diseño plano es definitivo.
           // else if (finalArray.some(n => n.id === macroGrpId)) {
@@ -2445,21 +2447,14 @@
         // post-init es un no-op, ver 03 - Estado Actual.md). Setear
         // node.collapsed en la data NO ALCANZA por sí solo: hay que listar
         // también cada hijo a revelar en nodosAExpandir explícitamente,
-        // el caso genérico (Balanceado/Retail/Marketing) ya lo hace arriba
-        // en el bloque "EXCEPCIÓN VIP". Acá cubrimos CARNICERIA y PECUARIOS,
-        // que no pasan por ese bloque (su HEAD_LINEA_* real no existe igual).
+        // el caso genérico (Balanceado/Retail) ya lo hace arriba en el
+        // bloque "EXCEPCIÓN VIP". Acá cubrimos PECUARIOS, que no pasa por
+        // ese bloque (su HEAD_LINEA_* real no existe igual), y Jean Pierre
+        // (Carnicería): su fusión bajo Omar no deja rastro HEAD_LINEA_*, así
+        // que el bloque "EXCEPCIÓN VIP" no puede encontrarlo — se revela acá
+        // por tag, SOLO él (sin sus reportes directos).
         (function revelarHijosCasosEspeciales() {
-          if (lineaFiltro === "CARNICERIA") {
-            const jeanPierre = finalArray.find(
-              (n) => n.tags && n.tags.includes("jefe-carniceria"),
-            );
-            if (jeanPierre) {
-              nodosAExpandir.push(jeanPierre.id);
-              finalArray
-                .filter((n) => String(n.pid) === String(jeanPierre.id))
-                .forEach((n) => nodosAExpandir.push(n.id));
-            }
-          } else if (lineaFiltro === "PECUARIOS") {
+          if (lineaFiltro === "PECUARIOS") {
             const fantasma = finalArray.find((n) =>
               String(n.id).startsWith("HEAD_LINEA_GRP_PECUARIOS_"),
             );
@@ -2472,6 +2467,11 @@
                     .forEach((n) => nodosAExpandir.push(n.id));
                 });
             }
+          } else if (lineaFiltro === "CARNICERIA") {
+            const jeanPierre = finalArray.find(
+              (n) => n.tags && n.tags.includes("jefe-carniceria"),
+            );
+            if (jeanPierre) nodosAExpandir.push(jeanPierre.id);
           }
         })();
 
