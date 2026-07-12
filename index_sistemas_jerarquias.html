@@ -2213,6 +2213,16 @@
         finalArray.forEach((node) => {
           delete node.state;
           node.expanded = false; // ← Explícito, no solo delete
+          // node.collapsed en null hace que Balkan caiga a su estado interno
+          // RECORDADO por ID entre renders (ej. "Expandir Todo" en Todas las
+          // Líneas deja a Antonio/Priscilla/los gerentes de Cárnicos — ids
+          // reales, estables entre filtros — marcados como expandidos
+          // internamente, y ese registro sobrevive al cambio de filtro aunque
+          // se borre `.state`). Forzar collapsed:true explícito en TODOS los
+          // nodos hace que _setCollpasedProperty ya no tenga ambigüedad que
+          // resolver con el registro viejo; nodosAExpandir sigue revelando lo
+          // que corresponde vía el ancestor-walk de expand.nodes.
+          node.collapsed = true;
         });
 
         // ✅ SIEMPRE setear expand/collapse antes de cargar
@@ -2475,6 +2485,14 @@
           }
         })();
 
+        // Confirmado por consola: node.collapsed:true en la DATA no pisa el
+        // estado interno que Balkan ya tenía guardado para ese id (ej. tras
+        // "Expandir Todo" en Todas las Líneas, Omar/Antonio/Priscilla —
+        // ids reales y estables entre filtros — quedan con collapsed:false
+        // en runtime aunque la data diga true). chart.load([]) vacío destruye
+        // el registro interno por id antes de recargar — mismo patrón ya
+        // usado en el botón "Colapsar Todo".
+        chart.load([]);
         chart.load(finalArray);
 
         // Balkan puede tardar en inicializar su registro interno de nodos
