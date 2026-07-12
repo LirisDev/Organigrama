@@ -4120,9 +4120,19 @@
           // });
 
           // Colapsa/expande CARNICOS y PECUARIOS al hacer click en su grupo
+          // — solo permitido en "Todas las Líneas". Con un filtro puntual
+          // activo (CARNICOS, PECUARIOS, o CARNICERIA que usa la caja
+          // CARNICOS como soporte — ver esSoporteParaOtraLinea) minimizar no
+          // tiene sentido, se pierde la vista que el usuario pidió ver.
           const GRUPOS_COLAPSABLES = ["GRP_CARNICOS", "GRP_PECUARIOS"];
           chart.on("click", function (sender, args) {
             if (!GRUPOS_COLAPSABLES.includes(args.node.id)) return;
+            const lineaFiltroActiva = (
+              $("#linea-negocio-select").val() || ""
+            )
+              .toUpperCase()
+              .trim();
+            if (lineaFiltroActiva !== "TODOS") return;
             if (args.node.min) {
               sender.maximize(args.node.id);
             } else {
