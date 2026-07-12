@@ -8,6 +8,11 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Organigrama LIRIS S.A.</title>
+    <!-- Adelanta la conexión TCP/TLS al host de fotos de empleados, para que
+         cuando el chart empiece a pedir imágenes no pague ese costo por cada
+         una — no acelera al servidor en sí, solo el handshake de red. -->
+    <link rel="preconnect" href="https://soporte.liris.com.ec" crossorigin />
+    <link rel="dns-prefetch" href="https://soporte.liris.com.ec" />
     <!-- <script src="Balkan/orgchart.js"></script> -->
     <script src="BalkanPro/orgchart.js"></script>
     <!-- <script src="main.js"></script> -->
