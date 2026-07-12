@@ -244,13 +244,18 @@
       };
 
       // CONFIGURACIÓN MAESTRA PARA CARGOS (usa codigoPosicion como ID)
+      // reportFuncional: id (codigoPosicion) de Santiago ("00003") — sin esto,
+      // esCabezaDivision() nunca detecta a Santiago como cabeza de división,
+      // y su descendencia completa (Balanceado, Cárnicos, Pecuarios) se cuela
+      // sin filtro dentro del staff de Corporativo, robándole sus hijos reales
+      // a los nodos HEAD_LINEA_GRP_* bien formados de cada línea.
       const CABEZAS_NEGOCIO_CARGO = {
-        CORPORATIVO: { id: "00001", order: 1 },
-        BALANCEADO: { id: "00023", order: 2 },
-        CARNICERIA: { id: "00097", order: 3 },
-        CARNICOS: { id: "00003", order: 4 },
-        PECUARIOS: { id: "00003", order: 5 }, //01047
-        DERIVADOS: { id: "01102", order: 6 },
+        CORPORATIVO: { id: "00001", order: 1, reportFuncional: null },
+        BALANCEADO: { id: "00023", order: 2, reportFuncional: "00003" },
+        CARNICERIA: { id: "00097", order: 3, reportFuncional: "00003" },
+        CARNICOS: { id: "00003", order: 4, reportFuncional: "00003" },
+        PECUARIOS: { id: "00003", order: 5, reportFuncional: "00003" }, //01047
+        // DERIVADOS: { id: "01102", order: 6 }, // sin caja propia, igual que en CABEZAS_NEGOCIO_TEMP (Persona)
         MARKETING: { id: "01049", order: -1 },
         RETAIL: { id: "00671", order: 8 },
       };
@@ -1681,14 +1686,25 @@
               const nodoHijo = Object.assign({}, node);
               //nodoHijo.stpid = groupCorpId; // Va dentro del grupo gris
 
+              // "COMITE" en Persona viene en node.puesto; en Cargo el mismo
+              // puesto llega en node.cargoPuesto (cargoBinding usa
+              // field_0=cargoPuesto/field_1=cargoPersona, no puesto/nombre)
+              // — sin este segundo check, Cargo nunca detecta el Comité y
+              // muestra el texto crudo del API sin el título ni la lista.
               if (
                 nodoHijo.puesto === "COMITE" ||
-                nodoHijo.puesto === "COMITE COMITE"
+                nodoHijo.puesto === "COMITE COMITE" ||
+                nodoHijo.cargoPuesto === "COMITE" ||
+                nodoHijo.cargoPuesto === "COMITE COMITE"
               ) {
-                nodoHijo.nombre = "COMITÉ DE PRODUCTOS DERIVADOS";
-                nodoHijo.displayNombre = "COMITÉ DE PRODUCTOS DERIVADOS"; // Lo dejamos también por si la búsqueda lo usa                  // Inyectamos las 6 líneas separadas por salto de línea (<br/>)
-                nodoHijo.puesto =
+                const tituloComite = "COMITÉ DE PRODUCTOS DERIVADOS";
+                const listaComite =
                   "• PRESIDENTE\n• GERENTE GENERAL\n• GERENTE FINANCIERO\n• GERENTE DE PRODUCTOS DERIVADOS\n• TRADER SENIOR DE PRODUCTOS DERIVADOS\n• TRADER DE PRODUCTOS DERIVADOS";
+                nodoHijo.nombre = tituloComite;
+                nodoHijo.displayNombre = tituloComite; // Lo dejamos también por si la búsqueda lo usa
+                nodoHijo.puesto = listaComite;
+                nodoHijo.cargoPuesto = tituloComite;
+                nodoHijo.cargoPersona = listaComite;
                 if (!nodoHijo.tags) nodoHijo.tags = [];
                 nodoHijo.tags.push("comite"); // activa comiteTemplate (cuadro más alto)
                 nodoHijo.tags.push("left-partner"); // cuelga a la izquierda del Presidente
@@ -1732,12 +1748,6 @@
           });
         }
 
-        // --- Si es solo CORPORATIVO, salimos aquí ---
-        if (esSoloCorp) {
-          cargarYFinalizar(nodesToRender);
-          return;
-        }
-
         // =========================================================
         // 2. LÍNEAS DE NEGOCIO — JERARQUÍA PLANA
         // [CAMBIADO] Eliminadas las cajas de Divisiones Macro (PECUARIO, INDUSTRIAL, RETAIL).
@@ -1751,6 +1761,11 @@
           ([nombreLinea, configLinea]) => {
             // CORPORATIVO ya fue renderizado arriba
             if (nombreLinea === "CORPORATIVO") return;
+            // Filtro puntual CORPORATIVO/DERIVADOS: no arma líneas de
+            // negocio, pero SÍ debe seguir hasta el conteo visual final más
+            // abajo (antes se cortaba con un return acá y la caja Corporativo
+            // se quedaba sin contador).
+            if (esSoloCorp) return;
             // Líneas de negocio ocultas hasta que el usuario expanda CORPORATIVO
             if (!corporativoExpandido) return;
 
@@ -1926,120 +1941,12 @@
             }
           },
         );
-        // =========================================================
-        // 6. CONTEO VISUAL FINAL (Para los globos naranjas)
-        // =========================================================
-        const visualCounts = {};
-
-        // A. Inicializar conteos para todas las líneas y corporativo
-        Object.keys(CABEZAS_ACTIVAS).forEach((k) => {
-          visualCounts[k.toUpperCase().replace(/\s/g, "")] = 0;
-        });
-        visualCounts["CORPORATIVO"] = 0;
-
-        // B. [CAMBIADO] Eliminado init de Divisiones Macro. En diseño plano no existen.
-        // TODO: Borrar este bloque si se confirma que el conteo plano funciona correctamente.
-        // Object.values(ESTRUCTURA_ACTIVA).forEach((macro) => {
-        //   visualCounts[macro.id] = 0;
-        // });
-        // Mantenemos init manual de DERIVADOS para que el fallback no los descarte
-        visualCounts["DERIVADOS"] = 0;
-
-        // C. Primera pasada: Contar personas en su grupo directo (stpid)
-        nodesToRender.forEach((node) => {
-          // --- EXCEPCIÓN DE RRHH: IGNORAR EL "COMITÉ" ---
-          // Si el puesto contiene la palabra COMITE, lo ignoramos para que no sume jamás.
-          const nombrePuesto = node.puesto
-            ? node.puesto.toUpperCase().trim()
-            : "";
-          if (nombrePuesto === "COMITE" || nombrePuesto === "COMITÉ") {
-            return; // Lo saltamos como si no existiera matemáticamente
-          }
-
-          // C.1 Ignoramos nodos que sean grupos o auxiliares (fantasmas)
-          if (
-            node.tags &&
-            (node.tags.includes("group") ||
-              node.tags.includes("fantasma") ||
-              node.tags.includes("head-of-group")) // || node.tags.includes("vacante")) // TODO: Descomentar si piden que solo se cuenten las personas activas y no las vacantes disponibles
-          )
-            return;
-
-          // C.2 Extraemos la línea de negocio real del contrato del empleado (normalizada)
-          const lineaRealEmpleado = node.lineaNegocio
-            ? node.lineaNegocio.trim().toUpperCase().replace(/\s/g, "")
-            : "N/A";
-
-          if (node.tags && node.tags.includes("head-of-group")) {
-            // [CAMBIADO] Referencia a GRP_MACRO_DERIVADOS eliminada (no existe en diseño plano).
-            // TODO: Borrar este bloque si Priscilla ya no necesita excepción de conteo.
-            // if (node.stpid !== "GRP_MACRO_DERIVADOS") return;
-            return; // head-of-group no cuenta en ningún diseño
-          }
-          // [CAMBIADO] DERIVADOS ya no tiene caja macro. Se cuenta en visualCounts["DERIVADOS"].
-          // TODO: Borrar comentario si el conteo plano de DERIVADOS funciona correctamente.
-          if (lineaRealEmpleado === "DERIVADOS") {
-            visualCounts["DERIVADOS"]++;
-            return;
-          }
-          // C.3 ¿Dónde está sentado visualmente este nodo ahora mismo?
-          if (node.stpid) {
-            // Está dentro de una caja (ej: GRP_CARNICERIA)
-            const nombreCaja = node.stpid.replace("GRP_", "");
-            if (nombreCaja === lineaRealEmpleado) {
-              if (visualCounts[nombreCaja] !== undefined) {
-                visualCounts[nombreCaja]++;
-              }
-            } else {
-              // El empleado está de invitado en otra caja (ej. Omar Buritica en Carnicería).
-              // ¡No sumamos nada! Fantasma numérico.
-              // console.log(`Empleado ${node.nombre} ignorado en ${nombreCaja} porque pertenece a ${lineaRealEmpleado}`);
-            }
-          } else {
-            // Fallback: usar su línea de negocio original si no tiene stpid (ej: staff directo raíz)
-            // Está suelto (ej. Corporativo directo). Lo sumamos a su línea real.
-            if (visualCounts[lineaRealEmpleado] !== undefined) {
-              visualCounts[lineaRealEmpleado]++;
-            }
-          }
-        });
-
-        // D. [CAMBIADO] Agregación hacia Divisiones Macro eliminada. Diseño plano no la necesita.
-        // TODO: Borrar este bloque completo una vez confirmado que los conteos son correctos.
-        // Object.values(ESTRUCTURA_ACTIVA).forEach((macro) => {
-        //   macro.subgrupos.forEach((sub) => {
-        //     const subKey = sub.toUpperCase().replace(/\s/g, "");
-        //     if (visualCounts[subKey]) {
-        //       visualCounts[macro.id] += visualCounts[subKey];
-        //     }
-        //   });
-        // });
-
-        // E. ASIGNAR LOS CONTEOS A LOS NODOS DE GRUPO
-        nodesToRender.forEach((node) => {
-          if (node.tags && node.tags.includes("group")) {
-            // Caso 1: Es una División Macro (Pecuario/Retail)
-            if (visualCounts[node.id] !== undefined) {
-              node.conteo = String(visualCounts[node.id]);
-            }
-            // Caso 2: Es una Línea de Negocio Individual o Corporativo
-            else {
-              const lineaKey = node.id.replace("GRP_", "");
-              if (visualCounts[lineaKey] !== undefined) {
-                node.conteo = String(visualCounts[lineaKey]);
-              }
-            }
-          }
-        });
-
-        console.log(
-          "📊 Conteos Visuales Finales (Personas Únicas):",
-          visualCounts,
-        );
-
-        // console.log("📊 nodesToRender.size:", nodesToRender.size);
-
-        // Disparar renderizado final
+        // El conteo visual (globos naranjas) se calcula en cargarYFinalizar,
+        // DESPUÉS de la fusión Carnicería/Marketing y la alineación
+        // Retail/Balanceado — antes se calculaba acá, sobre el árbol
+        // pre-fusión, y contaba gente hacia cajas que luego se destruyen
+        // (GRP_CARNICERIA) o hacia estructuras que aún no existían
+        // (María Eugenia todavía no reparentada bajo Retail).
         cargarYFinalizar(nodesToRender);
       }
 
@@ -2144,6 +2051,94 @@
           });
         })();
 
+        // =========================================================
+        // CONTEO VISUAL FINAL (Para los globos naranjas)
+        // Corre acá, DESPUÉS de la fusión Carnicería/Marketing y la
+        // alineación Retail/Balanceado — antes vivía en
+        // renderOrganigramaGrupos() y contaba sobre el árbol pre-fusión,
+        // llevando gente a cajas que luego se destruyen (GRP_CARNICERIA) o
+        // a estructuras que aún no existían (Marketing bajo Retail).
+        // =========================================================
+        (function calcularConteoVisual() {
+          const modoParaConteo = document.getElementById("modo-select").value;
+          const CABEZAS_PARA_CONTEO =
+            modoParaConteo === "Cargo" ? CABEZAS_NEGOCIO_CARGO : CABEZAS_NEGOCIO_TEMP;
+          const finalById = new Map(finalArray.map((n) => [n.id, n]));
+          const visualCounts = {};
+
+          Object.keys(CABEZAS_PARA_CONTEO).forEach((k) => {
+            visualCounts[k.toUpperCase().replace(/\s/g, "")] = 0;
+          });
+          visualCounts["CORPORATIVO"] = 0;
+          visualCounts["DERIVADOS"] = 0;
+
+          finalArray.forEach((node) => {
+            const nombrePuesto = node.puesto
+              ? node.puesto.toUpperCase().trim()
+              : "";
+            if (nombrePuesto === "COMITE" || nombrePuesto === "COMITÉ") return;
+
+            if (
+              node.tags &&
+              (node.tags.includes("group") ||
+                node.tags.includes("fantasma") ||
+                node.tags.includes("head-of-group"))
+            )
+              return;
+
+            const lineaRealEmpleado = node.lineaNegocio
+              ? node.lineaNegocio.trim().toUpperCase().replace(/\s/g, "")
+              : "N/A";
+
+            if (node.stpid) {
+              const nombreCaja = node.stpid.replace("GRP_", "");
+              if (nombreCaja === lineaRealEmpleado) {
+                if (visualCounts[nombreCaja] !== undefined) {
+                  visualCounts[nombreCaja]++;
+                }
+              }
+              // else: invitado en otra caja (ej. Omar en Carnicería) — no suma.
+            } else {
+              // Sin stpid: staff directo de Antonio, o descendiente varios
+              // niveles abajo (solo la CABEZA de cada línea recibe stpid).
+              // Caminar hacia arriba por pid hasta encontrar un ancestro con
+              // stpid (la caja real donde cuelga visualmente) evita contar
+              // por lineaNegocio autoreportado, que puede no coincidir con
+              // dónde está realmente dibujado el nodo.
+              const cajaVisual = (() => {
+                let actual = node;
+                const visitados = new Set();
+                while (actual && actual.pid && !visitados.has(actual.id)) {
+                  visitados.add(actual.id);
+                  const padre = finalById.get(actual.pid);
+                  if (!padre) break;
+                  if (padre.stpid) return padre.stpid.replace("GRP_", "");
+                  actual = padre;
+                }
+                return "CORPORATIVO";
+              })();
+              if (visualCounts[cajaVisual] !== undefined) {
+                visualCounts[cajaVisual]++;
+              }
+            }
+          });
+
+          finalArray.forEach((node) => {
+            if (node.tags && node.tags.includes("group")) {
+              if (visualCounts[node.id] !== undefined) {
+                node.conteo = String(visualCounts[node.id]);
+              } else {
+                const lineaKey = node.id.replace("GRP_", "");
+                if (visualCounts[lineaKey] !== undefined) {
+                  node.conteo = String(visualCounts[lineaKey]);
+                }
+              }
+            }
+          });
+
+          console.log("📊 Conteos Visuales Finales (Personas Únicas):", visualCounts);
+        })();
+
         // AGREGAR ESTO: Asegurar displayNombre en todos los nodos
         finalArray.forEach((node) => {
           if (!node.displayNombre) {
@@ -2201,7 +2196,8 @@
             }
           } else {
             if (esVacante) node.tags.push("vacanteSimple");
-            else if (esComite) node.tags.push("comiteTemplate"); // El comité si no tiene hijos visibles
+            else if (esComite)
+              node.tags.push(esCargo ? "comiteTemplateCargo" : "comiteTemplate"); // El comité si no tiene hijos visibles
           }
         });
 
@@ -2364,7 +2360,10 @@
               routeRight: true,
             });
           }
-          const idSantiago = "12";
+          // "12" es el id de empleado de Santiago (Persona); en Cargo su id
+          // es el codigoPosicion "00003" — mismo id que CABEZAS_NEGOCIO_CARGO
+          // usa como reportFuncional de Balanceado/Cárnicos/Pecuarios.
+          const idSantiago = currentMode === "Cargo" ? "00003" : "12";
           ["GRP_BALANCEADO", "GRP_CARNICOS", "GRP_PECUARIOS"].forEach(
             (grpId) => {
               if (finalArray.some((n) => n.id === grpId)) {
@@ -3547,6 +3546,21 @@
             '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 8.5px; color: #555; line-height: 1.2; text-align: left; white-space: pre-line; word-wrap: break-word; overflow: hidden; height: 90px;">{val}</div>' +
             '</foreignObject>';
 
+          // Variante SOLO para Vista por Cargo: sin foto (nunca la tiene),
+          // texto usando todo el ancho — la de Persona queda como estaba.
+          OrgChart.templates.comiteTemplateCargo = Object.assign(
+            {},
+            OrgChart.templates.comiteTemplate,
+          );
+          OrgChart.templates.comiteTemplateCargo.img_0 = "";
+          OrgChart.templates.comiteTemplateCargo.field_0 =
+            '<foreignObject x="15" y="15" width="220" height="50">' +
+            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 13px; font-weight: bold; color: #D35400; line-height: 1.1; text-align: left;">{val}</div></foreignObject>';
+          OrgChart.templates.comiteTemplateCargo.field_1 =
+            '<foreignObject x="15" y="65" width="220" height="90">' +
+            '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 8.5px; color: #555; line-height: 1.2; text-align: left; white-space: pre-line; word-wrap: break-word; overflow: hidden; height: 90px;">{val}</div>' +
+            '</foreignObject>';
+
           // (Opcional pero recomendado) Ajustar el efecto "Ripple" (la onda al hacer clic) al nuevo tamaño
           OrgChart.templates.comiteTemplate.ripple = {
             radius: 15,
@@ -3720,6 +3734,7 @@
             comiteGroup: { template: "comiteGroup" },
             comiteSingle: { template: "comiteSingle" },
             comiteTemplate: { template: "comiteTemplate" },
+            comiteTemplateCargo: { template: "comiteTemplateCargo" },
 
             // Tag bas"e (se mantiene por si acaso)
             vacanteSimple: { template: "vacanteSimple" }, //template: "vacanteTemplate" },
