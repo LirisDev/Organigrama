@@ -195,6 +195,10 @@ export default class OrgChartCanvas extends Component {
           icon: OrgChart.icon.layout_normal(24, 24, "#7A7A7A"),
           title: "Horizontal Layout",
           onClick: () => {
+            // Línea del fantasma de subnivel vertical (mismo eje que el
+            // árbol top-down) — ver comentario en verticalLayout.
+            OrgChart.templates.subLevel.node =
+              '<line x1="125" y1="0" x2="125" y2="110" stroke="#aeaeae" stroke-width="1px"/>';
             this.chart.setOrientation(OrgChart.orientation.top, null, () => this.chart.fit());
           },
         },
@@ -202,6 +206,14 @@ export default class OrgChartCanvas extends Component {
           icon: OrgChart.icon.layout_left_offset(24, 24, "#7A7A7A"),
           title: "Vertical Layout",
           onClick: () => {
+            // El fantasma de subnivel (relleno cuando se saltan niveles
+            // jerárquicos) dibuja una línea fija para que el conector se vea
+            // continuo — con orientation.left el árbol crece hacia la
+            // derecha, no hacia abajo, así que la línea tiene que ser
+            // horizontal (mitad de la altura, todo el ancho) o se ven como
+            // rayitas sueltas sin conectar nada.
+            OrgChart.templates.subLevel.node =
+              '<line x1="0" y1="55" x2="250" y2="55" stroke="#aeaeae" stroke-width="1px"/>';
             this.chart.setOrientation(OrgChart.orientation.left, null, () => this.chart.fit());
           },
         },
@@ -331,8 +343,23 @@ export default class OrgChartCanvas extends Component {
       const slinks = this.props.slinks || [];
       if (slinks.length === 0) return;
 
+      // Ruteo generalizado a dos ejes lógicos para que funcione tanto en
+      // orientation.top (vertical, default) como en orientation.left
+      // (cascada horizontal, botón "Vertical Layout"): "along" es el eje en
+      // el que crece el árbol (Y en vertical, X en horizontal) y "cross" es
+      // el perpendicular (X en vertical, Y en horizontal). Portado 1:1 de
+      // organigrama-lineasNegocio.
+      const esHorizontal = sender.config.orientation === OrgChart.orientation.left;
+
+      const along = (pt) => (esHorizontal ? pt.x : pt.y);
+      const cross = (pt) => (esHorizontal ? pt.y : pt.x);
+      const crossSize = (n) => (esHorizontal ? n.h : n.w);
+      const pt = (alongVal, crossVal) => (esHorizontal ? { x: alongVal, y: crossVal } : { x: crossVal, y: alongVal });
+      const nodeBack = (n) => (esHorizontal ? { x: n.x + n.w, y: n.y + n.h / 2 } : { x: n.x + n.w / 2, y: n.y + n.h });
+      const nodeFront = (n) => (esHorizontal ? { x: n.x, y: n.y + n.h / 2 } : { x: n.x + n.w / 2, y: n.y });
+
       let svgLines = "";
-      let sharedLaneLeftY = null;
+      let sharedLaneAlong = null;
 
       function resolveTarget(link) {
         let tn = sender.getNode(link.to);
@@ -353,39 +380,61 @@ export default class OrgChartCanvas extends Component {
           const fn = sender.getNode(l.from);
           const { tn, offset } = resolveTarget(l);
           if (!fn || !tn) return;
-          const candidate = tn.y - offset;
-          if (sharedLaneLeftY === null || candidate > sharedLaneLeftY) sharedLaneLeftY = candidate;
+          const candidate = along(nodeFront(tn)) - offset;
+          if (sharedLaneAlong === null || candidate > sharedLaneAlong) sharedLaneAlong = candidate;
         });
 
       slinks.forEach((link) => {
         const fromNode = sender.getNode(link.from);
         const { tn: toNode, offset: effectiveLaneOffset } = resolveTarget(link);
         if (!fromNode || !toNode) return;
-        const fx = fromNode.x + fromNode.w / 2;
-        const fy = fromNode.y + fromNode.h;
-        const tx = toNode.x + toNode.w / 2;
-        const ty = toNode.y;
-        const laneY = ty - effectiveLaneOffset;
+
+        const fromPt = nodeBack(fromNode);
+        const toPt = nodeFront(toNode);
+        const fAlong = along(fromPt);
+        const fCross = cross(fromPt);
+        const tAlong = along(toPt);
+        const tCross = cross(toPt);
+        const laneAlong = tAlong - effectiveLaneOffset;
         const color = link.color || "#b0b0b0";
-        let d;
+
+        const grpCorp = sender.getNode("GRP_CORPORATIVO");
+        const corpCrossStart = grpCorp ? cross({ x: grpCorp.x, y: grpCorp.y }) : null;
+        const corpCrossEnd = grpCorp ? corpCrossStart + crossSize(grpCorp) : null;
+
+        let puntos;
         if (link.routeLeft) {
-          const grpCorp = sender.getNode("GRP_CORPORATIVO");
-          const leftX = grpCorp ? grpCorp.x - 30 : fx - 200;
-          const dropY = fy + 30;
-          const useLaneY = sharedLaneLeftY !== null ? sharedLaneLeftY : laneY;
-          d = `M ${fx} ${fy} L ${fx} ${dropY} L ${leftX} ${dropY} L ${leftX} ${useLaneY} L ${tx} ${useLaneY} L ${tx} ${ty}`;
+          const crossBound = corpCrossStart !== null ? corpCrossStart - 30 : fCross - 200;
+          const dropAlong = fAlong + 30;
+          const useLaneAlong = sharedLaneAlong !== null ? sharedLaneAlong : laneAlong;
+          puntos = [
+            pt(fAlong, fCross),
+            pt(dropAlong, fCross),
+            pt(dropAlong, crossBound),
+            pt(useLaneAlong, crossBound),
+            pt(useLaneAlong, tCross),
+            pt(tAlong, tCross),
+          ];
         } else if (link.routeRight) {
-          const grpCorp = sender.getNode("GRP_CORPORATIVO");
-          const rightX = grpCorp ? grpCorp.x + grpCorp.w + 30 : fx + 200;
-          const dropY = fy + 55;
-          if (tx >= rightX) {
-            d = `M ${fx} ${fy} L ${fx} ${dropY} L ${tx} ${dropY} L ${tx} ${ty}`;
+          const crossBound = corpCrossEnd !== null ? corpCrossEnd + 30 : fCross + 200;
+          const dropAlong = fAlong + 55;
+          if (tCross >= crossBound) {
+            puntos = [pt(fAlong, fCross), pt(dropAlong, fCross), pt(dropAlong, tCross), pt(tAlong, tCross)];
           } else {
-            d = `M ${fx} ${fy} L ${fx} ${dropY} L ${rightX} ${dropY} L ${rightX} ${laneY} L ${tx} ${laneY} L ${tx} ${ty}`;
+            puntos = [
+              pt(fAlong, fCross),
+              pt(dropAlong, fCross),
+              pt(dropAlong, crossBound),
+              pt(laneAlong, crossBound),
+              pt(laneAlong, tCross),
+              pt(tAlong, tCross),
+            ];
           }
         } else {
-          d = `M ${fx} ${fy} L ${fx} ${laneY} L ${tx} ${laneY} L ${tx} ${ty}`;
+          puntos = [pt(fAlong, fCross), pt(laneAlong, fCross), pt(laneAlong, tCross), pt(tAlong, tCross)];
         }
+
+        const d = puntos.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
         svgLines += `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.8" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/>`;
       });
 
