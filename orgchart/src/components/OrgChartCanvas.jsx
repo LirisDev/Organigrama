@@ -109,8 +109,6 @@ export default class OrgChartCanvas extends Component {
       expand: { nodes: [], allChildren: false },
       controls: {
         svg_export: { title: "Exportar a SVG" },
-        pdf_export: { title: "Exportar a PDF" },
-        png_export: { title: "Exportar a PNG" },
         zoom_in: { title: "Zoom In" },
         zoom_out: { title: "Zoom Out" },
         fit: { title: "Ajustar a la pantalla" },
@@ -146,6 +144,13 @@ export default class OrgChartCanvas extends Component {
             this.chart.setOrientation(OrgChart.orientation.left, null, () => this.chart.fit());
           },
         },
+      },
+      // Exportar PDF/PNG vive en el menú hamburguesa (config distinta de
+      // `controls`, que es la tira de íconos) — la tira solo trae SVG.
+      menu: {
+        pdf_export: { text: "Export PDF" },
+        png_export: { text: "Export PNG" },
+        svg_export: { text: "Export SVG" },
       },
       enableDragDrop: false,
       sortSubLevelsSeparately: true,
