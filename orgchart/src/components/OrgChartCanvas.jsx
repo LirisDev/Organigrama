@@ -11,13 +11,11 @@ export default class OrgChartCanvas extends Component {
     super(props);
     this.divRef = React.createRef();
     this.chart = null;
-    this._handleVisibility = this._handleVisibility.bind(this);
   }
 
   componentDidMount() {
     if (!this.divRef.current) return;
     this.createChart();
-    document.addEventListener("visibilitychange", this._handleVisibility);
   }
 
   componentDidUpdate(prevProps) {
@@ -27,7 +25,6 @@ export default class OrgChartCanvas extends Component {
   }
 
   componentWillUnmount() {
-    document.removeEventListener("visibilitychange", this._handleVisibility);
     if (this.chart) {
       try {
         this.chart.destroy();
@@ -37,14 +34,13 @@ export default class OrgChartCanvas extends Component {
     }
   }
 
-  // Balkan puede desincronizar su estado interno (_resizeObserver) cuando la
-  // pestaña vuelve de segundo plano sin pasar por el chart.load() normal —
-  // forzamos un re-render como red de seguridad.
-  _handleVisibility() {
-    if (document.visibilityState === "visible" && this.chart) {
-      this.loadTree();
-    }
-  }
+  // NOTA: existió acá un listener de "visibilitychange" que forzaba
+  // loadTree() al volver de una pestaña en segundo plano, para evitar que
+  // el _resizeObserver interno de Balkan quedara desincronizado (cajas de
+  // línea vacías). Se quitó a pedido explícito en la rama vanilla — se
+  // prefiere mantener las expansiones manuales del usuario al volver a la
+  // pestaña, aunque eso reintroduce ese riesgo. Ver
+  // 02 - Arquitectura#Listener de visibilitychange en la bóveda.
 
   createChart() {
     const OrgChart = window.OrgChart;
@@ -222,6 +218,11 @@ export default class OrgChartCanvas extends Component {
 
     this.chart.config.expand = { nodes: tree.nodosAExpandir, allChildren: false };
     this.chart.config.collapse = { level: 2, allChildren: true };
+    // chart.load([]) vacío primero: Balkan recuerda el estado collapsed por
+    // id entre cargas (confirmado por consola) — sin este vaciado, el
+    // collapsed:true que ya viene explícito en tree.finalArray puede quedar
+    // ignorado para ids reales y estables (ej. después de "Expandir Todo").
+    this.chart.load([]);
     this.chart.load(tree.finalArray);
 
     setTimeout(

@@ -159,6 +159,13 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido }) {
         nodoHijo.tags.push("left-partner");
       }
 
+      // Priscilla (cabeza de Derivados): mismo estilo de header que
+      // jefe-carniceria/jefe-marketing, en amarillo.
+      if (lineaNode === "DERIVADOS") {
+        if (!nodoHijo.tags) nodoHijo.tags = [];
+        nodoHijo.tags.push("jefe-derivados");
+      }
+
       nodesToRender.set(nodoHijo.id, nodoHijo);
 
       let filtroHijosCorp = null;
@@ -289,15 +296,29 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido }) {
     }
   });
 
-  // === Conteo visual final (globos naranjas de las cajas de grupo) ===
+  return finalizeTree(nodesToRender, sourceNodes, lineaFiltroNorm, corporativoExpandido);
+}
+
+/**
+ * Cuenta personas reales dentro de `finalArray` y asigna `node.conteo` a
+ * cada nodo con tag "group" (los globos naranjas). Cuenta hacia la caja
+ * donde el nodo cuelga VISUALMENTE (vía stpid, o caminando hacia arriba por
+ * pid hasta encontrar un ancestro con stpid), no según su lineaNegocio
+ * autoreportada — evita inflar el conteo de una línea con gente que en
+ * realidad se dibuja en otra caja (ej. staff de Corporativo). Debe correr
+ * DESPUÉS de la fusión Carnicería/Marketing, o cuenta hacia cajas que ya
+ * no existen o estructuras que aún no se armaron.
+ */
+function calcularConteoVisual(finalArray) {
+  const finalById = new Map(finalArray.map((n) => [n.id, n]));
   const visualCounts = {};
-  Object.keys(CABEZAS_ACTIVAS).forEach((k) => {
+  Object.keys(CABEZAS_NEGOCIO_TEMP).forEach((k) => {
     visualCounts[k.toUpperCase().replace(/\s/g, "")] = 0;
   });
   visualCounts["CORPORATIVO"] = 0;
   visualCounts["DERIVADOS"] = 0;
 
-  nodesToRender.forEach((node) => {
+  finalArray.forEach((node) => {
     const nombrePuesto = node.puesto ? node.puesto.toUpperCase().trim() : "";
     if (nombrePuesto === "COMITE" || nombrePuesto === "COMITÉ") return;
 
@@ -310,24 +331,36 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido }) {
 
     const lineaRealEmpleado = node.lineaNegocio ? node.lineaNegocio.trim().toUpperCase().replace(/\s/g, "") : "N/A";
 
-    if (node.tags && node.tags.includes("head-of-group")) return;
-
-    if (lineaRealEmpleado === "DERIVADOS") {
-      visualCounts["DERIVADOS"]++;
-      return;
-    }
-
     if (node.stpid) {
       const nombreCaja = node.stpid.replace("GRP_", "");
       if (nombreCaja === lineaRealEmpleado && visualCounts[nombreCaja] !== undefined) {
         visualCounts[nombreCaja]++;
       }
-    } else if (visualCounts[lineaRealEmpleado] !== undefined) {
-      visualCounts[lineaRealEmpleado]++;
+      // else: invitado en otra caja (ej. Omar en Carnicería) — no suma.
+    } else {
+      // Sin stpid: staff directo de Antonio, o descendiente varios niveles
+      // abajo (solo la CABEZA de cada línea recibe stpid). Caminar hacia
+      // arriba por pid hasta encontrar un ancestro con stpid resuelve la
+      // caja real donde cuelga visualmente.
+      const cajaVisual = (() => {
+        let actual = node;
+        const visitados = new Set();
+        while (actual && actual.pid && !visitados.has(actual.id)) {
+          visitados.add(actual.id);
+          const padre = finalById.get(actual.pid);
+          if (!padre) break;
+          if (padre.stpid) return padre.stpid.replace("GRP_", "");
+          actual = padre;
+        }
+        return "CORPORATIVO";
+      })();
+      if (visualCounts[cajaVisual] !== undefined) {
+        visualCounts[cajaVisual]++;
+      }
     }
   });
 
-  nodesToRender.forEach((node) => {
+  finalArray.forEach((node) => {
     if (!node.tags || !node.tags.includes("group")) return;
     if (visualCounts[node.id] !== undefined) {
       node.conteo = String(visualCounts[node.id]);
@@ -336,8 +369,6 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido }) {
       if (visualCounts[lineaKey] !== undefined) node.conteo = String(visualCounts[lineaKey]);
     }
   });
-
-  return finalizeTree(nodesToRender, sourceNodes, lineaFiltroNorm, corporativoExpandido);
 }
 
 function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido) {
@@ -390,9 +421,11 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
     }
   })();
 
-  // Contadores (_directos/_total) se calculan DESPUÉS de las
-  // reestructuraciones de arriba, o no reflejan el árbol final.
+  // Contadores (_directos/_total) y conteo visual (globos) se calculan
+  // DESPUÉS de las reestructuraciones de arriba, o no reflejan el árbol
+  // final.
   calcularDescendenciaManual(finalArray);
+  calcularConteoVisual(finalArray);
 
   // RETAIL/BALANCEADO tienen HEAD real (fila 1) mientras PECUARIOS/CARNICOS
   // tienen fantasma (fila 2). Insertamos un fantasma de alineación encima de
@@ -431,7 +464,7 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
   finalArray.forEach((node) => {
     if (
       node.tags &&
-      (node.tags.includes("group") || node.tags.includes("fantasma") || node.tags.includes("jefe-carniceria") || node.tags.includes("jefe-marketing"))
+      (node.tags.includes("group") || node.tags.includes("fantasma") || node.tags.includes("jefe-carniceria") || node.tags.includes("jefe-marketing") || node.tags.includes("jefe-derivados"))
     ) {
       return;
     }
@@ -456,6 +489,11 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
   finalArray.forEach((node) => {
     delete node.state;
     node.expanded = false;
+    // Balkan recuerda el estado collapsed por ID entre chart.load() — si
+    // esto queda en null, cae al registro interno viejo aunque la data diga
+    // otra cosa (confirmado por consola). Forzar collapsed:true explícito
+    // acá + chart.load([]) antes de recargar en OrgChartCanvas.
+    node.collapsed = true;
   });
 
   const hayFiltroEspecifico = lineaFiltro !== "TODOS";
@@ -484,37 +522,38 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
 
     // El array declarativo expand.nodes camina hacia ARRIBA desde cada id
     // listado (nunca hacia abajo) para saltarse collapse.level=0 fijado en
-    // el init del chart. Por eso hay que listar también a los HIJOS.
+    // el init del chart — eso es lo que hace visible a la cabeza misma, con
+    // o sin sus hijos. CORPORATIVO/CARNICOS no usan este patrón HEAD_LINEA_*.
     if (lineaFiltro !== "CORPORATIVO" && lineaFiltro !== "CARNICOS") {
       const prefijoCabezaLinea = `HEAD_LINEA_${grpId}_`;
       const nodoCabezaLinea = finalArray.find((n) => String(n.id).startsWith(prefijoCabezaLinea));
       if (nodoCabezaLinea) {
         nodosAExpandir.push(nodoCabezaLinea.id);
-        nodoCabezaLinea.expanded = true;
-        finalArray
-          .filter((n) => String(n.pid) === String(nodoCabezaLinea.id))
-          .forEach((hijo) => nodosAExpandir.push(hijo.id));
+
+        // CARNICERIA, DERIVADOS y MARKETING se muestran SOLO hasta la
+        // cabeza, sin auto-expandir sus reportes directos.
+        const revelarHijosDeLaCabeza =
+          lineaFiltro !== "CARNICERIA" && lineaFiltro !== "DERIVADOS" && lineaFiltro !== "MARKETING";
+        if (revelarHijosDeLaCabeza) {
+          nodoCabezaLinea.expanded = true;
+          finalArray
+            .filter((n) => String(n.pid) === String(nodoCabezaLinea.id))
+            .forEach((hijo) => nodosAExpandir.push(hijo.id));
+        }
       }
     }
 
     // DERIVADOS: sin caja/HEAD_LINEA_* propio (gente suelta bajo Antonio).
-    // A diferencia de Corporativo, su gente sí sale expandida.
-    if (lineaFiltro === "DERIVADOS") {
-      const priscilla = finalArray.find((n) => (n.lineaNegocio || "").toUpperCase().trim() === "DERIVADOS");
-      if (priscilla) {
-        nodosAExpandir.push(priscilla.id);
-        finalArray.filter((n) => String(n.pid) === String(priscilla.id)).forEach((hijo) => nodosAExpandir.push(hijo.id));
-      }
-    }
+    // Priscilla ya sale visible por ser hija directa de Antonio (ver
+    // postCargaConReintento/corporativoExpandido) — no necesita mecanismo
+    // propio, y sus reportes no se auto-expanden (igual que las demás).
 
-    // Casos especiales sin HEAD_LINEA_* estándar: Carnicería (jefe-carniceria)
-    // y Pecuarios (2 cabezas colgando del fantasma).
+    // Casos especiales sin HEAD_LINEA_* estándar: Carnicería (jefe-carniceria,
+    // su fusión bajo Omar no deja rastro HEAD_LINEA_*) y Pecuarios (2 cabezas
+    // colgando del fantasma).
     if (lineaFiltro === "CARNICERIA") {
       const jeanPierre = finalArray.find((n) => n.tags && n.tags.includes("jefe-carniceria"));
-      if (jeanPierre) {
-        nodosAExpandir.push(jeanPierre.id);
-        finalArray.filter((n) => String(n.pid) === String(jeanPierre.id)).forEach((n) => nodosAExpandir.push(n.id));
-      }
+      if (jeanPierre) nodosAExpandir.push(jeanPierre.id);
     } else if (lineaFiltro === "PECUARIOS") {
       const fantasma = finalArray.find((n) => String(n.id).startsWith("HEAD_LINEA_GRP_PECUARIOS_"));
       if (fantasma) {

@@ -131,6 +131,36 @@ export function registerTemplates() {
     '<line x1="4" y1="12" x2="8" y2="12" stroke="white" stroke-width="1.5"></line>' +
     '<line x1="16" y1="12" x2="20" y2="12" stroke="white" stroke-width="1.5"></line></g>';
 
+  // Priscilla (cabeza de Derivados): mismo patrón, header amarillo (color
+  // ya reservado a Derivados en styles.css de la rama vanilla).
+  OrgChart.templates.jefeDerivados = Object.assign({}, OrgChart.templates.fichaTemplate);
+  OrgChart.templates.jefeDerivados.plus = botonDoble;
+  OrgChart.templates.jefeDerivados.minus = botonDoble;
+  OrgChart.templates.jefeDerivados.node =
+    '<rect x="0" y="0" width="250" height="120" fill="#FFFBE0" stroke="#C9B000" stroke-width="1.5" rx="6" ry="6"></rect>' +
+    '<rect x="0" y="0" width="250" height="22" fill="#e9dc21" rx="6" ry="6"></rect>' +
+    '<rect x="0" y="12" width="250" height="10" fill="#e9dc21"></rect>' +
+    '<text x="125" y="15" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="bold" font-family="sans-serif" fill="#4a3f00" letter-spacing="1">DERIVADOS</text>';
+  OrgChart.templates.jefeDerivados.size = [250, 120];
+  OrgChart.templates.jefeDerivados.img_0 =
+    '<clipPath id="{randId}"><circle cx="40" cy="68" r="28"></circle></clipPath>' +
+    '<image preserveAspectRatio="xMidYMid slice" clip-path="url(#{randId})" xlink:href="{val}" x="12" y="40" width="56" height="56"></image>';
+  OrgChart.templates.jefeDerivados.field_0 =
+    '<foreignObject x="85" y="30" width="130" height="36">' +
+    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size:13px;font-weight:bold;color:#8A7600;line-height:1.2;max-height:34px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">{val}</div></foreignObject>';
+  OrgChart.templates.jefeDerivados.field_1 =
+    '<foreignObject x="85" y="68" width="130" height="28">' +
+    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size:10px;color:#797D7F;line-height:1.2;max-height:26px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">{val}</div></foreignObject>';
+  OrgChart.templates.jefeDerivados.field_3 =
+    '<g class="focus-btn" data-focus-btn="{val}" style="cursor:pointer;" transform="translate(220, 28)">' +
+    '<rect x="0" y="0" width="24" height="24" rx="4" fill="#C9B000" opacity="0.85"></rect>' +
+    '<circle cx="12" cy="12" r="8" stroke="white" stroke-width="1.5" fill="none"></circle>' +
+    '<circle cx="12" cy="12" r="3" fill="white"></circle>' +
+    '<line x1="12" y1="4" x2="12" y2="8" stroke="white" stroke-width="1.5"></line>' +
+    '<line x1="12" y1="16" x2="12" y2="20" stroke="white" stroke-width="1.5"></line>' +
+    '<line x1="4" y1="12" x2="8" y2="12" stroke="white" stroke-width="1.5"></line>' +
+    '<line x1="16" y1="12" x2="20" y2="12" stroke="white" stroke-width="1.5"></line></g>';
+
   OrgChart.templates.fichaGroup = Object.assign({}, OrgChart.templates.fichaTemplate);
   OrgChart.templates.fichaGroup.plus = botonGrupo;
   OrgChart.templates.fichaGroup.minus = botonGrupo;
@@ -280,6 +310,7 @@ export function buildTagsConfig(OrgChart) {
     fichaComplex: { template: "fichaComplex" },
     "jefe-carniceria": { template: "jefeCarniceria" },
     "jefe-marketing": { template: "jefeMarketing" },
+    "jefe-derivados": { template: "jefeDerivados" },
     fichaGroup: { template: "fichaGroup" },
     fichaSingle: { template: "fichaSingle" },
     vacanteComplex: { template: "vacanteComplex" },
