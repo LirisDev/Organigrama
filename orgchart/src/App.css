@@ -2,26 +2,89 @@
   text-align: center;
 }
 
-.filter-bar {
+/* ==========================================================================
+   Header de filtros (#custom-filters) — portado 1:1 de styles.css, rama
+   vanilla, para que se vea idéntico (selects centrados, botón Manual con
+   ícono, misma tipografía/bordes).
+   ========================================================================== */
+:root {
+  --color-primario: #f57c00;
+  --color-primario-hover: #e07000;
+  --color-primario-foco: rgba(245, 124, 0, 0.25);
+  --color-texto-secundario: #555555;
+  --color-borde: #dcdcdc;
+  --radio-borde: 5px;
+  --espacio-s: 8px;
+  --espacio-m: 12px;
+}
+
+#custom-filters {
+  flex-shrink: 0;
+  background-color: #ffffff;
+  padding: 12px 15px;
+  border-bottom: 1px solid #ddd;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+}
+
+#custom-filters div {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: #ffffff;
-  border-bottom: 1px solid #e0e0e0;
-  font-family: Arial, sans-serif;
+  padding: 10px;
 }
 
-.filter-bar label {
-  font-size: 13px;
-  color: #555;
+.control-select {
+  font-size: 14px;
+  padding: var(--espacio-s) var(--espacio-m);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-borde);
+  background-color: #fff;
+  color: var(--color-texto-secundario);
+  min-width: 180px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23555' viewBox='0 0 16 16'%3E%3Cpath d='M8 10.75a.5.5 0 0 1-.354-.146l-3-3a.5.5 0 0 1 .708-.708L8 9.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3A.5.5 0 0 1 8 10.75z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--espacio-m) center;
+  padding-right: 35px;
 }
 
-.filter-bar select {
-  padding: 6px 10px;
-  border: 1px solid #ccc;
+.control-select:focus {
+  outline: none;
+  border-color: var(--color-primario);
+  box-shadow: 0 0 0 3px var(--color-primario-foco);
+}
+
+.control-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #ffffff;
+  border: 1px solid var(--color-borde);
   border-radius: 4px;
-  font-size: 13px;
+  padding: 6px 15px;
+  height: 28px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-texto-secundario);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.control-btn:hover {
+  background-color: var(--color-primario-hover);
+  color: white;
+  border: 1px solid var(--color-primario);
 }
 
 .App-logo {
