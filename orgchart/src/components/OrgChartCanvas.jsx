@@ -78,6 +78,9 @@ export default class OrgChartCanvas extends Component {
     if (this.divRef.current && this._handleFocusBtnMouseDown) {
       this.divRef.current.removeEventListener("mousedown", this._handleFocusBtnMouseDown, true);
     }
+    if (this._handleOutsideSearchClick) {
+      document.removeEventListener("click", this._handleOutsideSearchClick);
+    }
     if (this.chart) {
       try {
         this.chart.destroy();
@@ -94,6 +97,43 @@ export default class OrgChartCanvas extends Component {
   // prefiere mantener las expansiones manuales del usuario al volver a la
   // pestaña, aunque eso reintroduce ese riesgo. Ver
   // 02 - Arquitectura#Listener de visibilitychange en la bóveda.
+
+  _insertarIconoBusqueda(intentosRestantes) {
+    const container = this.divRef.current;
+    if (!container || !this.chart) return;
+    const searchElement = container.querySelector(".boc-search");
+    const menuElement = container.querySelector("[data-ctrl-menu]");
+    const searchInput = this.chart.searchUI && this.chart.searchUI.input;
+
+    if (!searchElement || !menuElement || !searchInput) {
+      if (intentosRestantes > 0) {
+        setTimeout(() => this._insertarIconoBusqueda(intentosRestantes - 1), 100);
+      }
+      return;
+    }
+    if (container.querySelector("#custom-search-icon")) return;
+
+    const searchIcon = document.createElement("div");
+    searchIcon.id = "custom-search-icon";
+    searchIcon.title = "Buscar";
+    searchIcon.innerHTML =
+      '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle>' +
+      '<line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
+    menuElement.parentNode.insertBefore(searchIcon, menuElement);
+
+    searchIcon.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = searchElement.classList.toggle("is-visible");
+      if (isVisible) searchInput.focus();
+    });
+
+    this._handleOutsideSearchClick = (e) => {
+      if (!searchElement.contains(e.target) && !searchIcon.contains(e.target)) {
+        searchElement.classList.remove("is-visible");
+      }
+    };
+    document.addEventListener("click", this._handleOutsideSearchClick);
+  }
 
   createChart() {
     const OrgChart = window.OrgChart;
@@ -208,6 +248,15 @@ export default class OrgChartCanvas extends Component {
     OrgChart.SEARCH_RESULT_LIMIT = 15;
 
     this.chart = new OrgChart(this.divRef.current, chartConfig);
+
+    // Ícono de lupa custom: el buscador nativo de Balkan (.boc-search) está
+    // oculto por CSS por defecto — este botón lo alterna (toggle) y le pasa
+    // el foco al abrir, igual que en vanilla. Balkan monta su propia UI
+    // (menú de 3 rayas, input de búsqueda) de forma asíncrona — un solo
+    // setTimeout corto puede correr antes de que exista, dejando el ícono
+    // sin insertar; reintenta con backoff, mismo patrón que
+    // postCargaConReintento.
+    this._insertarIconoBusqueda(6);
 
     // Buscador: centra y resalta sin recargar/reconstruir el árbol — mismo
     // patrón liviano que Modo Foco (chart.center + parentState:
