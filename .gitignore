@@ -1,0 +1,5 @@
+# Artefactos locales de Claude Code (config/permisos + memoria auto-persistida
+# entre sesiones) — nunca compartidos vía git, propios de cada máquina.
+.claude/
+memory/
+CLAUDE.md
