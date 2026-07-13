@@ -1238,18 +1238,11 @@
           //     }
           // }
         }
-        const Presidente = sourceNodes.find(
-          (n) => n.codPosicion === "00001" || n.id === "00001",
-        ); // Busca el ID en tu config maestra
-        if (Presidente) {
-          if (Presidente && !nodosDelFoco.has(Presidente.id)) {
-            // Le forzamos el pid null y lo metemos al Corporativo para que salga perfecto arriba
-            const presiClon = Object.assign({}, Presidente);
-            presiClon.pid = null;
-            presiClon.stpid = "GRP_CORPORATIVO";
-            nodosDelFoco.set(presiClon.id, presiClon);
-          }
-        }
+        // (Antes se forzaba acá al Presidente/Corporativo a aparecer SIEMPRE,
+        // con pid:null — quedaba flotando sin conexión real cuando no era
+        // ancestro genuino del nodo enfocado, ej. Cárnicos/Pecuarios. Se quitó
+        // a pedido explícito: si el Presidente es ancestro real, ya sale
+        // solo vía agregarAscendencia() de abajo; si no lo es, no debe salir.)
 
         agregarAscendencia(targetNodeId);
 
@@ -1309,7 +1302,15 @@
               }
             }
             // Si la caja (o el nodo) reporta a un jefe (pid) y no está, lo traemos
-            if (node.pid && !nodosDelFoco.has(node.pid)) {
+            // — excepto GRP_CORPORATIVO: su pid en las cajas de línea (ej.
+            // GRP_CARNICOS.pid = GRP_CORPORATIVO) es solo metadata de layout
+            // plano, no jerarquía real de mando. Traerla acá la deja vacía
+            // (sin Antonio, que ya no se fuerza) y sin conexión visible.
+            if (
+              node.pid &&
+              node.pid !== "GRP_CORPORATIVO" &&
+              !nodosDelFoco.has(node.pid)
+            ) {
               const padre = sourceMap.get(node.pid);
               if (padre) {
                 nodosDelFoco.set(padre.id, Object.assign({}, padre));
@@ -1373,6 +1374,11 @@
           delete n.expanded;
           delete n.collapsed;
         });
+
+        // Recalcular contadores de caja para el subárbol de foco — sin esto
+        // la caja arrastra el conteo de la última vista completa (ej. "401"
+        // en vez de los 15 realmente presentes en el foco).
+        calcularConteoVisual(finalArray);
 
         // Agregar clase visual al contenedor
         document
@@ -1955,6 +1961,92 @@
         cargarYFinalizar(nodesToRender);
       }
 
+      // Conteo visual (globos naranjas de las cajas de grupo) — cuenta
+      // personas reales del array dado y asigna node.conteo a cada nodo con
+      // tag "group". Reusable: llamado desde cargarYFinalizar (árbol
+      // completo/filtrado) y desde activarModoFoco (subárbol de foco), para
+      // que la caja siempre refleje SOLO lo que hay presente en ese array,
+      // nunca un conteo arrastrado de una vista anterior.
+      function calcularConteoVisual(finalArray) {
+        const modoParaConteo = document.getElementById("modo-select").value;
+        const CABEZAS_PARA_CONTEO =
+          modoParaConteo === "Cargo" ? CABEZAS_NEGOCIO_CARGO : CABEZAS_NEGOCIO_TEMP;
+        const finalById = new Map(finalArray.map((n) => [n.id, n]));
+        const visualCounts = {};
+
+        Object.keys(CABEZAS_PARA_CONTEO).forEach((k) => {
+          visualCounts[k.toUpperCase().replace(/\s/g, "")] = 0;
+        });
+        visualCounts["CORPORATIVO"] = 0;
+        visualCounts["DERIVADOS"] = 0;
+
+        finalArray.forEach((node) => {
+          const nombrePuesto = node.puesto
+            ? node.puesto.toUpperCase().trim()
+            : "";
+          if (nombrePuesto === "COMITE" || nombrePuesto === "COMITÉ") return;
+
+          if (
+            node.tags &&
+            (node.tags.includes("group") ||
+              node.tags.includes("fantasma") ||
+              node.tags.includes("head-of-group"))
+          )
+            return;
+
+          const lineaRealEmpleado = node.lineaNegocio
+            ? node.lineaNegocio.trim().toUpperCase().replace(/\s/g, "")
+            : "N/A";
+
+          if (node.stpid) {
+            const nombreCaja = node.stpid.replace("GRP_", "");
+            if (nombreCaja === lineaRealEmpleado) {
+              if (visualCounts[nombreCaja] !== undefined) {
+                visualCounts[nombreCaja]++;
+              }
+            }
+            // else: invitado en otra caja (ej. Omar en Carnicería) — no suma.
+          } else {
+            // Sin stpid: staff directo de Antonio, o descendiente varios
+            // niveles abajo (solo la CABEZA de cada línea recibe stpid).
+            // Caminar hacia arriba por pid hasta encontrar un ancestro con
+            // stpid (la caja real donde cuelga visualmente) evita contar
+            // por lineaNegocio autoreportado, que puede no coincidir con
+            // dónde está realmente dibujado el nodo.
+            const cajaVisual = (() => {
+              let actual = node;
+              const visitados = new Set();
+              while (actual && actual.pid && !visitados.has(actual.id)) {
+                visitados.add(actual.id);
+                const padre = finalById.get(actual.pid);
+                if (!padre) break;
+                if (padre.stpid) return padre.stpid.replace("GRP_", "");
+                actual = padre;
+              }
+              return "CORPORATIVO";
+            })();
+            if (visualCounts[cajaVisual] !== undefined) {
+              visualCounts[cajaVisual]++;
+            }
+          }
+        });
+
+        finalArray.forEach((node) => {
+          if (node.tags && node.tags.includes("group")) {
+            if (visualCounts[node.id] !== undefined) {
+              node.conteo = String(visualCounts[node.id]);
+            } else {
+              const lineaKey = node.id.replace("GRP_", "");
+              if (visualCounts[lineaKey] !== undefined) {
+                node.conteo = String(visualCounts[lineaKey]);
+              }
+            }
+          }
+        });
+
+        console.log("📊 Conteos Visuales Finales (Personas Únicas):", visualCounts);
+      }
+
       function cargarYFinalizar(nodesToRender) {
         const finalArray = Array.from(nodesToRender.values());
 
@@ -2056,93 +2148,11 @@
           });
         })();
 
-        // =========================================================
-        // CONTEO VISUAL FINAL (Para los globos naranjas)
-        // Corre acá, DESPUÉS de la fusión Carnicería/Marketing y la
-        // alineación Retail/Balanceado — antes vivía en
-        // renderOrganigramaGrupos() y contaba sobre el árbol pre-fusión,
-        // llevando gente a cajas que luego se destruyen (GRP_CARNICERIA) o
-        // a estructuras que aún no existían (Marketing bajo Retail).
-        // =========================================================
-        (function calcularConteoVisual() {
-          const modoParaConteo = document.getElementById("modo-select").value;
-          const CABEZAS_PARA_CONTEO =
-            modoParaConteo === "Cargo" ? CABEZAS_NEGOCIO_CARGO : CABEZAS_NEGOCIO_TEMP;
-          const finalById = new Map(finalArray.map((n) => [n.id, n]));
-          const visualCounts = {};
-
-          Object.keys(CABEZAS_PARA_CONTEO).forEach((k) => {
-            visualCounts[k.toUpperCase().replace(/\s/g, "")] = 0;
-          });
-          visualCounts["CORPORATIVO"] = 0;
-          visualCounts["DERIVADOS"] = 0;
-
-          finalArray.forEach((node) => {
-            const nombrePuesto = node.puesto
-              ? node.puesto.toUpperCase().trim()
-              : "";
-            if (nombrePuesto === "COMITE" || nombrePuesto === "COMITÉ") return;
-
-            if (
-              node.tags &&
-              (node.tags.includes("group") ||
-                node.tags.includes("fantasma") ||
-                node.tags.includes("head-of-group"))
-            )
-              return;
-
-            const lineaRealEmpleado = node.lineaNegocio
-              ? node.lineaNegocio.trim().toUpperCase().replace(/\s/g, "")
-              : "N/A";
-
-            if (node.stpid) {
-              const nombreCaja = node.stpid.replace("GRP_", "");
-              if (nombreCaja === lineaRealEmpleado) {
-                if (visualCounts[nombreCaja] !== undefined) {
-                  visualCounts[nombreCaja]++;
-                }
-              }
-              // else: invitado en otra caja (ej. Omar en Carnicería) — no suma.
-            } else {
-              // Sin stpid: staff directo de Antonio, o descendiente varios
-              // niveles abajo (solo la CABEZA de cada línea recibe stpid).
-              // Caminar hacia arriba por pid hasta encontrar un ancestro con
-              // stpid (la caja real donde cuelga visualmente) evita contar
-              // por lineaNegocio autoreportado, que puede no coincidir con
-              // dónde está realmente dibujado el nodo.
-              const cajaVisual = (() => {
-                let actual = node;
-                const visitados = new Set();
-                while (actual && actual.pid && !visitados.has(actual.id)) {
-                  visitados.add(actual.id);
-                  const padre = finalById.get(actual.pid);
-                  if (!padre) break;
-                  if (padre.stpid) return padre.stpid.replace("GRP_", "");
-                  actual = padre;
-                }
-                return "CORPORATIVO";
-              })();
-              if (visualCounts[cajaVisual] !== undefined) {
-                visualCounts[cajaVisual]++;
-              }
-            }
-          });
-
-          finalArray.forEach((node) => {
-            if (node.tags && node.tags.includes("group")) {
-              if (visualCounts[node.id] !== undefined) {
-                node.conteo = String(visualCounts[node.id]);
-              } else {
-                const lineaKey = node.id.replace("GRP_", "");
-                if (visualCounts[lineaKey] !== undefined) {
-                  node.conteo = String(visualCounts[lineaKey]);
-                }
-              }
-            }
-          });
-
-          console.log("📊 Conteos Visuales Finales (Personas Únicas):", visualCounts);
-        })();
+        // Conteo visual (globos naranjas) — DESPUÉS de la fusión
+        // Carnicería/Marketing y la alineación Retail/Balanceado. Función
+        // reusable: también la llama activarModoFoco() para que la caja no
+        // arrastre el conteo de la vista completa dentro del foco.
+        calcularConteoVisual(finalArray);
 
         // AGREGAR ESTO: Asegurar displayNombre en todos los nodos
         finalArray.forEach((node) => {
@@ -4745,58 +4755,32 @@
               return false; // Cortamos la ejecución aquí para que no siga bajando
             }
 
-            // PASO 1: Resetear config de expansión a estado inicial
-            chart.config.expand = {
-              nodes: [
-                "GRP_CORPORATIVO",
-                // "GRP_MACRO_PECUARIO",
-                // "GRP_MACRO_INDUSTRIAL",
-                // "GRP_MACRO_INMOBILIARIA",
-                // "GRP_MACRO_RETAIL",
-                // "GRP_CARNICERIA",
-                // "GRP_PECUARIOS",
-                // "GRP_CARNICOS",
-                // "GRP_DERIVADOS",
-                // "GRP_BALANCEADO",
-                // "GRP_RETAIL",
-                // "GRP_MARKETING"
-              ],
-              allChildren: false,
-            };
-            chart.config.collapse = {
-              level: 1,
-              allChildren: true,
-            };
-
-            // PASO 2: Vaciar chart para destruir estado interno de Balkan
-            chart.load([]);
-
-            // PASO 3: Recargar limpio y luego navegar al nodo
-            setTimeout(() => {
-              renderOrganigramaGrupos();
-
-              // PASO 4: Esperar a que renderice y navegar
-              setTimeout(() => {
-                chart.center(
-                  targetNodeId,
-                  { anim: true, duration: 500 },
-                  function () {
-                    //chart.setScale(1);
-                    chart.fit();
-
-                    const nodoDOM = document.querySelector(
-                      `[data-n-id="${targetNodeId}"]`,
-                    );
-                    if (nodoDOM) {
-                      nodoDOM.classList.add("nodo-destacado");
-                      setTimeout(() => {
-                        nodoDOM.classList.remove("nodo-destacado");
-                      }, 8000);
-                    }
-                  },
+            // Igual que en modo Foco (arriba): centrar y abrir SOLO los
+            // padres necesarios del nodo buscado, sin destruir/reconstruir
+            // todo el árbol. Antes esto hacía chart.load([]) +
+            // renderOrganigramaGrupos() completo (fetch de plantillas,
+            // fusión, conteo, todo) antes de centrar — lento y trabado, y el
+            // resaltado terminaba antes de que el nodo estuviera realmente
+            // visible (a veces ni quedaba dentro de la vista default).
+            chart.center(
+              targetNodeId,
+              {
+                anim: true,
+                duration: 500,
+                parentState: OrgChart.COLLAPSE_PARENT, // Si el nodo está oculto, abre sus padres
+              },
+              function () {
+                const nodoDOM = document.querySelector(
+                  `[data-n-id="${targetNodeId}"]`,
                 );
-              }, 300);
-            }, 50);
+                if (nodoDOM) {
+                  nodoDOM.classList.add("nodo-destacado");
+                  setTimeout(() => {
+                    nodoDOM.classList.remove("nodo-destacado");
+                  }, 8000);
+                }
+              },
+            );
 
             return false;
           });
