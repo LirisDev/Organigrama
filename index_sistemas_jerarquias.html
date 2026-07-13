@@ -750,7 +750,10 @@
         return "";
       };
 
-      // Función para saber exactamente cuál es el Área según la Línea
+      /**
+       * Mapea una línea de negocio a su Área (legacy — usada solo para el
+       * campo "area" de cada nodo, no para el layout plano actual).
+       */
       function determinarArea(linea) {
         const l = (linea || "").toUpperCase().trim();
         if (l === "CORPORATIVO") return "CORPORATIVO";
@@ -773,13 +776,21 @@
         // "CARNICOS": "PROCESAMIENTO CÁRNICO",
       };
 
-      // Función helper para aplicar el alias
+      /**
+       * Devuelve el nombre visual de una línea de negocio si tiene un alias
+       * definido en DICCIONARIO_LINEAS; si no, devuelve el nombre original.
+       */
       function obtenerAliasLinea(nombreOriginal) {
         const normalizado = (nombreOriginal || "").toUpperCase().trim();
         return DICCIONARIO_LINEAS[normalizado] || normalizado; // Si existe el alias lo usa, si no, usa el original
       }
 
-      /* FUNCION PARA HABILITAR/DESHABILITAR FILTROS */
+      /**
+       * Habilita/deshabilita los selects de filtro según el permiso del
+       * usuario logueado (usuarioPuedeVerTodo) y si ya hay algún filtro
+       * activo — bloquea el filtro de Nivel cuando hay Depto/Línea elegidos,
+       * para no ocultar datos del departamento seleccionado.
+       */
       function actualizarEstadoFiltros() {
         const selectIds =
           "#linea-negocio-select, #centro-costos-select, #proposito-select";
@@ -828,7 +839,12 @@
         $nivel.trigger("change.select2");
       }
 
-      /* FUNCION PARA ITERAR AL MOMENTO DE COLAPSAR NODOS */
+      /**
+       * Recolecta recursivamente en `collapseIds` todos los descendientes de
+       * `n` (nietos, bisnietos, etc.) que hay que colapsar explícitamente al
+       * cerrar un nodo — incluye a los "habitantes" de cajas de grupo (stpid)
+       * y salta hacia los hijos reales de los nodos fantasma.
+       */
       function iterate(c, n, collapseIds, excludeId) {
         if (!n) return; // Validación de seguridad
 
@@ -871,9 +887,11 @@
         }
       }
 
-      // =========================================================
-      // 2. FUNCIÓN RECURSIVA (Para llenar los árboles dentro de los grupos)
-      // =========================================================
+      /**
+       * Agrega recursivamente todos los descendientes de `rootNode` (según
+       * `allNodesMap`) a `renderMap`, colgándolos como nodos normales
+       * (sin stpid) — usada para llenar el árbol dentro de una caja de grupo.
+       */
       function addDescendantsToView(rootNode, allNodesMap, renderMap) {
         const children = [];
         // Buscar hijos en el mapa global
@@ -1026,6 +1044,12 @@
       }
 
       // --- Función Sanitize (para evitar bucles infinitos) ---
+      /**
+       * Detecta y rompe ciclos en la cadena `pid` de los nodos crudos del
+       * API (ej. A reporta a B, B reporta a A) — corta el enlace del nodo
+       * donde se detecta el ciclo, tratándolo como raíz. También convierte
+       * en raíz a cualquier nodo cuyo `pid` apunte a un id inexistente.
+       */
       function sanitizeCircularReferences(nodes) {
         const nodeMap = new Map();
         nodes.forEach((node) => {
@@ -1082,8 +1106,14 @@
         return Array.from(nodeMap.values());
       }
 
-      // --- Mapeo de nivelJerarquico a Tag de Subnivel ---
-      /* Aplica tags de subnivel (sub-level-X) usando la lógica: (order - orderPadre - 1) */
+      /**
+       * Asigna a cada nodo el tag `sub-level-N` donde
+       * N = (order del nodo) - (order de su padre) - 1 — representa cuántos
+       * niveles jerárquicos se saltaron entre padre e hijo. Balkan usa este
+       * tag para insertar N filas fantasma invisibles y mantener la
+       * alineación vertical entre nodos del mismo nivel absoluto en
+       * distintos grupos. Muta los nodos in-place (no retorna nada).
+       */
       function aplicarSubnivelesRelativos(nodos) {
         console.log(
           "Iniciando post-procesamiento de subniveles RELATIVOS AL PADRE...",
@@ -1135,8 +1165,12 @@
         console.log("Post-procesamiento de subniveles relativos completado.");
       }
 
-      ///////// * Puebla el <select> con los filtros únicos de los nodos.
-      // PUEBLA EL SELECT Y AGREGA LA OPCIÓN "TODOS"
+      /**
+       * Puebla un <select> con los valores únicos de `dataField` presentes
+       * en `nodes` (orden alfabético), agregando una opción "todos" al
+       * inicio cuando hay más de un valor. Devuelve el array de valores
+       * únicos insertados (sin la opción "todos").
+       */
       function populateSelect(selectId, dataField, nodes) {
         const selectElement = document.getElementById(selectId);
         if (!selectElement) return [];
@@ -1505,6 +1539,19 @@
         console.log("🔓 Filtros habilitados");
       }
 
+      /**
+       * Función maestra de render — lee el filtro de línea de negocio y el
+       * modo (Persona/Cargo) activos, y construye `nodesToRender` (Map) con
+       * todo lo que debe dibujarse:
+       * - Caja Corporativo (Antonio, Comité, gerentes) — solo si el filtro
+       *   es "Todas las Líneas" o "Corporativo"/"Derivados" (esSoloCorp).
+       * - Una caja por cada línea de negocio activa (Balanceado, Cárnicos,
+       *   Pecuarios, Carnicería, Marketing, Retail), con clones/fantasmas
+       *   anti-duplicación y casos especiales de soporte entre líneas
+       *   (Carnicería↔Cárnicos, Marketing↔Retail).
+       * No dibuja nada directamente — delega a `cargarYFinalizar()`, que
+       * hace la fusión final, calcula contadores y llama `chart.load()`.
+       */
       function renderOrganigramaGrupos() {
         if (!chart) return;
 
@@ -1961,12 +2008,18 @@
         cargarYFinalizar(nodesToRender);
       }
 
-      // Conteo visual (globos naranjas de las cajas de grupo) — cuenta
-      // personas reales del array dado y asigna node.conteo a cada nodo con
-      // tag "group". Reusable: llamado desde cargarYFinalizar (árbol
-      // completo/filtrado) y desde activarModoFoco (subárbol de foco), para
-      // que la caja siempre refleje SOLO lo que hay presente en ese array,
-      // nunca un conteo arrastrado de una vista anterior.
+      /**
+       * Cuenta personas reales dentro de `finalArray` y asigna `node.conteo`
+       * a cada nodo con tag "group" (los globos naranjas de cada caja).
+       * Cuenta hacia la caja donde el nodo cuelga VISUALMENTE (vía stpid, o
+       * caminando hacia arriba por pid hasta encontrar un ancestro con
+       * stpid), no según su lineaNegocio autoreportada — evita inflar el
+       * conteo de una línea con gente que en realidad se dibuja en otra
+       * caja. Reusable: la llaman tanto `cargarYFinalizar()` (árbol
+       * completo/filtrado) como `activarModoFoco()` (subárbol de foco), para
+       * que la caja siempre refleje SOLO lo presente en ese array, nunca un
+       * conteo arrastrado de una vista anterior.
+       */
       function calcularConteoVisual(finalArray) {
         const modoParaConteo = document.getElementById("modo-select").value;
         const CABEZAS_PARA_CONTEO =
@@ -2047,6 +2100,25 @@
         console.log("📊 Conteos Visuales Finales (Personas Únicas):", visualCounts);
       }
 
+      /**
+       * Toma el Map armado por `renderOrganigramaGrupos()` y lo convierte en
+       * el árbol final que Balkan va a dibujar:
+       * - Fusiona Carnicería dentro de Cárnicos (Jean Pierre pasa a colgar
+       *   directo de Omar) y promueve Marketing bajo la cabeza de Retail.
+       * - Calcula `_directos`/`_total` y el conteo visual de cada caja
+       *   (DESPUÉS de las fusiones de arriba — antes de esto el conteo
+       *   quedaba mal, ver nota en el propio código).
+       * - Inserta fantasmas de alineación para que Retail/Balanceado (cabeza
+       *   real) queden en la misma fila que Cárnicos/Pecuarios (cabeza
+       *   fantasma).
+       * - Arma `_slinksManuales` (líneas de reporte visual Presidente/
+       *   Gerente General → líneas de negocio).
+       * - `chart.load([])` + `chart.load(finalArray)` — el vaciado primero
+       *   es necesario porque Balkan recuerda el estado `collapsed` por id
+       *   entre cargas (ver nota en el bloque de reseteo de estado).
+       * - Dispara `postCargaConReintento()` para expandir fantasmas/cabezas
+       *   una vez que Balkan terminó de inicializar su registro interno.
+       */
       function cargarYFinalizar(nodesToRender) {
         const finalArray = Array.from(nodesToRender.values());
 
@@ -2515,6 +2587,13 @@
         // devuelve null, lanza excepción), lo que aborta esta función ANTES
         // de llamar a expandirFantasmas(), dejando las cajas de línea sin
         // dibujar. Reintentamos con backoff en vez de fallar en silencio.
+        // Ocultar el loader recién cuando la secuencia de expand/fit termine
+        // de verdad — antes se ocultaba de inmediato (línea siguiente,
+        // síncrono) mientras el expand de las cabezas de línea corría 10ms+
+        // después de forma asíncrona, dejando ver un fogonazo de las cajas
+        // colapsadas/ovaladas (template "min") antes de que se llenen.
+        const ocultarLoader = () => loaderOverlay.classList.remove("visible");
+
         function postCargaConReintento(intentosRestantes) {
           try {
             if (corporativoExpandido && antonioId) {
@@ -2529,14 +2608,14 @@
                   antonioNode.childrenIds,
                   [],
                   function () {
-                    expandirFantasmas();
+                    expandirFantasmas(ocultarLoader);
                   },
                 );
               } else {
-                expandirFantasmas();
+                expandirFantasmas(ocultarLoader);
               }
             } else {
-              expandirFantasmas();
+              expandirFantasmas(ocultarLoader);
             }
           } catch (e) {
             if (intentosRestantes > 0) {
@@ -2555,21 +2634,29 @@
               );
               // Mejor intentar dibujar fantasmas/líneas igual que dejar todo en blanco.
               try {
-                expandirFantasmas();
+                expandirFantasmas(ocultarLoader);
               } catch (e2) {
                 console.error("expandirFantasmas también falló:", e2);
+                ocultarLoader();
               }
             }
           }
         }
         setTimeout(() => postCargaConReintento(6), 10);
         // setTimeout(() => chart.fit(), 50);
-
-        loaderOverlay.classList.remove("visible");
       }
 
       // REEMPLAZAR FUNCIÓN COMPLETA
-      function expandirFantasmas() {
+      /**
+       * Post-`chart.load()`: expande imperativamente los nodos con tag
+       * "fantasma" (cabezas invisibles de Carnicería/Cárnicos/Pecuarios) y
+       * sus hijos directos — `chart.config.expand.nodes` (declarativo) NO
+       * alcanza para esto, solo camina hacia arriba desde un id, nunca hacia
+       * los hijos. Al terminar (o si no hay fantasmas en la vista actual)
+       * ajusta el zoom con `chart.fit()` y llama a `onListo` — usado para
+       * ocultar el loader recién cuando la animación realmente terminó.
+       */
+      function expandirFantasmas(onListo) {
         const lineaFiltro = ($("#linea-negocio-select").val() || "")
           .toUpperCase()
           .trim();
@@ -2599,7 +2686,10 @@
         if (fantasmas.length === 0) {
           // Sin fantasmas en esta vista (ej. filtro CORPORATIVO, solo gente
           // real) — igual hay que ajustar el zoom a lo recién expandido.
-          setTimeout(() => chart.fit(), 200);
+          setTimeout(() => {
+            chart.fit();
+            if (onListo) onListo();
+          }, 200);
           return;
         }
 
@@ -2610,16 +2700,25 @@
               chart.expand(ghostId, ghostNode.childrenIds);
             }
           });
-          setTimeout(() => chart.fit(), 200);
+          setTimeout(() => {
+            chart.fit();
+            if (onListo) onListo();
+          }, 200);
         });
       }
-      // Función recursiva para agregar hijos con filtros
-      // idVisualPadre: El ID del nodo padre en el gráfico (puede ser clon o real)
-      // idOriginalPadre: El ID real en la data (para buscar quién le reporta de verdad)
-      // nodesToRender: El mapa donde guardamos los nodos a dibujar
-      // sourceMap: La data original
-      // idsAExcluir: Lista negra de IDs que no queremos dibujar en esta rama
-      // filtroEstricto: Función opcional. Si devuelve FALSE, el hijo se ignora.
+      /**
+       * DFS recursivo — agrega al Map `nodesToRender` todos los hijos
+       * (y sus descendientes) de `idOriginalPadre`, colgándolos del
+       * `idVisualPadre` visual (que puede ser un clon con id distinto al
+       * real, ej. Andrés Herrera duplicado en Cárnicos).
+       * @param idVisualPadre  Id del padre EN EL GRÁFICO (puede ser un clon)
+       * @param idOriginalPadre  Id real en la data (para buscar quién le reporta de verdad)
+       * @param nodesToRender  Map donde se van agregando los nodos a dibujar
+       * @param sourceMap  Data original completa
+       * @param idsAExcluir  Lista negra de ids que no se dibujan en esta rama
+       * @param filtroEstricto  Función opcional — si devuelve false, el hijo se ignora
+       * @param filtroProfundo  Si es true, `filtroEstricto` se hereda a nietos/bisnietos (no solo hijos directos)
+       */
       function agregarDescendencia(
         idVisualPadre,
         idOriginalPadre,
@@ -2669,7 +2768,12 @@
         });
       }
 
-      ///////// * Reconstruye el árbol manteniendo la jerarquía de los padres.
+      /**
+       * Reconstruye el árbol aplicando los filtros de Línea/Centro de
+       * Costos/Propósito manteniendo la jerarquía de los padres — camino
+       * legacy, no forma parte del flujo principal de línea de negocio
+       * (ver `renderOrganigramaGrupos()`).
+       */
       function aplicarFiltrosJerarquicos() {
         if (!chart) return;
 
@@ -2904,7 +3008,12 @@
         loaderOverlay.classList.remove("visible");
       }
 
-      // Función recursiva para calcular hijos y nietos
+      /**
+       * Calcula `_directos` (hijos inmediatos) y `_total` (todo el subárbol)
+       * para cada nodo de `nodes` — usados para elegir el template de ficha
+       * (Single/Group/Complex) y pintar el contador en cada tarjeta. Muta
+       * los nodos in-place.
+       */
       function calcularDescendenciaManual(nodes) {
         // 1. Convertir array a mapa para acceso rápido
         const map = {};
@@ -2954,7 +3063,11 @@
         });
       }
 
-      /* FUNCION PARA GENERAR URL DE LOS MANUALES */
+      /**
+       * Genera la URL del visor de manuales (usuario/procedimientos/
+       * funciones) para un nodo, usando su código de empleado y de
+       * departamento.
+       */
       function getManualUrl(nodeData, tipo) {
         let carpeta = "";
         if (tipo === "usuario") carpeta = "Manual de usuario";
@@ -2983,7 +3096,13 @@
         )}&CodEmp=${codEmp || ""}&DepartMyProcessId=${depParam}`;
       }
 
-      // --- Función Principal: Cargar, Mapear y Renderizar ---
+      /**
+       * Función principal de arranque (vista Persona) — hace fetch al API,
+       * transforma la data cruda a nodos de Balkan (resolviendo el pid real
+       * de cada empleado vía su posición), sanitiza ciclos, calcula
+       * sub-niveles, puebla el filtro de línea de negocio y llama a
+       * `procesarLoginDeUsuario()` para disparar el primer render.
+       */
       async function loadAndRenderChart(apiUrl) {
         loaderOverlay.classList.add("visible");
         loaderText.innerText = "Cargando Organigrama...";
