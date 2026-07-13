@@ -4120,13 +4120,17 @@
           // });
 
           // Colapsa/expande CARNICOS y PECUARIOS al hacer click en su grupo
-          // — solo permitido en "Todas las Líneas". Con un filtro puntual
-          // activo (CARNICOS, PECUARIOS, o CARNICERIA que usa la caja
-          // CARNICOS como soporte — ver esSoporteParaOtraLinea) minimizar no
-          // tiene sentido, se pierde la vista que el usuario pidió ver.
+          // — solo permitido en "Todas las Líneas" Y solo en Vista por
+          // Persona. Con un filtro puntual activo (CARNICOS, PECUARIOS, o
+          // CARNICERIA que usa la caja CARNICOS como soporte — ver
+          // esSoporteParaOtraLinea) minimizar no tiene sentido, se pierde la
+          // vista que el usuario pidió ver. En Vista por Cargo, deshabilitado
+          // siempre — a pedido explícito, sin importar el filtro.
           const GRUPOS_COLAPSABLES = ["GRP_CARNICOS", "GRP_PECUARIOS"];
           chart.on("click", function (sender, args) {
             if (!GRUPOS_COLAPSABLES.includes(args.node.id)) return;
+            const modoActivo = document.getElementById("modo-select").value;
+            if (modoActivo === "Cargo") return;
             const lineaFiltroActiva = (
               $("#linea-negocio-select").val() || ""
             )
@@ -5386,21 +5390,15 @@
       // console.log(`Total de posiciones ÚNICAS con Nivel 99: ${empleadosSinNivel2.length}`);
       ////////////
 
-      // Si la pestaña queda abierta en segundo plano un rato y el usuario
-      // vuelve a ella, Balkan puede quedar en un estado inconsistente (su
-      // _resizeObserver interno dispara un re-layout que no pasa por
-      // nuestro chart.load(), perdiendo el árbol correctamente expandido).
-      // Forzamos un re-render limpio al recuperar visibilidad.
-      document.addEventListener("visibilitychange", function () {
-        if (
-          document.visibilityState === "visible" &&
-          chart &&
-          typeof renderOrganigramaGrupos === "function" &&
-          isDataReady
-        ) {
-          renderOrganigramaGrupos();
-        }
-      });
+      // NOTA: existía acá un listener de "visibilitychange" que forzaba
+      // renderOrganigramaGrupos() al volver de una pestaña en segundo
+      // plano, para evitar que el _resizeObserver interno de Balkan
+      // quedara desincronizado (cajas de línea vacías). Se quitó a pedido
+      // explícito — el usuario prefiere mantener las expansiones manuales
+      // al volver a la pestaña, aunque eso reintroduce el riesgo del
+      // desync en pestañas que estuvieron mucho tiempo en background. Si
+      // vuelve a aparecer el bug de cajas vacías al volver de otra pestaña,
+      // este es el primer lugar a revisar.
 
       // --- Llamada inicial ---
       document.addEventListener("DOMContentLoaded", function () {
