@@ -1,6 +1,20 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { obtenerAliasLinea } from "../orgchart/buildTree";
 import { getManualUrl } from "../data/manualUrl";
+
+function buildPersonDataFromEmpleado(empleado, cargoNode) {
+  return {
+    id: empleado.codigoEmpleado,
+    nombre: `${empleado.nombre || ""} ${empleado.apellido || ""}`.trim(),
+    puesto: empleado.puestoEmpleado || cargoNode.cargoPuesto,
+    img: empleado.foto,
+    email: empleado.emailCorporativo,
+    lineaNegocio: cargoNode.lineaNegocio,
+    centroCosto: cargoNode.centroCosto,
+    area: cargoNode.area,
+    codDepAx: empleado.codDepAx,
+  };
+}
 
 // Ficha de detalle — reemplaza el editUI genérico de Balkan (dump crudo de
 // campos). Controlado por OrgChartCanvas vía el hook editUI de Balkan
@@ -8,33 +22,37 @@ import { getManualUrl } from "../data/manualUrl";
 //
 // En Cargo, `node` es un cargo (no una persona): puede tener 0, 1 o varios
 // empleados asignados (node.listaEmpleados, solo presente en datos de
-// Cargo). Con exactamente 1 empleado se arma una vista tipo-persona sobre
-// ese único empleado (mismo layout que Persona); con 0 o 2+ se muestra el
-// puesto + la lista de empleados (o el mensaje de vacante), sin botones de
-// manuales — igual que CustomDetailsForm en la rama vanilla.
+// Cargo). Con exactamente 1 empleado se arma automáticamente una vista
+// tipo-persona; con 2+ se muestra la lista y un click en un empleado
+// repuebla el modal EN EL MISMO LUGAR con su ficha (selectedEmpleado),
+// igual que el listener delegado sobre .employee-list-item en la rama
+// vanilla (CustomDetailsForm).
 export default function DetailModal({ node, onClose }) {
+  const [selectedEmpleado, setSelectedEmpleado] = useState(null);
+
+  // El cargo/persona mostrado cambió (otro nodo, o el modal se cerró) — la
+  // selección de empleado de la vista anterior ya no aplica.
+  useEffect(() => {
+    setSelectedEmpleado(null);
+  }, [node]);
+
   if (!node) return null;
 
   const esCargo = Array.isArray(node.listaEmpleados);
   const singleEmpleado = esCargo && node.listaEmpleados.length === 1 ? node.listaEmpleados[0] : null;
+  const empleadoActivo = selectedEmpleado || singleEmpleado;
 
-  if (esCargo && !singleEmpleado) {
-    return <CargoMultiDetail node={node} onClose={onClose} />;
+  if (esCargo && !empleadoActivo) {
+    return (
+      <CargoMultiDetail
+        node={node}
+        onClose={onClose}
+        onSelectEmpleado={(emp) => setSelectedEmpleado(emp)}
+      />
+    );
   }
 
-  const personData = singleEmpleado
-    ? {
-        id: singleEmpleado.codigoEmpleado,
-        nombre: `${singleEmpleado.nombre || ""} ${singleEmpleado.apellido || ""}`.trim(),
-        puesto: singleEmpleado.puestoEmpleado || node.cargoPuesto,
-        img: singleEmpleado.foto,
-        email: singleEmpleado.emailCorporativo,
-        lineaNegocio: node.lineaNegocio,
-        centroCosto: node.centroCosto,
-        area: node.area,
-        codDepAx: singleEmpleado.codDepAx,
-      }
-    : node;
+  const personData = empleadoActivo ? buildPersonDataFromEmpleado(empleadoActivo, node) : node;
 
   const isVacant = personData.tags && personData.tags.includes("vacante");
   const canShowManuals = Boolean(personData.id && personData.codDepAx && !isVacant);
@@ -101,8 +119,9 @@ export default function DetailModal({ node, onClose }) {
 }
 
 // Cargo con 0 o 2+ empleados asignados: sin foto, título = puesto, cuerpo =
-// lista de empleados (o mensaje de vacante/sin asignar), sin manuales.
-function CargoMultiDetail({ node, onClose }) {
+// lista de empleados (o mensaje de vacante/sin asignar), sin manuales. Un
+// click en un empleado de la lista pide al padre que muestre su ficha.
+function CargoMultiDetail({ node, onClose, onSelectEmpleado }) {
   const isVacant = node.tags && node.tags.includes("vacante");
   const empleados = node.listaEmpleados || [];
   const vacantesDisponibles = node.plazasVacantes || 0;
@@ -117,7 +136,12 @@ function CargoMultiDetail({ node, onClose }) {
           {empleados.length > 0 ? (
             <div className="details-employee-list">
               {empleados.map((emp) => (
-                <div className="employee-list-item" key={emp.codigoEmpleado}>
+                <div
+                  className="employee-list-item"
+                  key={emp.codigoEmpleado}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => onSelectEmpleado(emp)}
+                >
                   <img src={emp.foto || "/Logo-Liris.png"} className="employee-list-img" alt="" />
                   <div className="employee-list-info">
                     <div className="employee-list-name">
