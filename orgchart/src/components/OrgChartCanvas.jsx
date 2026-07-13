@@ -345,6 +345,112 @@ export default class OrgChartCanvas extends Component {
       args.content = svgLines + args.content;
     });
 
+    // Minimizar/maximizar Cárnicos y Pecuarios: click en la caja colapsa el
+    // subárbol a un badge con conteo + grid de mini-fotos. Solo tiene
+    // sentido con "Todas las Líneas" activo y en Vista Persona — con un
+    // filtro puntual o en Cargo, minimizar oculta la vista que el usuario
+    // pidió ver.
+    const GRUPOS_COLAPSABLES = ["GRP_CARNICOS", "GRP_PECUARIOS"];
+    this.chart.on("click", (sender, args) => {
+      if (!GRUPOS_COLAPSABLES.includes(args.node.id)) return;
+      if (this.props.mode === "Cargo") return;
+      if ((this.props.lineaFiltro || "TODOS") !== "TODOS") return;
+      if (args.node.min) {
+        sender.maximize(args.node.id);
+      } else {
+        sender.minimize(args.node.id);
+      }
+      return false;
+    });
+
+    // Badge de conteo + grid de mini-fotos cuando una de esas cajas está
+    // minimizada — usa el mismo `conteo` ya calculado por calcularConteoVisual
+    // (evita duplicar el conteo con un segundo traversal propio) y recorre
+    // chart.config.nodes (datos, no posiciones) para las fotos, así funciona
+    // con la caja colapsada.
+    this.chart.on("render", (sender, args) => {
+      let extra = "";
+      GRUPOS_COLAPSABLES.forEach((groupId) => {
+        const grpNode = sender.getNode(groupId);
+        if (!grpNode || !grpNode.min) return;
+
+        const count = grpNode.conteo;
+        if (count) {
+          const bx = grpNode.x + grpNode.w;
+          const by = grpNode.y;
+          extra +=
+            `<g transform="translate(${bx},${by})">` +
+            '<circle r="22" fill="#F57C00" stroke="#ffffff" stroke-width="2.5"/>' +
+            `<text text-anchor="middle" dominant-baseline="central" fill="#ffffff" style="font-size:13px;font-weight:bold;">${count}</text>` +
+            "</g>";
+        }
+
+        const personIds = [];
+        const allConfigNodes = this.chart.config.nodes || [];
+        const collectPeople = (nodeId) => {
+          if (personIds.length >= 6) return;
+          const sid = String(nodeId);
+          const data = sender.get(nodeId);
+          if (!data) return;
+          const isSkip = sid.startsWith("HEAD_") || sid.startsWith("GRP_") || (data.tags && data.tags.includes("fantasma"));
+          if (isSkip) {
+            allConfigNodes
+              .filter((n) => String(n.stpid) === sid || String(n.pid) === sid)
+              .forEach((n) => collectPeople(n.id));
+          } else {
+            personIds.push(nodeId);
+          }
+        };
+        allConfigNodes
+          .filter((n) => String(n.stpid) === groupId || String(n.pid) === groupId)
+          .forEach((n) => collectPeople(n.id));
+
+        const pCount = Math.min(personIds.length, 6);
+        if (pCount === 0) return;
+        const imgW = 55;
+        const gap = 8;
+        const row1 = Math.min(pCount, 3);
+        const row2 = pCount - row1;
+        const totalRows = row2 > 0 ? 2 : 1;
+        const totalH = totalRows * imgW + (totalRows - 1) * gap;
+        const titleH = 20;
+        const areaTop = grpNode.y + titleH;
+        const areaH = grpNode.h - titleH;
+        const baseY = areaTop + areaH / 2 - totalH / 2;
+        const row1W = row1 * imgW + (row1 - 1) * gap;
+        const row1X = grpNode.x + grpNode.w / 2 - row1W / 2;
+        const row2W = row2 * imgW + (row2 - 1) * gap;
+        const row2X = grpNode.x + grpNode.w / 2 - row2W / 2;
+
+        let defs = "<defs>";
+        for (let i = 0; i < pCount; i++) {
+          const row = i < row1 ? 0 : 1;
+          const col = i < row1 ? i : i - row1;
+          const startX = row === 0 ? row1X : row2X;
+          const cx = startX + col * (imgW + gap) + imgW / 2;
+          const cy = baseY + row * (imgW + gap) + imgW / 2;
+          defs += `<clipPath id="cpgrp-${groupId}-${i}"><circle cx="${cx}" cy="${cy}" r="${imgW / 2}"/></clipPath>`;
+        }
+        defs += "</defs>";
+        extra += defs;
+
+        for (let i = 0; i < pCount; i++) {
+          const data = sender.get(personIds[i]);
+          if (data && data.img) {
+            const row = i < row1 ? 0 : 1;
+            const col = i < row1 ? i : i - row1;
+            const startX = row === 0 ? row1X : row2X;
+            const x = startX + col * (imgW + gap);
+            const y = baseY + row * (imgW + gap);
+            extra +=
+              `<image href="${data.img}" x="${x}" y="${y}" width="${imgW}" height="${imgW}" ` +
+              `preserveAspectRatio="xMidYMid slice" clip-path="url(#cpgrp-${groupId}-${i})"/>`;
+          }
+        }
+      });
+      if (extra) args.content += extra;
+    });
+
     if (this.props.tree && this.props.tree.finalArray.length > 0) {
       this.loadTree();
     }
