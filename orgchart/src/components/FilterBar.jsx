@@ -1,8 +1,6 @@
 import React, { useMemo } from "react";
 
-// Fase 1: un único filtro (Línea de Negocio). División/Cargo/Búsqueda quedan
-// para fase 2.
-export default function FilterBar({ allNodes, value, onChange, disabled = false }) {
+export default function FilterBar({ allNodes, value, onChange, disabled = false, modo, onModoChange }) {
   const lineas = useMemo(() => {
     const valueSet = new Set();
     allNodes.forEach((node) => {
@@ -13,7 +11,16 @@ export default function FilterBar({ allNodes, value, onChange, disabled = false 
 
   return (
     <div className="filter-bar">
-      <label htmlFor="linea-negocio-select">Vista por Persona</label>
+      <label htmlFor="modo-select">Vista por</label>
+      <select
+        id="modo-select"
+        value={modo}
+        onChange={(e) => onModoChange(e.target.value)}
+        disabled={disabled}
+      >
+        <option value="Persona">Persona</option>
+        <option value="Cargo">Cargo</option>
+      </select>
       <select id="linea-negocio-select" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
         {lineas.length > 1 && <option value="todos">TODAS LAS LÍNEAS</option>}
         {lineas.map((linea) => (

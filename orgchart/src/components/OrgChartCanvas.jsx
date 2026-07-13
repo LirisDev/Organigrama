@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { registerTemplates, personaBinding, buildTagsConfig } from "../orgchart/templates";
+import { registerTemplates, personaBinding, cargoBinding, buildTagsConfig } from "../orgchart/templates";
 import { postCargaConReintento } from "../orgchart/expandLogic";
 
 // Ícono de "Colapsar todo" (flechas hacia adentro) — Balkan no trae uno
@@ -50,8 +50,28 @@ export default class OrgChartCanvas extends Component {
 
   componentDidUpdate(prevProps) {
     if (!this.chart) return;
+    if (prevProps.mode !== this.props.mode) this.applyModeBinding();
     const treeChanged = prevProps.tree !== this.props.tree;
     if (treeChanged) this.loadTree();
+  }
+
+  // Vista Persona/Cargo comparten chart e instancia — solo cambia el
+  // template por defecto, el binding de campos y qué campos indexa el
+  // buscador. Cada nodo ya trae su propio tag fichaXxx/cargoXxx (ver
+  // buildTree), así que esto solo afecta al fallback sin tag específico.
+  applyModeBinding() {
+    const esCargo = this.props.mode === "Cargo";
+    this.chart.config.template = esCargo ? "cargoTemplate" : "fichaTemplate";
+    this.chart.config.nodeBinding = esCargo ? cargoBinding : personaBinding;
+    if (esCargo) {
+      this.chart.config.searchDisplayField = "displayNombre";
+      this.chart.config.searchFields = ["displayNombre", "puestoCompleto"];
+      this.chart.config.searchFieldsWeight = { displayNombre: 100, puestoCompleto: 80 };
+    } else {
+      this.chart.config.searchDisplayField = "displayNombre";
+      this.chart.config.searchFields = ["displayNombre", "puesto"];
+      this.chart.config.searchFieldsWeight = { displayNombre: 100, puesto: 95 };
+    }
   }
 
   componentWillUnmount() {
@@ -80,16 +100,17 @@ export default class OrgChartCanvas extends Component {
     registerTemplates();
 
     const tagsConfig = buildTagsConfig(OrgChart);
+    const esCargo = this.props.mode === "Cargo";
 
     const chartConfig = {
       mouseScrool: OrgChart.action.scroll,
       showYScroll: true,
       showXScroll: true,
       enableSearch: true,
-      searchFields: ["displayNombre", "puesto"],
+      searchFields: esCargo ? ["displayNombre", "puestoCompleto"] : ["displayNombre", "puesto"],
       searchDisplayField: "displayNombre",
-      searchFieldsWeight: { displayNombre: 100, puesto: 95 },
-      template: "fichaTemplate",
+      searchFieldsWeight: esCargo ? { displayNombre: 100, puestoCompleto: 80 } : { displayNombre: 100, puesto: 95 },
+      template: esCargo ? "cargoTemplate" : "fichaTemplate",
       layout: OrgChart.normal,
       scaleInitial: OrgChart.match.boundary,
       enableAI: false,
@@ -97,7 +118,7 @@ export default class OrgChartCanvas extends Component {
       scaleMin: 0.1,
       nodes: [],
       tags: tagsConfig,
-      nodeBinding: personaBinding,
+      nodeBinding: esCargo ? cargoBinding : personaBinding,
       orderBy: [
         { field: "order", desc: false },
         { field: "puesto", desc: false },

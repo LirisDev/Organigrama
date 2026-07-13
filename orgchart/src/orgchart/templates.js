@@ -258,6 +258,33 @@ export function registerTemplates() {
     rect: { x: 0, y: 0, width: 250, height: 160, rx: 15, ry: 15 },
   };
 
+  // --- Vista Cargo: template sin foto, texto a ancho completo ---
+  OrgChart.templates.cargoTemplate = Object.assign({}, OrgChart.templates.fichaTemplate);
+  OrgChart.templates.cargoTemplate.img_0 = "";
+  OrgChart.templates.cargoTemplate.field_0 =
+    '<foreignObject x="15" y="15" width="200" height="35">' +
+    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 16px; font-weight: bold; color: #D35400; line-height: 1.2; height: auto; max-height: 34px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
+    "{val}</div></foreignObject>";
+  OrgChart.templates.cargoTemplate.field_1 =
+    '<foreignObject x="15" y="50" width="200" height="35">' +
+    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 14px; color: #333; line-height: 1.2; height: auto; max-height: 34px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: left;">' +
+    "{val}</div></foreignObject>";
+  OrgChart.templates.cargoTemplate.field_2 =
+    '<foreignObject x="15" y="85" width="200" height="20">' +
+    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 12px; font-style: italic; color: #797D7F; line-height: 1.2; text-align: left;">' +
+    "{val}</div></foreignObject>";
+  OrgChart.templates.cargoTemplate.field_3 = OrgChart.templates.fichaTemplate.field_3;
+
+  OrgChart.templates.cargoComplex = Object.assign({}, OrgChart.templates.cargoTemplate);
+  OrgChart.templates.cargoComplex.plus = botonDoble;
+  OrgChart.templates.cargoComplex.minus = botonDoble;
+  OrgChart.templates.cargoGroup = Object.assign({}, OrgChart.templates.cargoTemplate);
+  OrgChart.templates.cargoGroup.plus = botonGrupo;
+  OrgChart.templates.cargoGroup.minus = botonGrupo;
+  OrgChart.templates.cargoSingle = Object.assign({}, OrgChart.templates.cargoTemplate);
+  OrgChart.templates.cargoSingle.plus = botonPersona;
+  OrgChart.templates.cargoSingle.minus = botonPersona;
+
   OrgChart.templates.comiteComplex = Object.assign({}, OrgChart.templates.comiteTemplate);
   OrgChart.templates.comiteComplex.plus = botonDoble;
   OrgChart.templates.comiteComplex.minus = botonDoble;
@@ -267,6 +294,16 @@ export function registerTemplates() {
   OrgChart.templates.comiteSingle = Object.assign({}, OrgChart.templates.comiteTemplate);
   OrgChart.templates.comiteSingle.plus = botonPersona;
   OrgChart.templates.comiteSingle.minus = botonPersona;
+
+  // Comité en Cargo: sin foto, campos a ancho completo (mismo criterio que cargoTemplate).
+  OrgChart.templates.comiteTemplateCargo = Object.assign({}, OrgChart.templates.comiteTemplate);
+  OrgChart.templates.comiteTemplateCargo.img_0 = "";
+  OrgChart.templates.comiteTemplateCargo.field_0 =
+    '<foreignObject x="15" y="15" width="220" height="50">' +
+    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 13px; font-weight: bold; color: #D35400; line-height: 1.1; text-align: left;">{val}</div></foreignObject>';
+  OrgChart.templates.comiteTemplateCargo.field_1 =
+    '<foreignObject x="15" y="65" width="220" height="90">' +
+    '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 8.5px; color: #555; line-height: 1.2; text-align: left; white-space: pre-line; word-wrap: break-word; overflow: hidden; height: 90px;">{val}</div></foreignObject>';
 
   // Fantasma de subnivel (relleno cuando se saltan niveles jerárquicos):
   // misma altura que un nodo real para no romper el alineamiento vertical
@@ -287,6 +324,15 @@ export const personaBinding = {
   field_1: "puesto",
   field_3: "id",
   img_0: "img",
+  conteo: "conteo",
+  miGlobo: "conteo",
+};
+
+export const cargoBinding = {
+  field_0: "cargoPuesto",
+  field_1: "cargoPersona",
+  field_2: "cargoDepto",
+  field_3: "id",
   conteo: "conteo",
   miGlobo: "conteo",
 };
@@ -313,6 +359,9 @@ export function buildTagsConfig(OrgChart) {
     "jefe-derivados": { template: "jefeDerivados" },
     fichaGroup: { template: "fichaGroup" },
     fichaSingle: { template: "fichaSingle" },
+    cargoComplex: { template: "cargoComplex" },
+    cargoGroup: { template: "cargoGroup" },
+    cargoSingle: { template: "cargoSingle" },
     vacanteComplex: { template: "vacanteComplex" },
     vacanteGroup: { template: "vacanteGroup" },
     vacanteSingle: { template: "vacanteSingle" },
@@ -320,6 +369,7 @@ export function buildTagsConfig(OrgChart) {
     comiteGroup: { template: "comiteGroup" },
     comiteSingle: { template: "comiteSingle" },
     comiteTemplate: { template: "comiteTemplate" },
+    comiteTemplateCargo: { template: "comiteTemplateCargo" },
     vacanteSimple: { template: "vacanteSimple" },
     fantasma: { template: "ghost", nodeExtent: { width: 0, height: 0 } },
     filter: { template: "dot" },

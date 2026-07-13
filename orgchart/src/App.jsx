@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { fetchPersonaData } from "./data/api";
-import { API_URL_PERSONA } from "./config/cabezasNegocio";
+import { fetchCargoData } from "./data/apiCargo";
+import { API_URL_PERSONA, API_URL_CARGO } from "./config/cabezasNegocio";
 import { buildTree } from "./orgchart/buildTree";
 import { buildFocusTree } from "./orgchart/focus";
 import OrgChartCanvas from "./components/OrgChartCanvas";
@@ -9,7 +10,10 @@ import DetailModal from "./components/DetailModal";
 import "./App.css";
 
 export default function App() {
+  const [modo, setModo] = useState("Persona");
   const [allNodes, setAllNodes] = useState([]);
+  const [allCargoNodes, setAllCargoNodes] = useState([]);
+  const [cargoLoaded, setCargoLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lineaFiltro, setLineaFiltro] = useState("todos");
@@ -40,10 +44,52 @@ export default function App() {
     };
   }, []);
 
+  // Vista Cargo se carga recién al entrar a ella (y solo una vez, igual que
+  // isCargoDataReady en la rama vanilla) — evita pagar el costo del fetch
+  // extra si el usuario nunca cambia de modo.
+  useEffect(() => {
+    if (modo !== "Cargo" || cargoLoaded) return;
+    let cancelled = false;
+    async function loadCargo() {
+      try {
+        setLoading(true);
+        setError(null);
+        const nodes = await fetchCargoData(API_URL_CARGO);
+        if (!cancelled) {
+          setAllCargoNodes(nodes);
+          setCargoLoaded(true);
+        }
+      } catch (err) {
+        console.error("Error cargando vista de Cargo:", err);
+        if (!cancelled) setError(err.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadCargo();
+    return () => {
+      cancelled = true;
+    };
+  }, [modo, cargoLoaded]);
+
+  // Al cambiar de modo, la línea de negocio filtrada puede no existir en el
+  // otro dataset (ids/valores distintos) y el foco/detalle apuntan a nodos
+  // del árbol anterior — se resetean, igual que el flujo de $("#modo-select")
+  // en la rama vanilla.
+  function cambiarModo(nuevoModo) {
+    if (nuevoModo === modo) return;
+    setModo(nuevoModo);
+    setLineaFiltro("todos");
+    setFocusNodeId(null);
+    setDetailNode(null);
+  }
+
+  const sourceNodes = modo === "Cargo" ? allCargoNodes : allNodes;
+
   const tree = useMemo(() => {
-    if (allNodes.length === 0) return null;
-    return buildTree({ allNodes, lineaFiltro, corporativoExpandido });
-  }, [allNodes, lineaFiltro, corporativoExpandido]);
+    if (sourceNodes.length === 0) return null;
+    return buildTree({ allNodes: sourceNodes, lineaFiltro, corporativoExpandido, mode: modo });
+  }, [sourceNodes, lineaFiltro, corporativoExpandido, modo]);
 
   // Modo Foco opera sobre el árbol YA construido (tree.finalArray), no sobre
   // allNodes crudo — así conserva fusiones/clones/estilos jefe-* que solo
@@ -67,7 +113,14 @@ export default function App() {
 
   return (
     <div style={{ height: "100vh", width: "100vw", display: "flex", flexDirection: "column" }}>
-      <FilterBar allNodes={allNodes} value={lineaFiltro} onChange={setLineaFiltro} disabled={Boolean(focusNodeId)} />
+      <FilterBar
+        allNodes={sourceNodes}
+        value={lineaFiltro}
+        onChange={setLineaFiltro}
+        disabled={Boolean(focusNodeId)}
+        modo={modo}
+        onModoChange={cambiarModo}
+      />
       {focusNodeId && (
         <div className="focus-banner">
           🎯 Modo Foco Activo —{" "}
@@ -80,6 +133,7 @@ export default function App() {
         {displayTree && (
           <OrgChartCanvas
             tree={displayTree}
+            mode={modo}
             lineaFiltro={lineaFiltro.toUpperCase().trim()}
             corporativoExpandido={corporativoExpandido}
             antonioId={displayTree.antonioId}

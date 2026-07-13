@@ -1,4 +1,4 @@
-import { CABEZAS_NEGOCIO_TEMP } from "../config/cabezasNegocio";
+import { CABEZAS_NEGOCIO_TEMP, CABEZAS_NEGOCIO_CARGO } from "../config/cabezasNegocio";
 import { calcularDescendenciaManual } from "../data/sanitize";
 
 const DICCIONARIO_LINEAS = {
@@ -64,10 +64,15 @@ function encontrarNodoPorConfig(sourceMap, sourceNodes, configId) {
  * condicional, clones anti-duplicación, fantasmas y las líneas de reporte
  * visual (_slinksManuales). Puro: no toca el DOM ni el chart directamente.
  *
+ * `mode` ("Persona" | "Cargo") selecciona la config de cabezas activa y
+ * activa las excepciones propias de Cargo (clon de la posición 00943, campo
+ * cargoPuesto para detectar el Comité, id de Santiago por codigoPosicion).
+ *
  * @returns {{ finalArray: object[], nodosAExpandir: string[], slinks: object[] }}
  */
-export function buildTree({ allNodes, lineaFiltro, corporativoExpandido }) {
-  const CABEZAS_ACTIVAS = CABEZAS_NEGOCIO_TEMP;
+export function buildTree({ allNodes, lineaFiltro, corporativoExpandido, mode = "Persona" }) {
+  const esCargo = mode === "Cargo";
+  const CABEZAS_ACTIVAS = esCargo ? CABEZAS_NEGOCIO_CARGO : CABEZAS_NEGOCIO_TEMP;
   const sourceNodes = allNodes;
   const lineaFiltroNorm = (lineaFiltro || "TODOS").toUpperCase().trim();
 
@@ -103,6 +108,27 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido }) {
         if (lineaHijo === "CARNICOS") node.pid = idAndresClon;
       }
     });
+  }
+
+  // --- Clon propio de Cargo: posición 00943 también reporta a Santiago (01098) ---
+  if (esCargo) {
+    const idPosClon = "00943";
+    const posOriginal = sourceMap.get(idPosClon);
+    if (posOriginal) {
+      const idClon = `CLON_CARNICOS_${idPosClon}`;
+      const posClon = Object.assign({}, posOriginal);
+      posClon.id = idClon;
+      posClon.pid = "01098";
+      posClon.displayNombre = `${posOriginal.cargoPuesto} (CÁRNICOS)`;
+      sourceMap.set(idClon, posClon);
+
+      sourceMap.forEach((node) => {
+        if (node.pid === idPosClon) {
+          const lineaHijo = (node.lineaNegocio || "").toUpperCase().trim();
+          if (lineaHijo === "CARNICOS") node.pid = idClon;
+        }
+      });
+    }
   }
 
   const antonioNode = encontrarNodoPorConfig(sourceMap, sourceNodes, CABEZAS_ACTIVAS.CORPORATIVO.id);
@@ -149,11 +175,23 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido }) {
 
       const nodoHijo = Object.assign({}, node);
 
-      if (nodoHijo.puesto === "COMITE" || nodoHijo.puesto === "COMITE COMITE") {
-        nodoHijo.nombre = "COMITÉ DE PRODUCTOS DERIVADOS";
-        nodoHijo.displayNombre = "COMITÉ DE PRODUCTOS DERIVADOS";
-        nodoHijo.puesto =
+      // "COMITE" en Persona viene en node.puesto; en Cargo el mismo puesto
+      // llega en node.cargoPuesto (cargoBinding usa field_0=cargoPuesto) —
+      // sin este segundo check, Cargo nunca detecta el Comité.
+      if (
+        nodoHijo.puesto === "COMITE" ||
+        nodoHijo.puesto === "COMITE COMITE" ||
+        nodoHijo.cargoPuesto === "COMITE" ||
+        nodoHijo.cargoPuesto === "COMITE COMITE"
+      ) {
+        const tituloComite = "COMITÉ DE PRODUCTOS DERIVADOS";
+        const listaComite =
           "• PRESIDENTE\n• GERENTE GENERAL\n• GERENTE FINANCIERO\n• GERENTE DE PRODUCTOS DERIVADOS\n• TRADER SENIOR DE PRODUCTOS DERIVADOS\n• TRADER DE PRODUCTOS DERIVADOS";
+        nodoHijo.nombre = tituloComite;
+        nodoHijo.displayNombre = tituloComite;
+        nodoHijo.puesto = listaComite;
+        nodoHijo.cargoPuesto = tituloComite;
+        nodoHijo.cargoPersona = listaComite;
         if (!nodoHijo.tags) nodoHijo.tags = [];
         nodoHijo.tags.push("comite");
         nodoHijo.tags.push("left-partner");
@@ -178,7 +216,7 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido }) {
   }
 
   if (esSoloCorp) {
-    return finalizeTree(nodesToRender, sourceNodes, lineaFiltroNorm, corporativoExpandido);
+    return finalizeTree(nodesToRender, sourceNodes, lineaFiltroNorm, corporativoExpandido, mode);
   }
 
   // === 2. LÍNEAS DE NEGOCIO (layout plano, cuelgan de Corporativo) ===
@@ -296,7 +334,7 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido }) {
     }
   });
 
-  return finalizeTree(nodesToRender, sourceNodes, lineaFiltroNorm, corporativoExpandido);
+  return finalizeTree(nodesToRender, sourceNodes, lineaFiltroNorm, corporativoExpandido, mode);
 }
 
 /**
@@ -371,7 +409,8 @@ export function calcularConteoVisual(finalArray) {
   });
 }
 
-function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido) {
+function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido, mode = "Persona") {
+  const esCargo = mode === "Cargo";
   const finalArray = Array.from(nodesToRender.values());
 
   // CARNICERIA: eliminar GRP_CARNICERIA/HEAD_LINEA_GRP_CARNICERIA_*, mover a
@@ -476,13 +515,25 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
 
     if (directos > 0) {
       if (directos === total) {
-        node.tags.push(directos === 1 ? (esVacante ? "vacanteSingle" : "fichaSingle") : esVacante ? "vacanteGroup" : "fichaGroup");
+        node.tags.push(
+          directos === 1
+            ? esVacante
+              ? "vacanteSingle"
+              : esCargo
+                ? "cargoSingle"
+                : "fichaSingle"
+            : esVacante
+              ? "vacanteGroup"
+              : esCargo
+                ? "cargoGroup"
+                : "fichaGroup",
+        );
       } else {
-        node.tags.push(esVacante ? "vacanteComplex" : "fichaComplex");
+        node.tags.push(esVacante ? "vacanteComplex" : esCargo ? "cargoComplex" : "fichaComplex");
       }
     } else {
       if (esVacante) node.tags.push("vacanteSimple");
-      else if (esComite) node.tags.push("comiteTemplate");
+      else if (esComite) node.tags.push(esCargo ? "comiteTemplateCargo" : "comiteTemplate");
     }
   });
 
@@ -582,7 +633,7 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
     if (finalArray.some((n) => n.id === "GRP_RETAIL")) {
       slinks.push({ from: antonioParaSlink.id, to: "GRP_RETAIL", color: "#27ae60", laneOffset: 40, routeRight: true });
     }
-    const idSantiago = "12";
+    const idSantiago = esCargo ? "00003" : "12";
     ["GRP_BALANCEADO", "GRP_CARNICOS", "GRP_PECUARIOS"].forEach((grpId) => {
       if (!finalArray.some((n) => n.id === grpId)) return;
       let toId = grpId;
