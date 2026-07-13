@@ -109,6 +109,8 @@ export default class OrgChartCanvas extends Component {
       expand: { nodes: [], allChildren: false },
       controls: {
         svg_export: { title: "Exportar a SVG" },
+        pdf_export: { title: "Exportar a PDF" },
+        png_export: { title: "Exportar a PNG" },
         zoom_in: { title: "Zoom In" },
         zoom_out: { title: "Zoom Out" },
         fit: { title: "Ajustar a la pantalla" },
@@ -174,7 +176,10 @@ export default class OrgChartCanvas extends Component {
     OrgChart.scroll.smooth = 2;
     OrgChart.scroll.speed = 10;
     OrgChart.SEARCH_PLACEHOLDER = "Buscar por nombre o cargo...";
-    OrgChart.SEARCH_RESULT_LIMIT = Number.MAX_SAFE_INTEGER;
+    // Sin límite se veía una lista interminable con nombres comunes (ej.
+    // "david") — con scroll interno (CSS) alcanza, pero igual se acota acá
+    // la cantidad real de resultados calculados.
+    OrgChart.SEARCH_RESULT_LIMIT = 15;
 
     this.chart = new OrgChart(this.divRef.current, chartConfig);
 

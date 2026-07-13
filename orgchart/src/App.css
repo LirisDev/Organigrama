@@ -404,6 +404,31 @@ path.link[data-l-id*="sub-level"] {
   }
 }
 
+/* Forzar tamaño de los botones de control (derecha) — sin esto salen
+   enormes, portado de styles.css de la rama vanilla. */
+.boc-controls > div[data-control-id] {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  padding: 0.5rem !important;
+  box-sizing: border-box !important;
+}
+.boc-controls > div[data-control-id] > svg {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Limita la altura del dropdown de resultados del buscador (scroll interno
+   en vez de una lista larga sin fin) — portado de styles.css vanilla. */
+.boc-search > div:last-child {
+  max-height: 250px !important;
+  overflow-y: auto !important;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+.boc-search-result table tr {
+  height: 50px;
+}
+
 /* --- ESTILOS PARA EL EDIT FORM (DETAILS VIEW) --- */
 
 /* Contenedor principal del formulario */
