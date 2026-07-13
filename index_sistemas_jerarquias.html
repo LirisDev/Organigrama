@@ -4501,7 +4501,24 @@
 
             let svgLines = "";
 
-            if (_slinksManuales && _slinksManuales.length > 0) {
+            // La geometría de abajo (fx/fy/tx/ty, dropY, leftX/rightX...) asume
+            // layout vertical top-down (OrgChart.orientation.top, el default).
+            // Con otra orientación activa (botón "Vertical Layout", que pese al
+            // nombre pone al chart en orientation.left — cascada horizontal) esos
+            // mismos offsets cruzan las líneas por encima de las tarjetas. En vez
+            // de reescribir el ruteo para las 4 orientaciones, se ocultan los
+            // slinks manuales fuera de la orientación top — el árbol nativo de
+            // Balkan (líneas reales padre-hijo) sigue dibujándose bien siempre,
+            // solo estas líneas de reporte manual (Presidente/Gerente General →
+            // líneas de negocio) se omiten.
+            const esOrientacionVertical =
+              sender.config.orientation === OrgChart.orientation.top;
+
+            if (
+              esOrientacionVertical &&
+              _slinksManuales &&
+              _slinksManuales.length > 0
+            ) {
               // Shared laneY for routeLeft slinks so all horizontal segments align
               let sharedLaneLeftY = null;
               // Helper: resolve effective toNode + laneOffset (fallback to GRP when collapsed)
