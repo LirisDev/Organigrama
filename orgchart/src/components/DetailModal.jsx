@@ -115,7 +115,7 @@ function CargoMultiDetail({ node, onClose }) {
 
         <div className="details-info-block">
           {empleados.length > 0 ? (
-            <div className="details-employee-list" data-simplebar data-simplebar-auto-hide="false">
+            <div className="details-employee-list">
               {empleados.map((emp) => (
                 <div className="employee-list-item" key={emp.codigoEmpleado}>
                   <img src={emp.foto || "/Logo-Liris.png"} className="employee-list-img" alt="" />

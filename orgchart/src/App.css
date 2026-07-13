@@ -297,6 +297,45 @@ path.link[data-l-id*="sub-level"] {
 .details-info-value {
   word-break: break-all;
 }
+/* Lista de empleados en el modal de Cargo (0 o 2+ personas asignadas) —
+   sin SimpleBar en React, el scroll lo maneja overflow-y directo. */
+.details-employee-list {
+  text-align: left;
+  max-height: 200px;
+  overflow-y: auto;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  padding-top: 10px;
+}
+.employee-list-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.employee-list-item:hover {
+  background-color: #f0f0f0;
+}
+.employee-list-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.employee-list-info {
+  font-size: 14px;
+}
+.employee-list-name {
+  font-weight: bold;
+  color: #333;
+}
+.employee-list-email {
+  font-size: 12px;
+  color: #777;
+}
 .details-buttons {
   display: flex;
   justify-content: center;
