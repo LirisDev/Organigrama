@@ -2,6 +2,12 @@ import React, { Component } from "react";
 import { registerTemplates, personaBinding, buildTagsConfig } from "../orgchart/templates";
 import { postCargaConReintento } from "../orgchart/expandLogic";
 
+// Ícono de "Colapsar todo" (flechas hacia adentro) — Balkan no trae uno
+// propio para esta acción, a diferencia de expand_all.
+const COLLAPSE_ALL_ICON = `<svg fill="#7A7A7A" width="24px" height="24px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <path d="M11.493 8.757l-3.454-3.453-2.665 2.665 3.454 3.453-2.59 2.59 7.797 0.004-0.017-7.784-2.525 2.525zM23.172 11.422l3.454-3.453-2.665-2.665-3.454 3.453-2.525-2.525-0.017 7.784 7.797-0.004-2.59-2.59zM8.828 20.578l-3.454 3.453 2.665 2.665 3.454-3.453 2.526 2.525 0.017-7.784-7.797 0.004 2.589 2.59zM25.762 17.988l-7.797-0.004 0.017 7.784 2.525-2.525 3.454 3.453 2.665-2.665-3.454-3.453 2.59-2.59z"></path>
+</svg>`;
+
 // Wrapper de Balkan OrgChart Pro para React. Sigue el patrón class+ref del
 // esqueleto original (myorg.js): la instancia de Balkan vive fuera del ciclo
 // de vida de React, y se le empuja data nueva vía chart.load() en vez de
@@ -11,6 +17,12 @@ export default class OrgChartCanvas extends Component {
     super(props);
     this.divRef = React.createRef();
     this.chart = null;
+    // Overlay propio mientras el chart expande cabezas/fantasmas tras
+    // load() — antes esa animación corría "detrás" sin aviso y se veía un
+    // fogonazo de cajas colapsadas/ovaladas (template "min") antes de
+    // llenarse. Se oculta recién cuando la secuencia completa termina
+    // (onListo de postCargaConReintento), no apenas se llama chart.load().
+    this.state = { chartBusy: true };
   }
 
   componentDidMount() {
@@ -73,7 +85,10 @@ export default class OrgChartCanvas extends Component {
       mouseScrool: OrgChart.action.scroll,
       showYScroll: true,
       showXScroll: true,
-      enableSearch: false, // fase 2
+      enableSearch: true,
+      searchFields: ["displayNombre", "puesto"],
+      searchDisplayField: "displayNombre",
+      searchFieldsWeight: { displayNombre: 100, puesto: 95 },
       template: "fichaTemplate",
       layout: OrgChart.normal,
       scaleInitial: OrgChart.match.boundary,
@@ -97,6 +112,38 @@ export default class OrgChartCanvas extends Component {
         zoom_in: { title: "Zoom In" },
         zoom_out: { title: "Zoom Out" },
         fit: { title: "Ajustar a la pantalla" },
+        expandAll: {
+          icon: OrgChart.icon.expand_all(24, 24, "#7A7A7A"),
+          title: "Expandir todo",
+          onClick: () => {
+            this.chart.expand(null, "all");
+            this.chart.fit();
+          },
+        },
+        collapseAll: {
+          icon: COLLAPSE_ALL_ICON,
+          title: "Colapsar todo",
+          onClick: () => {
+            // Mismo patrón que loadTree()/loadFocusTree(): recargar desde
+            // cero respeta el reset de collapsed por id (ver gotcha de
+            // Balkan documentado arriba).
+            this.loadTree();
+          },
+        },
+        horizontalLayout: {
+          icon: OrgChart.icon.layout_normal(24, 24, "#7A7A7A"),
+          title: "Horizontal Layout",
+          onClick: () => {
+            this.chart.setOrientation(OrgChart.orientation.top, null, () => this.chart.fit());
+          },
+        },
+        verticalLayout: {
+          icon: OrgChart.icon.layout_left_offset(24, 24, "#7A7A7A"),
+          title: "Vertical Layout",
+          onClick: () => {
+            this.chart.setOrientation(OrgChart.orientation.left, null, () => this.chart.fit());
+          },
+        },
       },
       enableDragDrop: false,
       sortSubLevelsSeparately: true,
@@ -126,8 +173,30 @@ export default class OrgChartCanvas extends Component {
 
     OrgChart.scroll.smooth = 2;
     OrgChart.scroll.speed = 10;
+    OrgChart.SEARCH_PLACEHOLDER = "Buscar por nombre o cargo...";
+    OrgChart.SEARCH_RESULT_LIMIT = Number.MAX_SAFE_INTEGER;
 
     this.chart = new OrgChart(this.divRef.current, chartConfig);
+
+    // Buscador: centra y resalta sin recargar/reconstruir el árbol — mismo
+    // patrón liviano que Modo Foco (chart.center + parentState:
+    // COLLAPSE_PARENT abre solo los padres necesarios del resultado).
+    this.chart.searchUI.on("searchclick", (sender, args) => {
+      sender.hide();
+      const targetNodeId = args.nodeId;
+      this.chart.center(
+        targetNodeId,
+        { anim: true, duration: 500, parentState: OrgChart.COLLAPSE_PARENT },
+        () => {
+          const nodoDOM = this.divRef.current && this.divRef.current.querySelector(`[data-n-id="${targetNodeId}"]`);
+          if (nodoDOM) {
+            nodoDOM.classList.add("nodo-destacado");
+            setTimeout(() => nodoDOM.classList.remove("nodo-destacado"), 8000);
+          }
+        },
+      );
+      return false;
+    });
 
     // Contador (globo naranja) y mini-fotos de grupos colapsados.
     this.chart.on("field", (sender, args) => {
@@ -254,6 +323,8 @@ export default class OrgChartCanvas extends Component {
     const { tree, lineaFiltro, corporativoExpandido, isFocusMode, focusNodeId } = this.props;
     if (!this.chart || !tree) return;
 
+    this.setState({ chartBusy: true });
+
     if (isFocusMode) {
       this.loadFocusTree(tree, focusNodeId);
       return;
@@ -270,11 +341,12 @@ export default class OrgChartCanvas extends Component {
 
     setTimeout(
       () =>
-        postCargaConReintento(this.chart, {
-          antonioId: tree.antonioId,
-          corporativoExpandido,
-          lineaFiltro,
-        }),
+        postCargaConReintento(
+          this.chart,
+          { antonioId: tree.antonioId, corporativoExpandido, lineaFiltro },
+          6,
+          () => this.setState({ chartBusy: false }),
+        ),
       10,
     );
   }
@@ -294,18 +366,31 @@ export default class OrgChartCanvas extends Component {
         const targetNode = this.chart.getNode(focusNodeId);
         if (targetNode) {
           this.chart.expandCollapse(focusNodeId, [], targetNode.childrenIds || [], () => {
-            this.chart.center(focusNodeId, { anim: true, duration: 200, parentState: OrgChart.COLLAPSE_PARENT });
+            this.chart.center(focusNodeId, { anim: true, duration: 200, parentState: OrgChart.COLLAPSE_PARENT }, () =>
+              this.setState({ chartBusy: false }),
+            );
           });
         } else {
           this.chart.fit();
+          this.setState({ chartBusy: false });
         }
       } catch (e) {
         console.warn("loadFocusTree: chart aún no listo", e);
+        this.setState({ chartBusy: false });
       }
     }, 10);
   }
 
   render() {
-    return <div ref={this.divRef} style={{ width: "100%", height: "100%" }} />;
+    return (
+      <div style={{ width: "100%", height: "100%", position: "relative" }}>
+        <div ref={this.divRef} style={{ width: "100%", height: "100%" }} />
+        {this.state.chartBusy && (
+          <div className="chart-busy-overlay">
+            <div className="chart-busy-spinner" />
+          </div>
+        )}
+      </div>
+    );
   }
 }

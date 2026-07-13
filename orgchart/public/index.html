@@ -25,6 +25,11 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>Organigrama LIRIS S.A.</title>
+    <!-- Adelanta la conexión TCP/TLS al host de fotos de empleados, para que
+         cuando el chart empiece a pedir imágenes no pague ese costo por cada
+         una — no acelera al servidor en sí, solo el handshake de red. -->
+    <link rel="preconnect" href="https://soporte.liris.com.ec" crossorigin />
+    <link rel="dns-prefetch" href="https://soporte.liris.com.ec" />
     <!-- Balkan OrgChart Pro (licencia de empresa, vendored — NO viene de npm).
          Se carga como script global (UMD, var OrgChart = ...) en vez de
          importarlo por webpack, para evitar problemas de interop ESM/CJS. -->
