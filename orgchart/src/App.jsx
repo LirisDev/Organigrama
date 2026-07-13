@@ -104,7 +104,12 @@ export default function App() {
   const displayTree = focusTree || tree;
 
   if (loading) {
-    return <div id="status-message">Cargando Organigrama...</div>;
+    return (
+      <div id="chart-loader-overlay" className="visible">
+        <div className="loader-spinner" />
+        <div id="loader-text">Cargando Organigrama...</div>
+      </div>
+    );
   }
 
   if (error) {
