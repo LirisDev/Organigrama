@@ -5,7 +5,7 @@ const DICCIONARIO_LINEAS = {
   PECUARIOS: "PECUARIOS",
 };
 
-function obtenerAliasLinea(nombreOriginal) {
+export function obtenerAliasLinea(nombreOriginal) {
   const normalizado = (nombreOriginal || "").toUpperCase().trim();
   return DICCIONARIO_LINEAS[normalizado] || normalizado;
 }
@@ -309,7 +309,7 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido }) {
  * DESPUÉS de la fusión Carnicería/Marketing, o cuenta hacia cajas que ya
  * no existen o estructuras que aún no se armaron.
  */
-function calcularConteoVisual(finalArray) {
+export function calcularConteoVisual(finalArray) {
   const finalById = new Map(finalArray.map((n) => [n.id, n]));
   const visualCounts = {};
   Object.keys(CABEZAS_NEGOCIO_TEMP).forEach((k) => {

@@ -16,6 +16,24 @@ export default class OrgChartCanvas extends Component {
   componentDidMount() {
     if (!this.divRef.current) return;
     this.createChart();
+
+    // Botón de foco (target-icon en cada tarjeta, field_3 de los templates)
+    // — mousedown en fase de captura + stopImmediatePropagation, igual que
+    // la rama vanilla, para que no dispare también el click nativo de
+    // Balkan (que abriría la ficha de detalle en el mismo click).
+    this._handleFocusBtnMouseDown = (e) => {
+      const focusBtn = e.target.closest("[data-focus-btn]");
+      if (!focusBtn) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      const nodeId = focusBtn.getAttribute("data-focus-btn");
+      if (this.props.isFocusMode && this.props.focusNodeId === nodeId) {
+        this.props.onFocusNode(null);
+      } else if (this.props.onFocusNode) {
+        this.props.onFocusNode(nodeId);
+      }
+    };
+    this.divRef.current.addEventListener("mousedown", this._handleFocusBtnMouseDown, true);
   }
 
   componentDidUpdate(prevProps) {
@@ -25,6 +43,9 @@ export default class OrgChartCanvas extends Component {
   }
 
   componentWillUnmount() {
+    if (this.divRef.current && this._handleFocusBtnMouseDown) {
+      this.divRef.current.removeEventListener("mousedown", this._handleFocusBtnMouseDown, true);
+    }
     if (this.chart) {
       try {
         this.chart.destroy();
@@ -84,6 +105,23 @@ export default class OrgChartCanvas extends Component {
       nodeMenu: null,
       nodeSeparation: 65,
       siblingSeparation: 100,
+      // Ficha de detalle (DetailModal, React) en vez del editUI genérico de
+      // Balkan (dump crudo de campos) — Balkan llama a estos métodos
+      // automáticamente en el click nativo del nodo (nodeMouseClick).
+      editUI: {
+        init: (instance) => {
+          this._balkanInstance = instance;
+        },
+        show: (nodeId) => {
+          const data = this._balkanInstance && this._balkanInstance.get(nodeId);
+          if (!data) return;
+          if (data.tags && (data.tags.includes("group") || data.tags.includes("fantasma"))) return;
+          if (this.props.onShowDetail) this.props.onShowDetail(data);
+        },
+        hide: () => {
+          if (this.props.onShowDetail) this.props.onShowDetail(null);
+        },
+      },
     };
 
     OrgChart.scroll.smooth = 2;
@@ -213,8 +251,13 @@ export default class OrgChartCanvas extends Component {
   }
 
   loadTree() {
-    const { tree, lineaFiltro, corporativoExpandido } = this.props;
+    const { tree, lineaFiltro, corporativoExpandido, isFocusMode, focusNodeId } = this.props;
     if (!this.chart || !tree) return;
+
+    if (isFocusMode) {
+      this.loadFocusTree(tree, focusNodeId);
+      return;
+    }
 
     this.chart.config.expand = { nodes: tree.nodosAExpandir, allChildren: false };
     this.chart.config.collapse = { level: 2, allChildren: true };
@@ -234,6 +277,32 @@ export default class OrgChartCanvas extends Component {
         }),
       10,
     );
+  }
+
+  // Modo Foco: sin collapse (se muestra el subárbol completo tal cual lo
+  // armó buildFocusTree), y el nodo objetivo se fuerza cerrado explícitamente
+  // después de cargar — mismo patrón que la rama vanilla.
+  loadFocusTree(tree, focusNodeId) {
+    const OrgChart = window.OrgChart;
+    this.chart.config.expand = { nodes: [], allChildren: false };
+    this.chart.config.collapse = null;
+    this.chart.load([]);
+    this.chart.load(tree.finalArray);
+
+    setTimeout(() => {
+      try {
+        const targetNode = this.chart.getNode(focusNodeId);
+        if (targetNode) {
+          this.chart.expandCollapse(focusNodeId, [], targetNode.childrenIds || [], () => {
+            this.chart.center(focusNodeId, { anim: true, duration: 200, parentState: OrgChart.COLLAPSE_PARENT });
+          });
+        } else {
+          this.chart.fit();
+        }
+      } catch (e) {
+        console.warn("loadFocusTree: chart aún no listo", e);
+      }
+    }, 10);
   }
 
   render() {

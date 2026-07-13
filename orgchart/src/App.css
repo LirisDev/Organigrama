@@ -186,6 +186,180 @@ path.link[data-l-id*="sub-level"] {
   stroke: #888;
 }
 
+/* ==========================================================================
+   Colores para las líneas de negocio (portado de styles.css, rama vanilla)
+   ========================================================================== */
+.node.group rect {
+  stroke-width: 3px;
+  fill-opacity: 0.1;
+}
+[data-n-id="GRP_CORPORATIVO"] rect {
+  stroke: #2c3e50 !important;
+  fill: #2c3e50 !important;
+}
+[data-n-id="GRP_BALANCEADO"] rect {
+  stroke: #88470e !important;
+  fill: #88470e !important;
+}
+[data-n-id="GRP_CARNICERIA"] rect {
+  stroke: #e67e22 !important;
+  fill: #e67e22 !important;
+}
+[data-n-id="GRP_CARNICOS"] rect {
+  stroke: #c0392b !important;
+  fill: #c0392b !important;
+}
+[data-n-id="GRP_DERIVADOS"] rect {
+  stroke: #e9dc21 !important;
+  fill: #e9dc21 !important;
+}
+[data-n-id="GRP_MARKETING"] rect {
+  stroke: #8e44ad !important;
+  fill: #8e44ad !important;
+}
+[data-n-id="GRP_PECUARIOS"] rect {
+  stroke: #2dee3d !important;
+  fill: #2dee3d !important;
+}
+[data-n-id="GRP_RETAIL"] rect {
+  stroke: #27ae60 !important;
+  fill: #27ae60 !important;
+}
+
+/* ==========================================================================
+   Ficha de detalle (DetailModal) — portado de styles.css, rama vanilla
+   ========================================================================== */
+#details-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+#custom-details-form {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 600px;
+  padding: 24px;
+  text-align: center;
+  font-family: Arial, sans-serif;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+#details-img {
+  display: block;
+  margin: 0 auto 16px auto;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 2px solid #eee;
+  object-fit: cover;
+}
+#details-name {
+  font-size: 22px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #333;
+  margin: 0;
+}
+#details-puesto {
+  font-size: 18px;
+  text-transform: uppercase;
+  color: #555;
+  margin-top: 4px;
+  margin-bottom: 20px;
+}
+.details-info-block {
+  text-align: left;
+  max-width: 440px;
+  margin: 0 auto 24px auto;
+}
+.details-info-line {
+  display: flex;
+  font-size: 15px;
+  color: #333;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+.details-info-label {
+  font-weight: bold;
+  width: 130px;
+  flex-shrink: 0;
+  color: #111;
+}
+.details-info-value {
+  word-break: break-all;
+}
+.details-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.details-btn {
+  width: 180px;
+  height: 46px;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, opacity 0.2s;
+}
+.details-btn:hover {
+  opacity: 0.85;
+}
+.btn-morado {
+  background-color: #6f42c1;
+}
+.btn-azul {
+  background-color: #0d6efd;
+}
+.btn-verde {
+  background-color: #28a745;
+}
+.btn-rojo {
+  background-color: #dc3545;
+}
+
+/* Banner de Modo Foco */
+.focus-banner {
+  background: #f57c00;
+  color: white;
+  text-align: center;
+  padding: 8px 16px;
+  font-weight: bold;
+  font-family: Arial, sans-serif;
+}
+.focus-banner-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-left: 8px;
+}
+.focus-banner-btn:hover {
+  opacity: 0.85;
+}
+
+/* Botón de foco (target) en cada tarjeta — el mismo SVG ya viene inyectado
+   por el template (field_3), solo aseguramos cursor/interactividad. */
+.focus-btn {
+  cursor: pointer;
+}
+
 /* --- ESTILOS PARA EL EDIT FORM (DETAILS VIEW) --- */
 
 /* Contenedor principal del formulario */
