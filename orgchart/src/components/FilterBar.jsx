@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 
-const MANUAL_PDF_URL = "/RRHH-USU-USORGA-V001 Manual de Usuario de Uso de Organigrama.pdf";
+const MANUAL_PDF_URL = `${process.env.PUBLIC_URL}/RRHH-USU-USORGA-V001 Manual de Usuario de Uso de Organigrama.pdf`;
 const MANUAL_PDF_FILENAME = "Manual_Usuario_Organigrama.pdf";
 
 function descargarManualApp() {
