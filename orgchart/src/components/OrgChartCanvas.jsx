@@ -159,11 +159,17 @@ export default class OrgChartCanvas extends Component {
       nodes: [],
       tags: tagsConfig,
       nodeBinding: esCargo ? cargoBinding : personaBinding,
-      orderBy: [
-        { field: "order", desc: false },
-        { field: "puesto", desc: false },
-        { field: "nombre", desc: false },
-      ],
+      orderBy: esCargo
+        ? [
+            { field: "order", desc: false },
+            { field: "cargoPuesto", desc: false },
+            { field: "nombre", desc: false },
+          ]
+        : [
+            { field: "order", desc: false },
+            { field: "puesto", desc: false },
+            { field: "nombre", desc: false },
+          ],
       // collapse.level se fija SOLO acá, en el constructor — reasignarlo
       // post-init (chart.config.collapse = ...) es un no-op silencioso.
       collapse: { level: 0, allChildren: true },
