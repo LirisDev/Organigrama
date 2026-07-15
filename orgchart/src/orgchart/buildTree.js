@@ -657,8 +657,11 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
   }
 
   // Orden de hermanos de RETAIL por orden de llegada del API (jefe-marketing
-  // conserva su orden original y no entra en este re-orden).
-  const _retailHead = finalArray.find((n) => String(n.id).startsWith("HEAD_LINEA_GRP_RETAIL_"));
+  // conserva su orden original y no entra en este re-orden). Solo aplica en
+  // Persona: en Cargo pisaba el orderBy alfabético por cargoPuesto (los
+  // hermanos quedaban en orden de llegada de empleado, no de título de
+  // cargo).
+  const _retailHead = mode === "Persona" && finalArray.find((n) => String(n.id).startsWith("HEAD_LINEA_GRP_RETAIL_"));
   if (_retailHead) {
     const _retailSiblings = finalArray.filter((n) => String(n.pid) === String(_retailHead.id) && n.id !== "GRP_MARKETING");
     _retailSiblings.sort((a, b) => {
