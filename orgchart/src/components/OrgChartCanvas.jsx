@@ -328,8 +328,63 @@ export default class OrgChartCanvas extends Component {
         if (this.props.onToggleCorporativo) this.props.onToggleCorporativo(!args.collapsing);
         return false;
       }
+      // Marca que el próximo cambio de estado de la scrollbar Y viene de
+      // un expand/collapse real de nodo individual (ver listener de
+      // yScrollUI más abajo).
+      this._pendingVScrollCheck = true;
       return true;
     });
+
+    // Pedido: cuando colapsar un nodo hace que la scrollbar vertical
+    // desaparezca (el árbol restante ya "cabe"), pero el pan/zoom actual
+    // seguía scrolleado hacia una zona que ya no tiene contenido, subir
+    // automático lo justo para volver a ver algo.
+    //
+    // Intentos anteriores (leer chart.response.boundary con un delay fijo
+    // o sondeando hasta que "se estabilice") daban falsos positivos: el
+    // boundary podía leerse en un instante transitorio y producir saltos
+    // absurdos (hasta el tope del árbol, o pantallas vacías) aunque
+    // colapsar una rama chica no debería afectar nada.
+    //
+    // yScrollUI.setPosition() es la función de Balkan que DECIDE en el
+    // momento correcto (al final de su propio ciclo de layout, no una
+    // demora adivinada por nosotros) si la scrollbar debe ocultarse, y
+    // publica un evento "change" con {isScrollBarVisible} exactamente en
+    // ese instante — es la fuente de verdad de Balkan, no una
+    // recreación nuestra del mismo cálculo con timing propio. Mismo
+    // patrón que chart.searchUI.on(...) más abajo en este archivo.
+    if (this.chart.yScrollUI && this.chart.yScrollUI.on) {
+      this.chart.yScrollUI.on("change", (sender, args) => {
+        if (!this._pendingVScrollCheck) return;
+        this._pendingVScrollCheck = false;
+        if (args.isScrollBarVisible) return; // sigue haciendo falta scroll, no tocar nada
+        const boundary = this.chart.response && this.chart.response.boundary;
+        if (!boundary) return;
+        const vb = this.chart.getViewBox();
+        if (!Array.isArray(vb) || vb.length !== 4 || !vb.every(Number.isFinite)) return;
+        const [x, y, w, h] = vb;
+        if (w <= 0 || h <= 0) return;
+        const by0 = Math.min(boundary.top, boundary.bottom);
+        const by1 = Math.max(boundary.top, boundary.bottom);
+        if (!Number.isFinite(by0) || !Number.isFinite(by1)) return;
+        const noOverlapY = y + h < by0 || y > by1;
+        if (!noOverlapY) return;
+        // Sube lo justo para que el borde inferior del contenido restante
+        // quede visible en el borde inferior del viewport, sin pasarse
+        // del borde superior si el contenido es más chico que el
+        // viewport. Desliza suave (mismo motor/timing que usa Balkan
+        // para sus propias transiciones) en vez de saltar de golpe.
+        const newY = Math.min(Math.max(by1 - h, by0), by1);
+        if (!Number.isFinite(newY)) return;
+        OrgChart.animate(
+          this.chart.getSvg(),
+          { viewbox: vb },
+          { viewbox: [x, newY, w, h] },
+          this.chart.config.anim.duration,
+          this.chart.config.anim.func
+        );
+      });
+    }
 
     // Garantiza que fichaGradient esté siempre en el SVG exportado.
     this.chart.on("renderdefs", (sender, args) => {
