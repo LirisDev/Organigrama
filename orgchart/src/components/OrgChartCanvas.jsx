@@ -332,6 +332,7 @@ export default class OrgChartCanvas extends Component {
       // un expand/collapse real de nodo individual (ver listener de
       // yScrollUI más abajo).
       this._pendingVScrollCheck = true;
+      this._pendingHScrollCheck = true;
       return true;
     });
 
@@ -385,6 +386,44 @@ export default class OrgChartCanvas extends Component {
         );
       });
     }
+
+    // Mismo pedido que arriba pero en horizontal — con una vuelta de tuerca
+    // encontrada recién: Balkan YA hace este ajuste nativamente (por eso
+    // un pequeño arrastre manual "acomoda solo" dentro de los límites) vía
+    // OrgChart._moveToBoundaryArea, que corre al soltar un pan/drag.
+    // response.boundary.left/right NO son los extremos crudos del
+    // contenido — ya vienen pre-ajustados para ser el rango válido de
+    // viewBox[0] directamente (right = maxX + padding - anchoViewport/scale),
+    // por eso los primeros intentos (restando el ancho del viewport de
+    // nuevo, "bx1 - w") sobrepasaban el límite real. Acá se replica
+    // exactamente la misma fórmula que usa _moveToBoundaryArea para el eje
+    // X (sin tocar Y, que ya lo resuelve el bloque de arriba), disparada
+    // por "redraw" — la señal de "layout ya asentado" — en vez de
+    // pan-end.
+    this.chart.onRedraw(() => {
+      if (!this._pendingHScrollCheck) return;
+      this._pendingHScrollCheck = false;
+      const boundary = this.chart.response && this.chart.response.boundary;
+      if (!boundary) return;
+      const vb = this.chart.getViewBox();
+      if (!Array.isArray(vb) || vb.length !== 4 || !vb.every(Number.isFinite)) return;
+      const [x, y, w, h] = vb;
+      if (w <= 0 || h <= 0) return;
+      let newX = x;
+      if (x < boundary.left && x < boundary.right) {
+        newX = boundary.left > boundary.right ? boundary.right : boundary.left;
+      } else if (x > boundary.right && x > boundary.left) {
+        newX = boundary.left > boundary.right ? boundary.left : boundary.right;
+      }
+      if (newX === x || !Number.isFinite(newX)) return;
+      OrgChart.animate(
+        this.chart.getSvg(),
+        { viewbox: vb },
+        { viewbox: [newX, y, w, h] },
+        this.chart.config.anim.duration,
+        this.chart.config.anim.func
+      );
+    });
 
     // Garantiza que fichaGradient esté siempre en el SVG exportado.
     this.chart.on("renderdefs", (sender, args) => {
