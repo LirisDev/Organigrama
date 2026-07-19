@@ -12,6 +12,11 @@ const DICCIONARIO_LINEAS = {
 // su caja termina fusionada dentro de CARNICOS (ver merge en finalizeTree).
 const LINEAS_FUNCIONALES_SANTIAGO = ["BALANCEADO", "CARNICOS", "PECUARIOS", "CARNICERIA"];
 
+// RETAIL/MARKETING reportan directo a Antonio (Presidente) — mismo patrón
+// que LINEAS_FUNCIONALES_SANTIAGO pero recortando Corporativo a solo Antonio
+// en vez de Santiago, con el slink verde en vez del rojo.
+const LINEAS_FUNCIONALES_ANTONIO = ["RETAIL", "MARKETING"];
+
 export function obtenerAliasLinea(nombreOriginal) {
   const normalizado = (nombreOriginal || "").toUpperCase().trim();
   return DICCIONARIO_LINEAS[normalizado] || normalizado;
@@ -94,7 +99,8 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido, mode = 
   // por el slink rojo a la caja de la línea — igual que en la vista "TODOS"
   // pero recortado a un único ocupante.
   const esLineaSantiago = !esTodasLineas && LINEAS_FUNCIONALES_SANTIAGO.includes(lineaFiltroNorm);
-  const mostrarCorporativo = esTodasLineas || esSoloCorp || esLineaSantiago;
+  const esLineaAntonio = !esTodasLineas && LINEAS_FUNCIONALES_ANTONIO.includes(lineaFiltroNorm);
+  const mostrarCorporativo = esTodasLineas || esSoloCorp || esLineaSantiago || esLineaAntonio;
 
   if (!sourceNodes || sourceNodes.length === 0) {
     return { finalArray: [], nodosAExpandir: [], slinks: [] };
@@ -172,6 +178,11 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido, mode = 
       nodoSantiago.pid = null;
       nodesToRender.set(nodoSantiago.id, nodoSantiago);
     }
+  } else if (esLineaAntonio && idAntonio) {
+    const nodoAntonioSolo = Object.assign({}, sourceMap.get(idAntonio));
+    nodoAntonioSolo.stpid = groupCorpId;
+    nodoAntonioSolo.pid = null;
+    nodesToRender.set(idAntonio, nodoAntonioSolo);
   } else if (mostrarCorporativo && idAntonio) {
     const nodoAntonio = Object.assign({}, sourceMap.get(idAntonio));
     nodoAntonio.stpid = groupCorpId;
@@ -653,7 +664,12 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
     }
 
     if (finalArray.some((n) => n.id === "GRP_RETAIL")) {
-      slinks.push({ from: antonioParaSlink.id, to: "GRP_RETAIL", color: "#27ae60", laneOffset: 40, routeRight: true });
+      const esFiltroLineaAntonio = LINEAS_FUNCIONALES_ANTONIO.includes(lineaFiltro);
+      if (esFiltroLineaAntonio) {
+        slinks.push({ from: antonioParaSlink.id, to: "GRP_RETAIL", color: "#27ae60", straight: true });
+      } else {
+        slinks.push({ from: antonioParaSlink.id, to: "GRP_RETAIL", color: "#27ae60", laneOffset: 40, routeRight: true });
+      }
     }
     const idSantiago = esCargo ? "00003" : "12";
     // Filtrando por una sola línea de Santiago (BALANCEADO/CARNICOS/PECUARIOS/
