@@ -469,6 +469,7 @@ export default class OrgChartCanvas extends Component {
       const along = (pt) => (esHorizontal ? pt.x : pt.y);
       const cross = (pt) => (esHorizontal ? pt.y : pt.x);
       const crossSize = (n) => (esHorizontal ? n.h : n.w);
+      const alongSize = (n) => (esHorizontal ? n.w : n.h);
       const pt = (alongVal, crossVal) => (esHorizontal ? { x: alongVal, y: crossVal } : { x: crossVal, y: alongVal });
       const nodeBack = (n) => (esHorizontal ? { x: n.x + n.w, y: n.y + n.h / 2 } : { x: n.x + n.w / 2, y: n.y + n.h });
       const nodeFront = (n) => (esHorizontal ? { x: n.x, y: n.y + n.h / 2 } : { x: n.x + n.w / 2, y: n.y });
@@ -518,7 +519,19 @@ export default class OrgChartCanvas extends Component {
         const corpCrossEnd = grpCorp ? corpCrossStart + crossSize(grpCorp) : null;
 
         let puntos;
-        if (link.routeLeft) {
+        if (link.straight) {
+          // Filtro de una sola línea de Santiago: sin otras líneas con las
+          // que compartir carril, alcanza con un escalón simple — baja hasta
+          // el espacio en blanco debajo del borde de Corporativo, salta al
+          // eje cruzado del destino, y baja el resto. Pedido: el tramo
+          // horizontal no debe quedar pegado al borde de la caja Corporativo
+          // (30px se solapaba con la línea divisoria) — usar el fondo real
+          // de GRP_CORPORATIVO + margen. Con origen/destino alineados (ej.
+          // BALANCEADO) los 4 puntos caen en línea recta sin verse el escalón.
+          const corpAlongEnd = grpCorp ? along({ x: grpCorp.x, y: grpCorp.y }) + alongSize(grpCorp) : null;
+          const dropAlong = corpAlongEnd !== null ? corpAlongEnd + 40 : fAlong + 90;
+          puntos = [pt(fAlong, fCross), pt(dropAlong, fCross), pt(dropAlong, tCross), pt(tAlong, tCross)];
+        } else if (link.routeLeft) {
           const crossBound = corpCrossStart !== null ? corpCrossStart - 30 : fCross - 200;
           const dropAlong = fAlong + 30;
           const useLaneAlong = sharedLaneAlong !== null ? sharedLaneAlong : laneAlong;

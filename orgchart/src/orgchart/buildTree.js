@@ -5,6 +5,13 @@ const DICCIONARIO_LINEAS = {
   PECUARIOS: "PECUARIOS",
 };
 
+// Líneas que reportan funcionalmente a Santiago (Gerente General) — ver uso
+// en buildTree (caja Corporativo recortada a solo Santiago) y en el ruteo
+// del slink rojo dentro de finalizeTree (línea en escalón, sin carril
+// compartido con otras líneas). CARNICERIA también reporta a Santiago aunque
+// su caja termina fusionada dentro de CARNICOS (ver merge en finalizeTree).
+const LINEAS_FUNCIONALES_SANTIAGO = ["BALANCEADO", "CARNICOS", "PECUARIOS", "CARNICERIA"];
+
 export function obtenerAliasLinea(nombreOriginal) {
   const normalizado = (nombreOriginal || "").toUpperCase().trim();
   return DICCIONARIO_LINEAS[normalizado] || normalizado;
@@ -81,7 +88,13 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido, mode = 
   // Derivados, colgado de Corporativo. Filtrar por Derivados debe mostrar
   // Corporativo (donde vive el Comité), igual que filtrar por Corporativo.
   const esSoloCorp = lineaFiltroNorm === "CORPORATIVO" || lineaFiltroNorm === "DERIVADOS";
-  const mostrarCorporativo = esTodasLineas || esSoloCorp;
+  // BALANCEADO/CARNICOS/PECUARIOS reportan funcionalmente a Santiago (Gerente
+  // General). Filtrando por una de estas, pedido: mostrar la caja Corporativo
+  // arriba con SOLO Santiago adentro (no Antonio ni el resto del staff), unida
+  // por el slink rojo a la caja de la línea — igual que en la vista "TODOS"
+  // pero recortado a un único ocupante.
+  const esLineaSantiago = !esTodasLineas && LINEAS_FUNCIONALES_SANTIAGO.includes(lineaFiltroNorm);
+  const mostrarCorporativo = esTodasLineas || esSoloCorp || esLineaSantiago;
 
   if (!sourceNodes || sourceNodes.length === 0) {
     return { finalArray: [], nodosAExpandir: [], slinks: [] };
@@ -150,7 +163,16 @@ export function buildTree({ allNodes, lineaFiltro, corporativoExpandido, mode = 
     });
   }
 
-  if (mostrarCorporativo && idAntonio) {
+  if (esLineaSantiago) {
+    const idSantiagoCfg = esCargo ? "00003" : "12";
+    const santiagoOriginal = encontrarNodoPorConfig(sourceMap, sourceNodes, idSantiagoCfg);
+    if (santiagoOriginal) {
+      const nodoSantiago = Object.assign({}, sourceMap.get(santiagoOriginal.id));
+      nodoSantiago.stpid = groupCorpId;
+      nodoSantiago.pid = null;
+      nodesToRender.set(nodoSantiago.id, nodoSantiago);
+    }
+  } else if (mostrarCorporativo && idAntonio) {
     const nodoAntonio = Object.assign({}, sourceMap.get(idAntonio));
     nodoAntonio.stpid = groupCorpId;
     nodoAntonio.pid = null;
@@ -634,6 +656,12 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
       slinks.push({ from: antonioParaSlink.id, to: "GRP_RETAIL", color: "#27ae60", laneOffset: 40, routeRight: true });
     }
     const idSantiago = esCargo ? "00003" : "12";
+    // Filtrando por una sola línea de Santiago (BALANCEADO/CARNICOS/PECUARIOS/
+    // CARNICERIA), Corporativo solo tiene a Santiago adentro y su caja queda
+    // apilada directo arriba de la única línea visible — sin otras líneas con
+    // las que compartir carril, el ruteo con jog largo (routeLeft) sobra: ver
+    // "straight" en OrgChartCanvas (escalón corto en vez del carril).
+    const esFiltroLineaSantiago = LINEAS_FUNCIONALES_SANTIAGO.includes(lineaFiltro);
     ["GRP_BALANCEADO", "GRP_CARNICOS", "GRP_PECUARIOS"].forEach((grpId) => {
       if (!finalArray.some((n) => n.id === grpId)) return;
       let toId = grpId;
@@ -642,7 +670,11 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
         const headNode = finalArray.find((n) => String(n.id).startsWith(headPrefix));
         if (headNode) toId = headNode.id;
       }
-      slinks.push({ from: idSantiago, to: toId, fallbackTo: grpId, color: "#E74C3C", laneOffset: 70, routeLeft: true });
+      if (esFiltroLineaSantiago) {
+        slinks.push({ from: idSantiago, to: toId, fallbackTo: grpId, color: "#E74C3C", straight: true });
+      } else {
+        slinks.push({ from: idSantiago, to: toId, fallbackTo: grpId, color: "#E74C3C", laneOffset: 70, routeLeft: true });
+      }
     });
     if (finalArray.some((n) => n.id === "GRP_CARNICERIA")) {
       const omarNode = finalArray.find(
