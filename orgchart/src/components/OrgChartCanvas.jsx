@@ -409,6 +409,21 @@ export default class OrgChartCanvas extends Component {
       if (!Array.isArray(vb) || vb.length !== 4 || !vb.every(Number.isFinite)) return;
       const [x, y, w, h] = vb;
       if (w <= 0 || h <= 0) return;
+
+      // boundary.left/right (y top/bottom) vienen invertidos —
+      // left > right — cuando el contenido restante ya entra completo en
+      // el viewport en ese eje (no hay rango de scroll válido). Pedido:
+      // filtrando por una sola línea de negocio, colapsar el nodo cabeza
+      // puede achicar el árbol tan de golpe que quede "pegado" en una
+      // esquina con la mayoría de la pantalla en blanco — si entra
+      // completo en AMBOS ejes, mejor un fit real (centra + reencuadra)
+      // que un simple alineado a un borde.
+      if (boundary.left > boundary.right && boundary.top > boundary.bottom) {
+        this._pendingVScrollCheck = false; // ya lo resuelve el fit, que el fix vertical no pise encima
+        this.chart.fit();
+        return;
+      }
+
       let newX = x;
       if (x < boundary.left && x < boundary.right) {
         newX = boundary.left > boundary.right ? boundary.right : boundary.left;
