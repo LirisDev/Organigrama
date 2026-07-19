@@ -666,7 +666,15 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
     if (finalArray.some((n) => n.id === "GRP_RETAIL")) {
       const esFiltroLineaAntonio = LINEAS_FUNCIONALES_ANTONIO.includes(lineaFiltro);
       if (esFiltroLineaAntonio) {
-        slinks.push({ from: antonioParaSlink.id, to: "GRP_RETAIL", color: "#27ae60", straight: true });
+        // El borde de la caja GRP_RETAIL se centra sobre TODO el subárbol
+        // (ancho por sus hijos), pero el conector nativo hacia el jefe real
+        // (HEAD_LINEA_GRP_RETAIL_*) cuelga en el x del jefe, no en el centro
+        // de la caja — apuntar el slink a "GRP_RETAIL" los deja
+        // descuadrados. Igual que Santiago con CARNICOS/PECUARIOS: apuntar
+        // al jefe real (con fallback a la caja si por algo no está).
+        const retailHeadNode = finalArray.find((n) => String(n.id).startsWith("HEAD_LINEA_GRP_RETAIL_"));
+        const toId = retailHeadNode ? retailHeadNode.id : "GRP_RETAIL";
+        slinks.push({ from: antonioParaSlink.id, to: toId, fallbackTo: "GRP_RETAIL", color: "#27ae60", straight: true });
       } else {
         slinks.push({ from: antonioParaSlink.id, to: "GRP_RETAIL", color: "#27ae60", laneOffset: 40, routeRight: true });
       }
