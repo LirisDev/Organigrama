@@ -10,12 +10,12 @@ const DICCIONARIO_LINEAS = {
 // del slink rojo dentro de finalizeTree (línea en escalón, sin carril
 // compartido con otras líneas). CARNICERIA también reporta a Santiago aunque
 // su caja termina fusionada dentro de CARNICOS (ver merge en finalizeTree).
-const LINEAS_FUNCIONALES_SANTIAGO = ["BALANCEADO", "CARNICOS", "PECUARIOS", "CARNICERIA"];
+export const LINEAS_FUNCIONALES_SANTIAGO = ["BALANCEADO", "CARNICOS", "PECUARIOS", "CARNICERIA"];
 
 // RETAIL/MARKETING reportan directo a Antonio (Presidente) — mismo patrón
 // que LINEAS_FUNCIONALES_SANTIAGO pero recortando Corporativo a solo Antonio
 // en vez de Santiago, con el slink verde en vez del rojo.
-const LINEAS_FUNCIONALES_ANTONIO = ["RETAIL", "MARKETING"];
+export const LINEAS_FUNCIONALES_ANTONIO = ["RETAIL", "MARKETING"];
 
 export function obtenerAliasLinea(nombreOriginal) {
   const normalizado = (nombreOriginal || "").toUpperCase().trim();

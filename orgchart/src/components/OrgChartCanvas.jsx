@@ -51,6 +51,27 @@ export default class OrgChartCanvas extends Component {
   componentDidUpdate(prevProps) {
     if (!this.chart) return;
     if (prevProps.mode !== this.props.mode) this.applyModeBinding();
+
+    // Entrar/salir de Modo Foco: destruir y recrear la instancia de Balkan
+    // en vez de reusarla. chart.load([]) + chart.load(data) no alcanza acá
+    // — Balkan arrastra estado interno (boundary/diff) del árbol anterior
+    // (uno completo, con cientos de nodos) que deja a Santiago con datos
+    // correctos (el conteo de Corporativo lo cuenta bien) pero sin dibujar
+    // ni él ni el slink rojo (paths NaN en consola). Recrear de cero
+    // garantiza que no quede nada de la carga anterior.
+    if (prevProps.isFocusMode !== this.props.isFocusMode) {
+      if (this.chart) {
+        try {
+          this.chart.destroy();
+        } catch (e) {
+          console.error("Error al destruir Balkan al cambiar Modo Foco:", e);
+        }
+      }
+      this.createChart();
+      this.loadTree();
+      return;
+    }
+
     const treeChanged = prevProps.tree !== this.props.tree;
     if (treeChanged) this.loadTree();
   }
@@ -440,6 +461,23 @@ export default class OrgChartCanvas extends Component {
       );
     });
 
+    // Modo Foco: el center() sobre el nodo objetivo no puede correr
+    // inmediatamente en el callback (sincrónico) de expandCollapse — en ese
+    // instante el boundary/response de Balkan todavía puede ser el del
+    // árbol anterior (mucho más grande), y Balkan calcula mal qué nodos
+    // dibujar: el resultado es Corporativo con la caja pero sin Santiago
+    // adentro (dato bien contado, nada renderizado). Igual que el fix de
+    // scroll de arriba, esperar a "redraw" (layout ya asentado) antes de
+    // centrar.
+    this.chart.onRedraw(() => {
+      if (!this._pendingFocusCenterId) return;
+      const id = this._pendingFocusCenterId;
+      this._pendingFocusCenterId = null;
+      this.chart.center(id, { anim: true, duration: 200, parentState: OrgChart.COLLAPSE_PARENT }, () =>
+        this.setState({ chartBusy: false }),
+      );
+    });
+
     // Garantiza que fichaGradient esté siempre en el SVG exportado.
     this.chart.on("renderdefs", (sender, args) => {
       if (!args.defs.includes("fichaGradient")) {
@@ -718,7 +756,6 @@ export default class OrgChartCanvas extends Component {
   // armó buildFocusTree), y el nodo objetivo se fuerza cerrado explícitamente
   // después de cargar — mismo patrón que la rama vanilla.
   loadFocusTree(tree, focusNodeId) {
-    const OrgChart = window.OrgChart;
     this.chart.config.expand = { nodes: [], allChildren: false };
     this.chart.config.collapse = null;
     this.chart.load([]);
@@ -728,10 +765,10 @@ export default class OrgChartCanvas extends Component {
       try {
         const targetNode = this.chart.getNode(focusNodeId);
         if (targetNode) {
+          // El center() real corre desde el listener de "redraw" en
+          // createChart (_pendingFocusCenterId) — ver comentario ahí.
           this.chart.expandCollapse(focusNodeId, [], targetNode.childrenIds || [], () => {
-            this.chart.center(focusNodeId, { anim: true, duration: 200, parentState: OrgChart.COLLAPSE_PARENT }, () =>
-              this.setState({ chartBusy: false }),
-            );
+            this._pendingFocusCenterId = focusNodeId;
           });
         } else {
           this.chart.fit();
@@ -741,6 +778,13 @@ export default class OrgChartCanvas extends Component {
         console.warn("loadFocusTree: chart aún no listo", e);
         this.setState({ chartBusy: false });
       }
+      // Fallback si "redraw" nunca llega (ej. chart no montado).
+      setTimeout(() => {
+        if (!this._pendingFocusCenterId) return;
+        this._pendingFocusCenterId = null;
+        this.chart.fit();
+        this.setState({ chartBusy: false });
+      }, 500);
     }, 10);
   }
 
