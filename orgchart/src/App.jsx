@@ -22,12 +22,14 @@ export default function App() {
   const [corporativoExpandido, setCorporativoExpandido] = useState(true);
   const [detailNode, setDetailNode] = useState(null);
   const [focusNodeId, setFocusNodeId] = useState(null);
-  // Foco sobre Santiago/Antonio mismos: sus líneas de negocio (ver
-  // buildFocusTree) aparecen colapsadas (solo el conteo) hasta que el
-  // usuario expande su tarjeta — Balkan ignora el collapsed:false de los
-  // datos, así que se dispara un re-render con más data en vez de pelear
-  // con su expand/collapse.
-  const [focusHeadExpanded, setFocusHeadExpanded] = useState(false);
+  // Foco sobre Santiago/Antonio: sus líneas de negocio (ver buildFocusTree)
+  // aparecen colapsadas (solo el conteo) hasta que el usuario expande su
+  // tarjeta — Balkan ignora el collapsed:false de los datos, así que se
+  // dispara un re-render con más data en vez de pelear con su
+  // expand/collapse. Set de ids (no un solo boolean): dentro del foco de
+  // Antonio, Santiago puede expandirse por separado y revelar sus propias
+  // líneas sin perder las de Antonio.
+  const [expandedHeadIds, setExpandedHeadIds] = useState(() => new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -104,12 +106,12 @@ export default function App() {
   // React ya lo tiene memoizado).
   const focusTree = useMemo(() => {
     if (!focusNodeId || !tree) return null;
-    return buildFocusTree(tree.finalArray, focusNodeId, focusHeadExpanded);
-  }, [focusNodeId, tree, focusHeadExpanded]);
+    return buildFocusTree(tree.finalArray, focusNodeId, Array.from(expandedHeadIds));
+  }, [focusNodeId, tree, expandedHeadIds]);
 
   function cambiarFocusNodeId(nuevoId) {
     setFocusNodeId(nuevoId);
-    setFocusHeadExpanded(false);
+    setExpandedHeadIds(new Set());
   }
 
   const displayTree = focusTree || tree;
@@ -158,8 +160,16 @@ export default function App() {
             isFocusMode={Boolean(focusNodeId)}
             focusNodeId={focusNodeId}
             onFocusNode={cambiarFocusNodeId}
-            onExpandFocusHead={() => setFocusHeadExpanded(true)}
-            onCollapseFocusHead={() => setFocusHeadExpanded(false)}
+            onExpandFocusHead={(nodeId) =>
+              setExpandedHeadIds((prev) => new Set(prev).add(nodeId))
+            }
+            onCollapseFocusHead={(nodeId) =>
+              setExpandedHeadIds((prev) => {
+                const next = new Set(prev);
+                next.delete(nodeId);
+                return next;
+              })
+            }
             onShowDetail={setDetailNode}
           />
         )}

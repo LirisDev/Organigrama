@@ -13,7 +13,8 @@ import { calcularConteoVisual, LINEAS_FUNCIONALES_SANTIAGO, LINEAS_FUNCIONALES_A
  * el pid de las líneas de negocio hacia GRP_CORPORATIVO es solo metadata de
  * layout plano, no jerarquía real de mando.
  */
-export function buildFocusTree(finalArray, targetNodeId, mostrarLineasDeHead = false) {
+export function buildFocusTree(finalArray, targetNodeId, headsExpandidos = []) {
+  const headsSet = new Set(headsExpandidos);
   const sourceMap = new Map(finalArray.map((n) => [n.id, { ...n }]));
   const targetNode = sourceMap.get(targetNodeId);
   if (!targetNode) return null;
@@ -145,80 +146,111 @@ export function buildFocusTree(finalArray, targetNodeId, mostrarLineasDeHead = f
 
   // Pedido: foco sobre Santiago o Antonio MISMOS (no un empleado de una
   // línea) — NADA de esto se ve hasta que el usuario expande su tarjeta
-  // (mostrarLineasDeHead, seteado desde onExpandFocusHead en OrgChartCanvas
-  // — sin llamar ningún método de Balkan ahí, solo avisar a React, que
-  // reconstruye este árbol con la bandera en true): ni sus reportes
-  // directos de Corporativo (Celia, Angie) ni las cajas de sus líneas de
-  // negocio con su gente — todo aparece junto, sincronizado, en la misma
-  // recarga.
+  // (headsExpandidos, uno o varios ids acumulados desde onExpandFocusHead en
+  // OrgChartCanvas — sin llamar ningún método de Balkan ahí, solo avisar a
+  // React, que reconstruye este árbol con el id agregado al set): ni sus
+  // reportes directos de Corporativo (Celia, Angie) ni las cajas de sus
+  // líneas de negocio con su gente — todo aparece junto, sincronizado, en la
+  // misma recarga. Generalizado a CUALQUIER cabeza presente en el árbol de
+  // foco (no solo targetNodeId): al enfocar a Antonio y expandirlo, Santiago
+  // aparece como descendiente normal — si el usuario TAMBIÉN expande su
+  // tarjeta, sus propias líneas (BALANCEADO/CARNICOS/PECUARIOS) deben
+  // revelarse igual que en el foco directo sobre él.
   const nodosAExpandir = [];
-  if (!grupoRaiz && mostrarLineasDeHead) {
-    const codPosTarget = targetNode.codPosicion || targetNode.id;
-    const esTargetSantiago = codPosTarget === "00003" && !(targetNode.tags || []).includes("fantasma");
-    const esTargetAntonio = codPosTarget === "00001";
-    if (esTargetSantiago || esTargetAntonio) {
-      const idsLineas = esTargetSantiago ? ["GRP_BALANCEADO", "GRP_CARNICOS", "GRP_PECUARIOS"] : ["GRP_RETAIL"];
-      const color = esTargetSantiago ? "#E74C3C" : "#27ae60";
-      // Un id en nodosAExpandir solo garantiza que ESE nodo sea visible, no
-      // revela a sus hijos — hace falta poner explícitamente el id de cada
-      // hijo directo (Celia, Angie) para que Balkan los dibuje.
-      nodosAExpandir.push(targetNodeId);
-      Array.from(nodosDelFoco.values()).forEach((n) => {
-        if (n.pid === targetNodeId || n.stpid === targetNodeId) {
-          nodosAExpandir.push(n.id);
-        }
-      });
-      const cajasNuevas = [];
-      idsLineas.forEach((grpId) => {
-        if (nodosDelFoco.has(grpId)) return;
-        const grp = sourceMap.get(grpId);
-        if (!grp) return;
-        cajasNuevas.push(grpId);
-        // pid:GRP_CORPORATIVO (no null) — igual que la vista de filtro
-        // normal (buildTree, pidDelGrupo), para que Balkan la posicione
-        // colgando debajo de Corporativo en vez de al lado como una raíz
-        // suelta. Sigue sin conector nativo (group.link=""), la línea
-        // roja/verde manual de acá abajo es la única conexión visual.
-        nodosDelFoco.set(grpId, { ...grp, pid: "GRP_CORPORATIVO", stpid: null });
-        // Trae al head real/fantasma (stpid=grpId) y, recursivamente, a
-        // TODA su gente real.
-        agregarDescendenciaFoco(grpId);
-        nodosAExpandir.push(grpId);
+  if (!grupoRaiz) {
+    // Corporativo con más de un miembro directo de Antonio (además de
+    // Santiago) = "vista completa" (llegamos acá expandiendo a Antonio) →
+    // usar el mismo ruteo con jog (routeLeft/routeRight) que la vista
+    // "Todas las Líneas" para no cruzar por encima de María Teresa, Comité,
+    // etc. Con Corporativo aislado (solo Antonio+Santiago, foco directo
+    // sobre Santiago) alcanza con el escalón simple (straight).
+    const antonioEnFoco = Array.from(nodosDelFoco.values()).find(
+      (n) => (n.codPosicion || n.id) === "00001",
+    );
+    const otrosHijosDeAntonio = antonioEnFoco
+      ? Array.from(nodosDelFoco.values()).filter((n) => n.pid === antonioEnFoco.id).length
+      : 0;
+    const modoCompleto = otrosHijosDeAntonio > 1;
 
-        const headPrefix = `HEAD_LINEA_${grpId}_`;
-        const headReal = Array.from(nodosDelFoco.values()).find((n) => String(n.id).startsWith(headPrefix));
-        if (headReal) {
-          nodosAExpandir.push(headReal.id);
-          // Caso Cárnicos/Pecuarios: cabeza FANTASMA invisible por diseño —
-          // hace falta revelar explícitamente a SUS hijos directos (la
-          // gente real: Omar, etc.), el id del fantasma no alcanza. Caso
-          // Balanceado: cabeza REAL (Juan Carlos) sí se dibuja con
-          // headReal.id solo — sus hijos deben quedar colapsados (mismo
-          // badge que se ve en la vista de filtro normal), no expandirse.
-          if ((headReal.tags || []).includes("fantasma")) {
-            Array.from(nodosDelFoco.values()).forEach((n) => {
-              if (n.pid === headReal.id || n.stpid === headReal.id) {
-                nodosAExpandir.push(n.id);
-              }
-            });
+    Array.from(nodosDelFoco.values())
+      .filter((n) => headsSet.has(n.id))
+      .forEach((headNode) => {
+        const headId = headNode.id;
+        const codPosHead = headNode.codPosicion || headNode.id;
+        const esHeadSantiago = codPosHead === "00003" && !(headNode.tags || []).includes("fantasma");
+        const esHeadAntonio = codPosHead === "00001";
+        if (!esHeadSantiago && !esHeadAntonio) return;
+
+        const idsLineas = esHeadSantiago ? ["GRP_BALANCEADO", "GRP_CARNICOS", "GRP_PECUARIOS"] : ["GRP_RETAIL"];
+        const color = esHeadSantiago ? "#E74C3C" : "#27ae60";
+        // Un id en nodosAExpandir solo garantiza que ESE nodo sea visible,
+        // no revela a sus hijos — hace falta poner explícitamente el id de
+        // cada hijo directo (Celia, Angie) para que Balkan los dibuje.
+        nodosAExpandir.push(headId);
+        Array.from(nodosDelFoco.values()).forEach((n) => {
+          if (n.pid === headId || n.stpid === headId) {
+            nodosAExpandir.push(n.id);
           }
-        }
+        });
+        const cajasNuevas = [];
+        idsLineas.forEach((grpId) => {
+          if (nodosDelFoco.has(grpId)) return;
+          const grp = sourceMap.get(grpId);
+          if (!grp) return;
+          cajasNuevas.push(grpId);
+          // pid:GRP_CORPORATIVO (no null) — igual que la vista de filtro
+          // normal (buildTree, pidDelGrupo), para que Balkan la posicione
+          // colgando debajo de Corporativo en vez de al lado como una raíz
+          // suelta. Sigue sin conector nativo (group.link=""), la línea
+          // roja/verde manual de acá abajo es la única conexión visual.
+          nodosDelFoco.set(grpId, { ...grp, pid: "GRP_CORPORATIVO", stpid: null });
+          // Trae al head real/fantasma (stpid=grpId) y, recursivamente, a
+          // TODA su gente real.
+          agregarDescendenciaFoco(grpId);
+          nodosAExpandir.push(grpId);
 
-        slinks.push({ from: targetNodeId, to: grpId, color, straight: true });
+          const headPrefix = `HEAD_LINEA_${grpId}_`;
+          const headReal = Array.from(nodosDelFoco.values()).find((n) => String(n.id).startsWith(headPrefix));
+          let toId = grpId;
+          if (headReal) {
+            toId = headReal.id;
+            nodosAExpandir.push(headReal.id);
+            // Caso Cárnicos/Pecuarios: cabeza FANTASMA invisible por diseño
+            // — hace falta revelar explícitamente a SUS hijos directos (la
+            // gente real: Omar, etc.), el id del fantasma no alcanza. Caso
+            // Balanceado: cabeza REAL (Juan Carlos) sí se dibuja con
+            // headReal.id solo — sus hijos deben quedar colapsados (mismo
+            // badge que se ve en la vista de filtro normal), no expandirse.
+            if ((headReal.tags || []).includes("fantasma")) {
+              Array.from(nodosDelFoco.values()).forEach((n) => {
+                if (n.pid === headReal.id || n.stpid === headReal.id) {
+                  nodosAExpandir.push(n.id);
+                }
+              });
+            }
+          }
+
+          if (!modoCompleto) {
+            slinks.push({ from: headId, to: toId, fallbackTo: grpId, color, straight: true });
+          } else if (esHeadAntonio) {
+            slinks.push({ from: headId, to: toId, fallbackTo: grpId, color, laneOffset: 40, routeRight: true });
+          } else {
+            slinks.push({ from: headId, to: toId, fallbackTo: grpId, color, laneOffset: 70, routeLeft: true });
+          }
+        });
+        // Las cajas de línea (pid:null, roots) AL PRINCIPIO del Map — mismo
+        // ajuste que ya hizo falta para Corporativo/Santiago más arriba,
+        // Balkan registra los nodos "raíz" en el mismo orden en que aparecen
+        // en config.nodes. Su descendencia real sí puede ir en cualquier
+        // orden (no son roots, cuelgan de un pid/stpid válido).
+        if (cajasNuevas.length) {
+          const entradasCajas = cajasNuevas.map((id) => [id, nodosDelFoco.get(id)]);
+          const entradasResto = Array.from(nodosDelFoco.entries()).filter(([id]) => !cajasNuevas.includes(id));
+          nodosDelFoco.clear();
+          entradasCajas.forEach(([id, node]) => nodosDelFoco.set(id, node));
+          entradasResto.forEach(([id, node]) => nodosDelFoco.set(id, node));
+        }
       });
-      // Las cajas de línea (pid:null, roots) AL PRINCIPIO del Map — mismo
-      // ajuste que ya hizo falta para Corporativo/Santiago más arriba,
-      // Balkan registra los nodos "raíz" en el mismo orden en que aparecen
-      // en config.nodes. Su descendencia real sí puede ir en cualquier
-      // orden (no son roots, cuelgan de un pid/stpid válido).
-      if (cajasNuevas.length) {
-        const entradasCajas = cajasNuevas.map((id) => [id, nodosDelFoco.get(id)]);
-        const entradasResto = Array.from(nodosDelFoco.entries()).filter(([id]) => !cajasNuevas.includes(id));
-        nodosDelFoco.clear();
-        entradasCajas.forEach(([id, node]) => nodosDelFoco.set(id, node));
-        entradasResto.forEach(([id, node]) => nodosDelFoco.set(id, node));
-      }
-    }
   }
 
   const focusArray = Array.from(nodosDelFoco.values());

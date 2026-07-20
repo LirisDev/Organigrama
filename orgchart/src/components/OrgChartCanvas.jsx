@@ -348,25 +348,49 @@ export default class OrgChartCanvas extends Component {
     // de las líneas de negocio (corporativoExpandido, estado del padre).
     this.chart.onExpandCollpaseButtonClick((args) => {
       const nodeId = args.id;
-      if (this.props.antonioId && String(nodeId) === String(this.props.antonioId)) {
+      // En Modo Foco, el click en Antonio no debe caer acá — es su propia
+      // tarjeta de foco (mostrarLineasDeHead), no el toggle de Corporativo
+      // de la vista normal. Sin este guard, este branch interceptaba SIEMPRE
+      // el click de Antonio (mismo id que antonioId) y hacía return false
+      // antes de llegar al bloque de foco de abajo.
+      if (
+        !this.props.isFocusMode &&
+        this.props.antonioId &&
+        String(nodeId) === String(this.props.antonioId)
+      ) {
         if (this.props.onToggleCorporativo) this.props.onToggleCorporativo(!args.collapsing);
         return false;
       }
-      // Modo Foco sobre Santiago/Antonio mismos: al expandir su tarjeta,
-      // avisar a React (onExpandFocusHead) para que recargue el foco con
-      // su gente real y la de sus líneas de negocio incluidas — ver
-      // mostrarLineasDeHead en focus.js. Importante: NO llamar a ningún
-      // método de Balkan acá mismo (expandCollapse, etc.) — eso reenganchaba
-      // este mismo evento en bucle. Solo avisar y dejar que el expand
-      // normal de Balkan siga su curso (return true, más abajo).
-      if (this.props.isFocusMode && String(nodeId) === String(this.props.focusNodeId)) {
-        if (!args.collapsing && this.props.onExpandFocusHead) {
-          this.props.onExpandFocusHead();
-        } else if (args.collapsing && this.props.onCollapseFocusHead) {
-          // Al recolapsar Santiago/Antonio, volver al estado inicial: sin
-          // las cajas de línea de negocio (mostrarLineasDeHead=false de
-          // nuevo en focus.js).
-          this.props.onCollapseFocusHead();
+      // Modo Foco sobre Santiago/Antonio: al expandir su tarjeta, avisar a
+      // React (onExpandFocusHead) para que recargue el foco con su gente
+      // real y la de sus líneas de negocio incluidas — ver headsExpandidos
+      // en focus.js. Importante: NO llamar a ningún método de Balkan acá
+      // mismo (expandCollapse, etc.) — eso reenganchaba este mismo evento en
+      // bucle. Solo avisar y dejar que el expand normal de Balkan siga su
+      // curso (return true, más abajo). Chequeo por codPosicion (no solo
+      // focusNodeId): si el foco está en Antonio y el usuario expande a
+      // Santiago DENTRO de su árbol, Santiago también debe revelar sus
+      // propias líneas — acotado únicamente a Modo Foco, no toca la vista
+      // normal.
+      if (this.props.isFocusMode) {
+        // this.props.tree.finalArray (los datos que ARMAMOS nosotros, no lo
+        // que Balkan devuelve internamente) — más confiable para leer
+        // codPosicion que chart.getNode(), que puede no reflejar el campo
+        // custom igual que la data original.
+        const nodeData =
+          this.props.tree && this.props.tree.finalArray
+            ? this.props.tree.finalArray.find((n) => String(n.id) === String(nodeId))
+            : null;
+        const codPos = nodeData && (nodeData.codPosicion || nodeData.id);
+        const esSantiagoONaAntonio =
+          String(nodeId) === String(this.props.focusNodeId) || codPos === "00003" || codPos === "00001";
+        if (esSantiagoONaAntonio) {
+          if (!args.collapsing && this.props.onExpandFocusHead) {
+            this.props.onExpandFocusHead(nodeId);
+          } else if (args.collapsing && this.props.onCollapseFocusHead) {
+            // Al recolapsar, volver al estado sin sus líneas de negocio.
+            this.props.onCollapseFocusHead(nodeId);
+          }
         }
       }
       // Marca que el próximo cambio de estado de la scrollbar Y viene de
