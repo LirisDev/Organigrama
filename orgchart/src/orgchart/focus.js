@@ -13,7 +13,7 @@ import { calcularConteoVisual, LINEAS_FUNCIONALES_SANTIAGO, LINEAS_FUNCIONALES_A
  * el pid de las líneas de negocio hacia GRP_CORPORATIVO es solo metadata de
  * layout plano, no jerarquía real de mando.
  */
-export function buildFocusTree(finalArray, targetNodeId) {
+export function buildFocusTree(finalArray, targetNodeId, mostrarLineasDeHead = false) {
   const sourceMap = new Map(finalArray.map((n) => [n.id, { ...n }]));
   const targetNode = sourceMap.get(targetNodeId);
   if (!targetNode) return null;
@@ -38,8 +38,21 @@ export function buildFocusTree(finalArray, targetNodeId) {
         agregarDescendenciaFoco(node.id);
       }
       // Puente hacia clones/fantasmas: cualquier nodo visual "HEAD_..._<id>"
-      // que sea un clon del nodo actual.
-      if (String(node.id).endsWith(`_${nodeId}`) && !nodosDelFoco.has(node.id) && String(node.id).startsWith("HEAD_")) {
+      // que sea un clon del nodo actual (ej. Juan José con su propio
+      // HEAD_LINEA_GRP_RETAIL_<id>). Excluye tags:"fantasma" — CARNICOS y
+      // PECUARIOS reusan el codPosicion de Santiago ("00003"/id "12") como
+      // id de configuración para su cabeza invisible (ver buildTree), así
+      // que sus HEAD_LINEA_GRP_CARNICOS_12 / HEAD_LINEA_GRP_PECUARIOS_12
+      // matcheaban el patrón por coincidencia — sin excluirlos, enfocar a
+      // Santiago arrastraba TODA la gente real de esas líneas (cientos de
+      // nodos, con datos viejos sin limpiar) sin que él sea su ascendiente
+      // real.
+      if (
+        String(node.id).endsWith(`_${nodeId}`) &&
+        !nodosDelFoco.has(node.id) &&
+        String(node.id).startsWith("HEAD_") &&
+        !(node.tags || []).includes("fantasma")
+      ) {
         nodosDelFoco.set(node.id, { ...node });
         agregarDescendenciaFoco(node.id);
       }
@@ -130,11 +143,94 @@ export function buildFocusTree(finalArray, targetNodeId) {
     }
   }
 
+  // Pedido: foco sobre Santiago o Antonio MISMOS (no un empleado de una
+  // línea) — NADA de esto se ve hasta que el usuario expande su tarjeta
+  // (mostrarLineasDeHead, seteado desde onExpandFocusHead en OrgChartCanvas
+  // — sin llamar ningún método de Balkan ahí, solo avisar a React, que
+  // reconstruye este árbol con la bandera en true): ni sus reportes
+  // directos de Corporativo (Celia, Angie) ni las cajas de sus líneas de
+  // negocio con su gente — todo aparece junto, sincronizado, en la misma
+  // recarga.
+  const nodosAExpandir = [];
+  if (!grupoRaiz && mostrarLineasDeHead) {
+    const codPosTarget = targetNode.codPosicion || targetNode.id;
+    const esTargetSantiago = codPosTarget === "00003" && !(targetNode.tags || []).includes("fantasma");
+    const esTargetAntonio = codPosTarget === "00001";
+    if (esTargetSantiago || esTargetAntonio) {
+      const idsLineas = esTargetSantiago ? ["GRP_BALANCEADO", "GRP_CARNICOS", "GRP_PECUARIOS"] : ["GRP_RETAIL"];
+      const color = esTargetSantiago ? "#E74C3C" : "#27ae60";
+      // Un id en nodosAExpandir solo garantiza que ESE nodo sea visible, no
+      // revela a sus hijos — hace falta poner explícitamente el id de cada
+      // hijo directo (Celia, Angie) para que Balkan los dibuje.
+      nodosAExpandir.push(targetNodeId);
+      Array.from(nodosDelFoco.values()).forEach((n) => {
+        if (n.pid === targetNodeId || n.stpid === targetNodeId) {
+          nodosAExpandir.push(n.id);
+        }
+      });
+      const cajasNuevas = [];
+      idsLineas.forEach((grpId) => {
+        if (nodosDelFoco.has(grpId)) return;
+        const grp = sourceMap.get(grpId);
+        if (!grp) return;
+        cajasNuevas.push(grpId);
+        // pid:GRP_CORPORATIVO (no null) — igual que la vista de filtro
+        // normal (buildTree, pidDelGrupo), para que Balkan la posicione
+        // colgando debajo de Corporativo en vez de al lado como una raíz
+        // suelta. Sigue sin conector nativo (group.link=""), la línea
+        // roja/verde manual de acá abajo es la única conexión visual.
+        nodosDelFoco.set(grpId, { ...grp, pid: "GRP_CORPORATIVO", stpid: null });
+        // Trae al head real/fantasma (stpid=grpId) y, recursivamente, a
+        // TODA su gente real.
+        agregarDescendenciaFoco(grpId);
+        nodosAExpandir.push(grpId);
+
+        const headPrefix = `HEAD_LINEA_${grpId}_`;
+        const headReal = Array.from(nodosDelFoco.values()).find((n) => String(n.id).startsWith(headPrefix));
+        if (headReal) {
+          nodosAExpandir.push(headReal.id);
+          // Caso Cárnicos/Pecuarios: cabeza FANTASMA invisible por diseño —
+          // hace falta revelar explícitamente a SUS hijos directos (la
+          // gente real: Omar, etc.), el id del fantasma no alcanza. Caso
+          // Balanceado: cabeza REAL (Juan Carlos) sí se dibuja con
+          // headReal.id solo — sus hijos deben quedar colapsados (mismo
+          // badge que se ve en la vista de filtro normal), no expandirse.
+          if ((headReal.tags || []).includes("fantasma")) {
+            Array.from(nodosDelFoco.values()).forEach((n) => {
+              if (n.pid === headReal.id || n.stpid === headReal.id) {
+                nodosAExpandir.push(n.id);
+              }
+            });
+          }
+        }
+
+        slinks.push({ from: targetNodeId, to: grpId, color, straight: true });
+      });
+      // Las cajas de línea (pid:null, roots) AL PRINCIPIO del Map — mismo
+      // ajuste que ya hizo falta para Corporativo/Santiago más arriba,
+      // Balkan registra los nodos "raíz" en el mismo orden en que aparecen
+      // en config.nodes. Su descendencia real sí puede ir en cualquier
+      // orden (no son roots, cuelgan de un pid/stpid válido).
+      if (cajasNuevas.length) {
+        const entradasCajas = cajasNuevas.map((id) => [id, nodosDelFoco.get(id)]);
+        const entradasResto = Array.from(nodosDelFoco.entries()).filter(([id]) => !cajasNuevas.includes(id));
+        nodosDelFoco.clear();
+        entradasCajas.forEach(([id, node]) => nodosDelFoco.set(id, node));
+        entradasResto.forEach(([id, node]) => nodosDelFoco.set(id, node));
+      }
+    }
+  }
+
   const focusArray = Array.from(nodosDelFoco.values());
   focusArray.forEach((n) => {
     delete n.state;
     delete n.expanded;
     delete n.collapsed;
+    // Igual que x/y/w/h: si esta caja venía minimizada (Balkan escribe
+    // min=true directo sobre el objeto para GRP_CARNICOS/PECUARIOS cuando
+    // el usuario los minimizó en la vista "Todas las Líneas"), heredar ese
+    // min acá la deja sin dibujar nada visible.
+    delete n.min;
     // Balkan escribe posición/tamaño calculados directo sobre los objetos
     // que recibe en chart.load() — finalArray es esa misma referencia de la
     // carga anterior (no-foco), así que puede traer x/y/w/h ya calculados
@@ -151,5 +247,5 @@ export function buildFocusTree(finalArray, targetNodeId) {
   // esto arrastraría el conteo de la última vista completa.
   calcularConteoVisual(focusArray);
 
-  return { finalArray: focusArray, targetNodeId, nodosAExpandir: [], slinks };
+  return { finalArray: focusArray, targetNodeId, nodosAExpandir, slinks };
 }

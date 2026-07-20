@@ -52,14 +52,17 @@ export default class OrgChartCanvas extends Component {
     if (!this.chart) return;
     if (prevProps.mode !== this.props.mode) this.applyModeBinding();
 
-    // Entrar/salir de Modo Foco: destruir y recrear la instancia de Balkan
-    // en vez de reusarla. chart.load([]) + chart.load(data) no alcanza acá
-    // — Balkan arrastra estado interno (boundary/diff) del árbol anterior
-    // (uno completo, con cientos de nodos) que deja a Santiago con datos
-    // correctos (el conteo de Corporativo lo cuenta bien) pero sin dibujar
-    // ni él ni el slink rojo (paths NaN en consola). Recrear de cero
-    // garantiza que no quede nada de la carga anterior.
-    if (prevProps.isFocusMode !== this.props.isFocusMode) {
+    const treeChanged = prevProps.tree !== this.props.tree;
+
+    // Entrar/salir de Modo Foco, o cambiar de árbol MIENTRAS ya se está en
+    // foco (ej. cambiar de foco de una persona a otra sin salir del modo):
+    // destruir y recrear la instancia de Balkan en vez de reusarla.
+    // chart.load([]) + chart.load(data) no alcanza acá — Balkan arrastra
+    // estado interno (boundary/diff) del árbol anterior que deja nodos con
+    // datos correctos (el conteo los cuenta bien) pero sin dibujar (paths
+    // NaN en consola). Recrear de cero garantiza que no quede nada de la
+    // carga anterior.
+    if (prevProps.isFocusMode !== this.props.isFocusMode || (this.props.isFocusMode && treeChanged)) {
       if (this.chart) {
         try {
           this.chart.destroy();
@@ -72,7 +75,6 @@ export default class OrgChartCanvas extends Component {
       return;
     }
 
-    const treeChanged = prevProps.tree !== this.props.tree;
     if (treeChanged) this.loadTree();
   }
 
@@ -287,6 +289,7 @@ export default class OrgChartCanvas extends Component {
     OrgChart.SEARCH_RESULT_LIMIT = 15;
 
     this.chart = new OrgChart(this.divRef.current, chartConfig);
+    window.__chart = this.chart;
 
     // Ícono de lupa custom: el buscador nativo de Balkan (.boc-search) está
     // oculto por CSS por defecto — este botón lo alterna (toggle) y le pasa
@@ -348,6 +351,23 @@ export default class OrgChartCanvas extends Component {
       if (this.props.antonioId && String(nodeId) === String(this.props.antonioId)) {
         if (this.props.onToggleCorporativo) this.props.onToggleCorporativo(!args.collapsing);
         return false;
+      }
+      // Modo Foco sobre Santiago/Antonio mismos: al expandir su tarjeta,
+      // avisar a React (onExpandFocusHead) para que recargue el foco con
+      // su gente real y la de sus líneas de negocio incluidas — ver
+      // mostrarLineasDeHead en focus.js. Importante: NO llamar a ningún
+      // método de Balkan acá mismo (expandCollapse, etc.) — eso reenganchaba
+      // este mismo evento en bucle. Solo avisar y dejar que el expand
+      // normal de Balkan siga su curso (return true, más abajo).
+      if (this.props.isFocusMode && String(nodeId) === String(this.props.focusNodeId)) {
+        if (!args.collapsing && this.props.onExpandFocusHead) {
+          this.props.onExpandFocusHead();
+        } else if (args.collapsing && this.props.onCollapseFocusHead) {
+          // Al recolapsar Santiago/Antonio, volver al estado inicial: sin
+          // las cajas de línea de negocio (mostrarLineasDeHead=false de
+          // nuevo en focus.js).
+          this.props.onCollapseFocusHead();
+        }
       }
       // Marca que el próximo cambio de estado de la scrollbar Y viene de
       // un expand/collapse real de nodo individual (ver listener de
@@ -756,7 +776,12 @@ export default class OrgChartCanvas extends Component {
   // armó buildFocusTree), y el nodo objetivo se fuerza cerrado explícitamente
   // después de cargar — mismo patrón que la rama vanilla.
   loadFocusTree(tree, focusNodeId) {
-    this.chart.config.expand = { nodes: [], allChildren: false };
+    // tree.nodosAExpandir: normalmente vacío, pero focus.js lo usa para las
+    // cajas de línea de negocio colgadas de Santiago/Antonio (ver ahí) —
+    // Balkan ignora el collapsed:false que le mandamos en los datos (lo
+    // recalcula solo al cargar), así que forzar el expand de esos ids acá
+    // es lo único que efectivamente los muestra sin "Expandir Todo".
+    this.chart.config.expand = { nodes: tree.nodosAExpandir || [], allChildren: false };
     this.chart.config.collapse = null;
     this.chart.load([]);
     this.chart.load(tree.finalArray);
@@ -764,12 +789,19 @@ export default class OrgChartCanvas extends Component {
     setTimeout(() => {
       try {
         const targetNode = this.chart.getNode(focusNodeId);
-        if (targetNode) {
+        // Si focusNodeId ya viene en nodosAExpandir (caso Santiago/Antonio
+        // con mostrarLineasDeHead=true, ver focus.js), NO forzar su colapso
+        // acá — pisaría el expand recién cargado y las líneas de negocio
+        // quedarían sin sus hijos reales sincronizados.
+        const debeQuedarExpandido = (tree.nodosAExpandir || []).includes(focusNodeId);
+        if (targetNode && !debeQuedarExpandido) {
           // El center() real corre desde el listener de "redraw" en
           // createChart (_pendingFocusCenterId) — ver comentario ahí.
           this.chart.expandCollapse(focusNodeId, [], targetNode.childrenIds || [], () => {
             this._pendingFocusCenterId = focusNodeId;
           });
+        } else if (targetNode) {
+          this._pendingFocusCenterId = focusNodeId;
         } else {
           this.chart.fit();
           this.setState({ chartBusy: false });

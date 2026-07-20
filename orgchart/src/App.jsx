@@ -22,6 +22,12 @@ export default function App() {
   const [corporativoExpandido, setCorporativoExpandido] = useState(true);
   const [detailNode, setDetailNode] = useState(null);
   const [focusNodeId, setFocusNodeId] = useState(null);
+  // Foco sobre Santiago/Antonio mismos: sus líneas de negocio (ver
+  // buildFocusTree) aparecen colapsadas (solo el conteo) hasta que el
+  // usuario expande su tarjeta — Balkan ignora el collapsed:false de los
+  // datos, así que se dispara un re-render con más data en vez de pelear
+  // con su expand/collapse.
+  const [focusHeadExpanded, setFocusHeadExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,8 +104,13 @@ export default function App() {
   // React ya lo tiene memoizado).
   const focusTree = useMemo(() => {
     if (!focusNodeId || !tree) return null;
-    return buildFocusTree(tree.finalArray, focusNodeId);
-  }, [focusNodeId, tree]);
+    return buildFocusTree(tree.finalArray, focusNodeId, focusHeadExpanded);
+  }, [focusNodeId, tree, focusHeadExpanded]);
+
+  function cambiarFocusNodeId(nuevoId) {
+    setFocusNodeId(nuevoId);
+    setFocusHeadExpanded(false);
+  }
 
   const displayTree = focusTree || tree;
 
@@ -129,7 +140,7 @@ export default function App() {
       {focusNodeId && (
         <div className="focus-banner">
           🎯 Modo Foco Activo —{" "}
-          <button onClick={() => setFocusNodeId(null)} className="focus-banner-btn">
+          <button onClick={() => cambiarFocusNodeId(null)} className="focus-banner-btn">
             Salir
           </button>
         </div>
@@ -146,7 +157,9 @@ export default function App() {
             onToggleCorporativo={setCorporativoExpandido}
             isFocusMode={Boolean(focusNodeId)}
             focusNodeId={focusNodeId}
-            onFocusNode={setFocusNodeId}
+            onFocusNode={cambiarFocusNodeId}
+            onExpandFocusHead={() => setFocusHeadExpanded(true)}
+            onCollapseFocusHead={() => setFocusHeadExpanded(false)}
             onShowDetail={setDetailNode}
           />
         )}
