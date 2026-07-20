@@ -519,9 +519,21 @@ export default class OrgChartCanvas extends Component {
       if (!this._pendingFocusCenterId) return;
       const id = this._pendingFocusCenterId;
       this._pendingFocusCenterId = null;
-      this.chart.center(id, { anim: true, duration: 200, parentState: OrgChart.COLLAPSE_PARENT }, () =>
-        this.setState({ chartBusy: false }),
-      );
+      this.chart.center(id, { anim: true, duration: 200, parentState: OrgChart.COLLAPSE_PARENT }, () => {
+        // Pedido: que quede igual que si el usuario le diera al botón
+        // "Ajustar" (fit real, ve todo el árbol enfocado) — center() solo
+        // encuadra el nodo objetivo y puede dejar Corporativo fuera de
+        // vista. Llamar fit() directo en el "redraw" rompía (Balkan
+        // calculando boundary del árbol viejo todavía) — accá, DESPUÉS de
+        // que termina la animación de center() (chart ya asentado, mismo
+        // momento en que el botón real lo dispara), es seguro.
+        try {
+          this.chart.fit();
+        } catch (e) {
+          console.warn("Modo Foco: fit() aún no listo", e);
+        }
+        this.setState({ chartBusy: false });
+      });
     });
 
     // Garantiza que fichaGradient esté siempre en el SVG exportado.
@@ -847,8 +859,16 @@ export default class OrgChartCanvas extends Component {
   }
 
   render() {
+    const { isFocusMode, focusNodeId } = this.props;
     return (
       <div style={{ width: "100%", height: "100%", position: "relative" }}>
+        {/* Pedido: el botón de foco (target-icon) de la persona actualmente
+            enfocada se resalta en rojo, para distinguirla del resto —
+            CSS en vez de tocar los templates SVG de Balkan (cada template
+            trae su propio color de fondo hardcodeado en field_3). */}
+        {isFocusMode && focusNodeId && (
+          <style>{`[data-focus-btn="${focusNodeId}"] rect:first-child { fill: #E74C3C !important; }`}</style>
+        )}
         <div ref={this.divRef} style={{ width: "100%", height: "100%" }} />
         {this.state.chartBusy && (
           <div className="chart-busy-overlay">
