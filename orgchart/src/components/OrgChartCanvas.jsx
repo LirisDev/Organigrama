@@ -367,11 +367,13 @@ export default class OrgChartCanvas extends Component {
       // en focus.js. Importante: NO llamar a ningún método de Balkan acá
       // mismo (expandCollapse, etc.) — eso reenganchaba este mismo evento en
       // bucle. Solo avisar y dejar que el expand normal de Balkan siga su
-      // curso (return true, más abajo). Chequeo por codPosicion (no solo
-      // focusNodeId): si el foco está en Antonio y el usuario expande a
-      // Santiago DENTRO de su árbol, Santiago también debe revelar sus
-      // propias líneas — acotado únicamente a Modo Foco, no toca la vista
-      // normal.
+      // curso (return true, más abajo). Chequeo SOLO por codPosicion (no por
+      // focusNodeId — lo cubre igual si el foco está justo en Santiago o
+      // Antonio): usarlo también como condición aparte disparaba este aviso
+      // para CUALQUIER empleado enfocado (ej. alguien de Cárnicos abriendo
+      // su propia tarjeta), forzando un destroy+recreate innecesario del
+      // chart que competía con la animación nativa de expand de Balkan y
+      // rompía el redibujado (paths NaN en consola).
       if (this.props.isFocusMode) {
         // this.props.tree.finalArray (los datos que ARMAMOS nosotros, no lo
         // que Balkan devuelve internamente) — más confiable para leer
@@ -382,8 +384,8 @@ export default class OrgChartCanvas extends Component {
             ? this.props.tree.finalArray.find((n) => String(n.id) === String(nodeId))
             : null;
         const codPos = nodeData && (nodeData.codPosicion || nodeData.id);
-        const esSantiagoONaAntonio =
-          String(nodeId) === String(this.props.focusNodeId) || codPos === "00003" || codPos === "00001";
+        const esFantasma = nodeData && (nodeData.tags || []).includes("fantasma");
+        const esSantiagoONaAntonio = !esFantasma && (codPos === "00003" || codPos === "00001");
         if (esSantiagoONaAntonio) {
           if (!args.collapsing && this.props.onExpandFocusHead) {
             this.props.onExpandFocusHead(nodeId);
