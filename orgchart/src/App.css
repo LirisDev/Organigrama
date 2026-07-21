@@ -804,7 +804,7 @@ div.boc-node.level-6[data-n-id] {
   /* 20px = ancho exacto de yScrollUI.bar (la columna vertical a la
      derecha) — queda pegado justo antes de esa columna, en la otra punta
      real de la franja horizontal, no a mitad de camino. */
-  right: 14px;
+  right: 15px;
   border-top-left-radius: 3px;
 }
 

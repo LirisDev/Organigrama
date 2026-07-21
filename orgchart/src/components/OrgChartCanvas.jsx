@@ -46,6 +46,38 @@ export default class OrgChartCanvas extends Component {
       }
     };
     this.divRef.current.addEventListener("mousedown", this._handleFocusBtnMouseDown, true);
+
+    // Pedido: mientras un eje no tiene rango de scroll válido (el árbol
+    // cabe completo ahí), no debería poder arrastrarse ese eje en
+    // absoluto — Balkan calcula el paneo con e.clientX/clientY leídos en
+    // cada mousemove relativos al punto donde arrancó el drag (no hay un
+    // modo nativo "solo un eje"), así que se congela esa coordenada en el
+    // evento ANTES de que el handler nativo de Balkan la lea: en captura,
+    // sobre un ancestro de su propio nodo interno, así corre primero (
+    // mismo patrón ya probado acá arriba con el botón de foco). _dragAxisLock
+    // se recalcula en cada "redraw" del chart (ver createChart) leyendo
+    // response.boundary — mismo criterio que ya usan el recentrado
+    // automático y las flechas de scroll para decidir si un eje "cabe".
+    this._dragAxisLock = { x: false, y: false };
+    this._dragFrozen = null;
+    const nodeAttrSel = "[data-n-id]";
+    this._handleCanvasMouseDown = (e) => {
+      if (e.target.closest && e.target.closest(nodeAttrSel)) return;
+      this._dragFrozen = { x: e.clientX, y: e.clientY };
+    };
+    this._handleCanvasMouseMoveCapture = (e) => {
+      const frozen = this._dragFrozen;
+      const lock = this._dragAxisLock;
+      if (!frozen || !lock || (!lock.x && !lock.y)) return;
+      if (lock.x) Object.defineProperty(e, "clientX", { value: frozen.x, configurable: true });
+      if (lock.y) Object.defineProperty(e, "clientY", { value: frozen.y, configurable: true });
+    };
+    this._handleCanvasMouseUp = () => {
+      this._dragFrozen = null;
+    };
+    this.divRef.current.addEventListener("mousedown", this._handleCanvasMouseDown, true);
+    this.divRef.current.addEventListener("mousemove", this._handleCanvasMouseMoveCapture, true);
+    document.addEventListener("mouseup", this._handleCanvasMouseUp, true);
   }
 
   componentDidUpdate(prevProps) {
@@ -100,6 +132,15 @@ export default class OrgChartCanvas extends Component {
   componentWillUnmount() {
     if (this.divRef.current && this._handleFocusBtnMouseDown) {
       this.divRef.current.removeEventListener("mousedown", this._handleFocusBtnMouseDown, true);
+    }
+    if (this.divRef.current && this._handleCanvasMouseDown) {
+      this.divRef.current.removeEventListener("mousedown", this._handleCanvasMouseDown, true);
+    }
+    if (this.divRef.current && this._handleCanvasMouseMoveCapture) {
+      this.divRef.current.removeEventListener("mousemove", this._handleCanvasMouseMoveCapture, true);
+    }
+    if (this._handleCanvasMouseUp) {
+      document.removeEventListener("mouseup", this._handleCanvasMouseUp, true);
     }
     if (this._handleOutsideSearchClick) {
       document.removeEventListener("click", this._handleOutsideSearchClick);
@@ -416,68 +457,32 @@ export default class OrgChartCanvas extends Component {
     // ese instante — es la fuente de verdad de Balkan, no una
     // recreación nuestra del mismo cálculo con timing propio. Mismo
     // patrón que chart.searchUI.on(...) más abajo en este archivo.
-    if (this.chart.yScrollUI && this.chart.yScrollUI.on) {
-      this.chart.yScrollUI.on("change", (sender, args) => {
-        // Pedido: esto debe correr SIEMPRE que la scrollbar se oculte, sin
-        // importar la causa (colapsar un nodo, hacer zoom out con los
-        // controles/rueda, o soltar un drag) — antes solo reaccionaba tras
-        // un expand/collapse (flag _pendingVScrollCheck, eliminado), así
-        // que hacer zoom out hasta que todo entrara en pantalla, o
-        // arrastrar el lienzo, dejaba el árbol descentrado sin corrección
-        // (el usuario podía "deslizarse" libremente, como en la vista
-        // PECUARIOS reportada). Se deja afuera únicamente mientras el
-        // centrado de Modo Foco (_pendingFocusCenterId) todavía no corrió,
-        // para no competir con su propio fit().
-        if (this._pendingFocusCenterId) return;
-        if (args.isScrollBarVisible) return; // sigue haciendo falta scroll, no tocar nada
-        const boundary = this.chart.response && this.chart.response.boundary;
-        if (!boundary) return;
-        const vb = this.chart.getViewBox();
-        if (!Array.isArray(vb) || vb.length !== 4 || !vb.every(Number.isFinite)) return;
-        const [x, y, w, h] = vb;
-        if (w <= 0 || h <= 0) return;
-        const by0 = Math.min(boundary.top, boundary.bottom);
-        const by1 = Math.max(boundary.top, boundary.bottom);
-        if (!Number.isFinite(by0) || !Number.isFinite(by1)) return;
-        const noOverlapY = y + h < by0 || y > by1;
-        if (!noOverlapY) return;
-        // Sube lo justo para que el borde inferior del contenido restante
-        // quede visible en el borde inferior del viewport, sin pasarse
-        // del borde superior si el contenido es más chico que el
-        // viewport. Desliza suave (mismo motor/timing que usa Balkan
-        // para sus propias transiciones) en vez de saltar de golpe.
-        const newY = Math.min(Math.max(by1 - h, by0), by1);
-        if (!Number.isFinite(newY)) return;
-        OrgChart.animate(
-          this.chart.getSvg(),
-          { viewbox: vb },
-          { viewbox: [x, newY, w, h] },
-          this.chart.config.anim.duration,
-          this.chart.config.anim.func
-        );
-      });
-    }
-
-    // Mismo pedido que arriba pero en horizontal — con una vuelta de tuerca
-    // encontrada recién: Balkan YA hace este ajuste nativamente (por eso
-    // un pequeño arrastre manual "acomoda solo" dentro de los límites) vía
-    // OrgChart._moveToBoundaryArea, que corre al soltar un pan/drag.
-    // response.boundary.left/right NO son los extremos crudos del
-    // contenido — ya vienen pre-ajustados para ser el rango válido de
-    // viewBox[0] directamente (right = maxX + padding - anchoViewport/scale),
-    // por eso los primeros intentos (restando el ancho del viewport de
-    // nuevo, "bx1 - w") sobrepasaban el límite real. Acá se replica
-    // exactamente la misma fórmula que usa _moveToBoundaryArea para el eje
-    // X (sin tocar Y, que ya lo resuelve el bloque de arriba), disparada
-    // por "redraw" — la señal de "layout ya asentado" — en vez de
-    // pan-end.
+    // Recentra cada eje de forma INDEPENDIENTE cuando ese eje no tiene
+    // rango de scroll válido (contenido cabe completo ahí) — antes esto
+    // solo corría cuando AMBOS ejes cabían a la vez, así que si el usuario
+    // arrastraba en un eje sin scroll mientras el otro sí lo necesitaba
+    // (ej. minimizado, imagen de referencia del pedido), quedaba
+    // descentrado sin corrección. Reemplaza los dos handlers separados
+    // (yScrollUI "change" + onRedraw horizontal) que había antes — un solo
+    // handler en "redraw" cubre ambos ejes con la misma lógica.
+    //
+    // boundary.left/right (y top/bottom) vienen invertidos — left > right —
+    // exactamente cuando ese eje cabe completo (sin rango de scroll
+    // válido): se recentra al punto medio, SIN tocar la escala (chart.fit()
+    // reencuadra Y cambia el zoom, pisando el zoom out que el usuario eligió
+    // a propósito). Cuando no está invertido (hay rango real), se clampea
+    // al borde más cercano si el viewBox quedó afuera — mismo cálculo que
+    // OrgChart._moveToBoundaryArea (la corrección nativa de Balkan al
+    // soltar un pan/drag), replicado acá porque necesitamos el caso
+    // invertido que Balkan no maneja.
+    const correctAxis = (val, b0, b1) => {
+      if (!Number.isFinite(b0) || !Number.isFinite(b1)) return val;
+      if (b0 > b1) return (b0 + b1) / 2;
+      const lo = Math.min(b0, b1);
+      const hi = Math.max(b0, b1);
+      return Math.min(Math.max(val, lo), hi);
+    };
     this.chart.onRedraw(() => {
-      // Mismo motivo que el bloque de yScrollUI de arriba: correr en TODOS
-      // los redraw (zoom in/out, drag, expand/collapse, load), no solo tras
-      // un expand/collapse — si no, hacer menos zoom hasta que el árbol
-      // entero cupiera en pantalla dejaba el lienzo "pegado" donde el
-      // usuario lo hubiera arrastrado antes, en vez de recentrarse como al
-      // alejar el zoom en Word.
       if (this._pendingFocusCenterId) return;
       const boundary = this.chart.response && this.chart.response.boundary;
       if (!boundary) return;
@@ -486,45 +491,36 @@ export default class OrgChartCanvas extends Component {
       const [x, y, w, h] = vb;
       if (w <= 0 || h <= 0) return;
 
-      // boundary.left/right (y top/bottom) vienen invertidos —
-      // left > right — cuando el contenido restante ya entra completo en
-      // el viewport en ese eje (no hay rango de scroll válido). Pedido:
-      // si entra completo en AMBOS ejes, recentrar SIN tocar la escala —
-      // chart.fit() reencuadra Y cambia el zoom (lo "acerca" de vuelta),
-      // pisando el zoom out que el usuario eligió a propósito. En su
-      // lugar, se traslada el viewBox al punto medio del rango válido de
-      // boundary (mismo significado que boundary.left/right: rango válido
-      // de viewBox[0]/[1]) conservando w/h intactos — se ve chico y
-      // centrado, no "ajustado a pantalla".
-      if (boundary.left > boundary.right && boundary.top > boundary.bottom) {
-        const targetX = (boundary.left + boundary.right) / 2;
-        const targetY = (boundary.top + boundary.bottom) / 2;
-        if (Math.abs(x - targetX) < 1 && Math.abs(y - targetY) < 1) return;
-        OrgChart.animate(
-          this.chart.getSvg(),
-          { viewbox: vb },
-          { viewbox: [targetX, targetY, w, h] },
-          this.chart.config.anim.duration,
-          this.chart.config.anim.func
-        );
-        return;
-      }
-
-      let newX = x;
-      if (x < boundary.left && x < boundary.right) {
-        newX = boundary.left > boundary.right ? boundary.right : boundary.left;
-      } else if (x > boundary.right && x > boundary.left) {
-        newX = boundary.left > boundary.right ? boundary.left : boundary.right;
-      }
-      if (newX === x || !Number.isFinite(newX)) return;
+      const newX = correctAxis(x, boundary.left, boundary.right);
+      const newY = correctAxis(y, boundary.top, boundary.bottom);
+      if (Math.abs(x - newX) < 1 && Math.abs(y - newY) < 1) return;
       OrgChart.animate(
         this.chart.getSvg(),
         { viewbox: vb },
-        { viewbox: [newX, y, w, h] },
+        { viewbox: [newX, newY, w, h] },
         this.chart.config.anim.duration,
         this.chart.config.anim.func
       );
     });
+
+    // Pedido: mientras un eje no tiene rango de scroll válido (cabe
+    // completo), no debería poder arrastrarse ahí en absoluto — el fix de
+    // arriba ya lo recentra al soltar, pero el usuario pidió bloquear el
+    // drag mismo, no solo corregirlo después. _dragAxisLock se recalcula acá
+    // en cada redraw (mismo criterio que el recentrado de arriba); el
+    // congelado de e.clientX/clientY que efectivamente bloquea el drag vive
+    // en componentDidMount (_handleCanvasMouseDown/MoveCapture) — atado ahí
+    // una sola vez, no por cada recreación del chart, para no acumular
+    // listeners duplicados en el destroy/recreate de Modo Foco.
+    const recomputeDragAxisLock = () => {
+      const boundary = this.chart.response && this.chart.response.boundary;
+      this._dragAxisLock = {
+        x: !boundary || !(boundary.left < boundary.right),
+        y: !boundary || !(boundary.top < boundary.bottom),
+      };
+    };
+    this.chart.onRedraw(recomputeDragAxisLock);
+    recomputeDragAxisLock();
 
     // Modo Foco: el center() sobre el nodo objetivo no puede correr
     // inmediatamente en el callback (sincrónico) de expandCollapse — en ese
