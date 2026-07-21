@@ -22,7 +22,7 @@ export default class OrgChartCanvas extends Component {
     // fogonazo de cajas colapsadas/ovaladas (template "min") antes de
     // llenarse. Se oculta recién cuando la secuencia completa termina
     // (onListo de postCargaConReintento), no apenas se llama chart.load().
-    this.state = { chartBusy: true, hScrollNeeded: false, vScrollNeeded: false };
+    this.state = { chartBusy: true, hScrollNeeded: false, vScrollNeeded: false, controlsVisible: false };
   }
 
   componentDidMount() {
@@ -279,21 +279,21 @@ export default class OrgChartCanvas extends Component {
             this.chart.setOrientation(OrgChart.orientation.top, null, () => this.chart.fit());
           },
         },
-        verticalLayout: {
-          icon: OrgChart.icon.layout_left_offset(24, 24, "#7A7A7A"),
-          title: "Vertical Layout",
-          onClick: () => {
-            // El fantasma de subnivel (relleno cuando se saltan niveles
-            // jerárquicos) dibuja una línea fija para que el conector se vea
-            // continuo — con orientation.left el árbol crece hacia la
-            // derecha, no hacia abajo, así que la línea tiene que ser
-            // horizontal (mitad de la altura, todo el ancho) o se ven como
-            // rayitas sueltas sin conectar nada.
-            OrgChart.templates.subLevel.node =
-              '<line x1="0" y1="55" x2="250" y2="55" stroke="#aeaeae" stroke-width="1px"/>';
-            this.chart.setOrientation(OrgChart.orientation.left, null, () => this.chart.fit());
-          },
-        },
+        // verticalLayout: {
+        //   icon: OrgChart.icon.layout_left_offset(24, 24, "#7A7A7A"),
+        //   title: "Vertical Layout",
+        //   onClick: () => {
+        //     // El fantasma de subnivel (relleno cuando se saltan niveles
+        //     // jerárquicos) dibuja una línea fija para que el conector se vea
+        //     // continuo — con orientation.left el árbol crece hacia la
+        //     // derecha, no hacia abajo, así que la línea tiene que ser
+        //     // horizontal (mitad de la altura, todo el ancho) o se ven como
+        //     // rayitas sueltas sin conectar nada.
+        //     OrgChart.templates.subLevel.node =
+        //       '<line x1="0" y1="55" x2="250" y2="55" stroke="#aeaeae" stroke-width="1px"/>';
+        //     this.chart.setOrientation(OrgChart.orientation.left, null, () => this.chart.fit());
+        //   },
+        // },
       },
       // Exportar PDF/PNG vive en el menú hamburguesa (config distinta de
       // `controls`, que es la tira de íconos) — la tira solo trae SVG.
@@ -1008,8 +1008,12 @@ export default class OrgChartCanvas extends Component {
 
   render() {
     const { isFocusMode, focusNodeId } = this.props;
+    const { controlsVisible } = this.state;
     return (
-      <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      <div
+        className={controlsVisible ? undefined : "chart-controls-hidden"}
+        style={{ width: "100%", height: "100%", position: "relative" }}
+      >
         {/* Pedido: el botón de foco (target-icon) de la persona actualmente
             enfocada se resalta en rojo, para distinguirla del resto —
             CSS en vez de tocar los templates SVG de Balkan (cada template
@@ -1063,6 +1067,26 @@ export default class OrgChartCanvas extends Component {
             <div className="chart-busy-spinner" />
           </div>
         )}
+        {/* Pedido: botón propio en el lugar de la tira de controles de
+            Balkan (.boc-controls) que la muestra/oculta — CSS empuja esa
+            tira hacia arriba (chart-controls-hidden en el wrapper) y este
+            botón queda fijo abajo en su lugar, como si fuera "el último
+            botón" de esa tira. */}
+        <button
+          type="button"
+          className="chart-controls-toggle"
+          title={controlsVisible ? "Ocultar controles" : "Mostrar controles"}
+          onClick={() => this.setState((s) => ({ controlsVisible: !s.controlsVisible }))}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            style={{ transform: controlsVisible ? "rotate(0deg)" : "rotate(180deg)", transition: "transform 0.2s" }}
+          >
+            <path d="M7 10l5 5 5-5" fill="none" stroke="#7A7A7A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       </div>
     );
   }

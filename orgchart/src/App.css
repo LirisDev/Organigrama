@@ -856,3 +856,55 @@ div.boc-node.level-6[data-n-id] {
   bottom: 0px;
   border-top-left-radius: 3px;
 }
+
+/* Pedido: botón para mostrar/ocultar la tira de controles nativa de Balkan
+   (.boc-controls — export SVG, zoom, fit, expand/collapse todo, layout).
+   Esa tira es 100% de Balkan (posición/tamaño fijados en su propio CSS
+   vendorizado: column, gap 7px, bottom/right 15px, círculos de 60px) — en
+   vez de reimplementar cada botón a mano, se la empuja hacia arriba
+   (bottom) para dejar hueco abajo, y ahí va este botón propio, mismo
+   círculo/sombra, como si fuera "el último botón" de esa tira. */
+.chart-controls-toggle {
+  position: absolute;
+  right: 15px;
+  bottom: 15px;
+  z-index: 6;
+  box-sizing: border-box;
+  margin: 0;
+  /* El círculo VISIBLE de Balkan ([data-control-id]) mide 40px totales
+     (22px de ícono + 8px de padding por lado + 1px de borde) — el 60px
+     que se había usado antes era del wrapper exterior (área de click),
+     no del círculo dibujado. Se replica el tamaño real, no el wrapper. */
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid #c7c7c7;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.15s;
+}
+.chart-controls-toggle:hover {
+  background-color: #f57c00 !important;
+}
+.chart-controls-toggle:hover svg path {
+  stroke: #ffffff;
+}
+
+/* Tira nativa empujada hacia arriba (un slot de 40px de círculo real +
+   7px de gap) para dejarle el lugar de siempre al botón propio de abajo. */
+.boc-controls {
+  bottom: 62px !important;
+}
+.chart-controls-hidden .boc-controls [data-control-id] {
+  display: none;
+}
