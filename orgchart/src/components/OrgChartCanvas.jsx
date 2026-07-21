@@ -22,7 +22,7 @@ export default class OrgChartCanvas extends Component {
     // fogonazo de cajas colapsadas/ovaladas (template "min") antes de
     // llenarse. Se oculta recién cuando la secuencia completa termina
     // (onListo de postCargaConReintento), no apenas se llama chart.load().
-    this.state = { chartBusy: true, hScrollNeeded: false, vScrollNeeded: false, controlsVisible: false };
+    this.state = { chartBusy: true, hScrollNeeded: false, vScrollNeeded: false, controlsVisible: true };
   }
 
   componentDidMount() {
