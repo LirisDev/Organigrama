@@ -109,9 +109,18 @@ export default function App() {
     return buildFocusTree(tree.finalArray, focusNodeId, Array.from(expandedHeadIds));
   }, [focusNodeId, tree, expandedHeadIds]);
 
+  // Pedido: el foco en Santiago (a diferencia de Antonio) arranca YA
+  // expandido — sus reportes directos de Corporativo (Celia/Angie) y sus
+  // líneas de negocio (Balanceado/Cárnicos/Pecuarios) visibles de una,
+  // sin necesidad del primer click. Se logra pre-sembrando su propio id en
+  // expandedHeadIds — buildFocusTree ya sabe expandir cualquier id de ese
+  // set (misma lógica que el click manual en su tarjeta).
   function cambiarFocusNodeId(nuevoId) {
     setFocusNodeId(nuevoId);
-    setExpandedHeadIds(new Set());
+    const nodoFoco = nuevoId && tree ? tree.finalArray.find((n) => String(n.id) === String(nuevoId)) : null;
+    const codPosFoco = nodoFoco && (nodoFoco.codPosicion || nodoFoco.id);
+    const esSantiago = codPosFoco === "00003" && !(nodoFoco.tags || []).includes("fantasma");
+    setExpandedHeadIds(esSantiago ? new Set([nuevoId]) : new Set());
   }
 
   const displayTree = focusTree || tree;
