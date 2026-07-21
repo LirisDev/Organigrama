@@ -131,6 +131,7 @@ export default class OrgChartCanvas extends Component {
 
   componentWillUnmount() {
     if (this._axisCorrectionTimer) clearTimeout(this._axisCorrectionTimer);
+    if (this._focusCenterDebounce) clearTimeout(this._focusCenterDebounce);
     if (this.divRef.current && this._handleFocusBtnMouseDown) {
       this.divRef.current.removeEventListener("mousedown", this._handleFocusBtnMouseDown, true);
     }
@@ -554,23 +555,35 @@ export default class OrgChartCanvas extends Component {
     // centrar.
     this.chart.onRedraw(() => {
       if (!this._pendingFocusCenterId) return;
-      const id = this._pendingFocusCenterId;
-      this._pendingFocusCenterId = null;
-      this.chart.center(id, { anim: true, duration: 200, parentState: OrgChart.COLLAPSE_PARENT }, () => {
-        // Pedido: que quede igual que si el usuario le diera al botón
-        // "Ajustar" (fit real, ve todo el árbol enfocado) — center() solo
-        // encuadra el nodo objetivo y puede dejar Corporativo fuera de
-        // vista. Llamar fit() directo en el "redraw" rompía (Balkan
-        // calculando boundary del árbol viejo todavía) — accá, DESPUÉS de
-        // que termina la animación de center() (chart ya asentado, mismo
-        // momento en que el botón real lo dispara), es seguro.
-        try {
-          this.chart.fit();
-        } catch (e) {
-          console.warn("Modo Foco: fit() aún no listo", e);
-        }
-        this.setState({ chartBusy: false });
-      });
+      // Pedido: con focos que revelan un subárbol grande (varios hijos
+      // directos con sus propios hijos, no solo el nodo colapsado de
+      // antes), el layout de Balkan sigue asentando en MÁS de un "redraw"
+      // — centrar/ajustar en el primero que llega usaba un boundary
+      // todavía parcial y quedaba cortado; un segundo fit() fijo más
+      // adelante lo corregía, pero como salto extra visible (fit() ya
+      // había animado a un lugar, y de nuevo a otro). En vez de un doble
+      // ajuste a ciegas, se espera (debounce) a que los redraw dejen de
+      // llegar — recién ahí el layout está total y completamente asentado
+      // — y se centra/ajusta una sola vez.
+      if (this._focusCenterDebounce) clearTimeout(this._focusCenterDebounce);
+      this._focusCenterDebounce = setTimeout(() => {
+        this._focusCenterDebounce = null;
+        if (!this._pendingFocusCenterId) return;
+        const id = this._pendingFocusCenterId;
+        this._pendingFocusCenterId = null;
+        this.chart.center(id, { anim: true, duration: 200, parentState: OrgChart.COLLAPSE_PARENT }, () => {
+          // Pedido: que quede igual que si el usuario le diera al botón
+          // "Ajustar" (fit real, ve todo el árbol enfocado) — center() solo
+          // encuadra el nodo objetivo y puede dejar Corporativo fuera de
+          // vista.
+          try {
+            this.chart.fit();
+          } catch (e) {
+            console.warn("Modo Foco: fit() aún no listo", e);
+          }
+          this.setState({ chartBusy: false });
+        });
+      }, 120);
     });
 
     // Pedido: las flechas de navegación (arriba) deben desaparecer cuando
@@ -877,38 +890,64 @@ export default class OrgChartCanvas extends Component {
     this.chart.load([]);
     this.chart.load(tree.finalArray);
 
-    setTimeout(() => {
-      try {
-        const targetNode = this.chart.getNode(focusNodeId);
-        // Si focusNodeId ya viene en nodosAExpandir (caso Santiago/Antonio
-        // con mostrarLineasDeHead=true, ver focus.js), NO forzar su colapso
-        // acá — pisaría el expand recién cargado y las líneas de negocio
-        // quedarían sin sus hijos reales sincronizados.
-        const debeQuedarExpandido = (tree.nodosAExpandir || []).includes(focusNodeId);
-        if (targetNode && !debeQuedarExpandido) {
-          // El center() real corre desde el listener de "redraw" en
-          // createChart (_pendingFocusCenterId) — ver comentario ahí.
-          this.chart.expandCollapse(focusNodeId, [], targetNode.childrenIds || [], () => {
+    setTimeout(() => this._intentarExpandirFoco(tree, focusNodeId, 6), 10);
+  }
+
+  // chart.getNode() lanza excepción (no devuelve null) si Balkan aún no
+  // terminó de inicializar su registro interno tras el load — mismo gotcha
+  // documentado en postCargaConReintento (expandLogic.js), acá reintentado
+  // con el mismo patrón porque loadFocusTree no pasaba por esa función.
+  // Sin retry, un focus sobre un nodo con muchos hijos (ej. Evelyn Aranea,
+  // ~14 reportes) podía caer justo en esa ventana y dejar la pantalla en
+  // blanco (warning en consola, chartBusy en false, nada dibujado).
+  _intentarExpandirFoco(tree, focusNodeId, intentosRestantes) {
+    try {
+      const targetNode = this.chart.getNode(focusNodeId);
+      // Si focusNodeId ya viene en nodosAExpandir (caso Santiago/Antonio
+      // con mostrarLineasDeHead=true, ver focus.js), NO tocar su estado
+      // acá — pisaría el expand recién cargado y las líneas de negocio
+      // quedarían sin sus hijos reales sincronizados.
+      const debeQuedarExpandido = (tree.nodosAExpandir || []).includes(focusNodeId);
+      if (targetNode && !debeQuedarExpandido) {
+        // Pedido: el foco arranca mostrando los hijos DIRECTOS del
+        // objetivo (antes se colapsaban, requería un click para verlos).
+        // Los nietos quedan ocultos solos — un nodo recién cargado sin
+        // haber sido tocado por expandCollapse/nodosAExpandir arranca
+        // colapsado por default (confirmado empíricamente: el hijo de un
+        // nodo sin este expand explícito se ve con badge de conteo, no
+        // sus propios hijos) — no hace falta colapsarlos a mano.
+        const childIds = targetNode.childrenIds || [];
+        // El center() real corre desde el listener de "redraw" en
+        // createChart (_pendingFocusCenterId) — ver comentario ahí.
+        if (childIds.length > 0) {
+          this.chart.expandCollapse(focusNodeId, childIds, [], () => {
             this._pendingFocusCenterId = focusNodeId;
           });
-        } else if (targetNode) {
-          this._pendingFocusCenterId = focusNodeId;
         } else {
-          this.chart.fit();
-          this.setState({ chartBusy: false });
+          this._pendingFocusCenterId = focusNodeId;
         }
-      } catch (e) {
-        console.warn("loadFocusTree: chart aún no listo", e);
-        this.setState({ chartBusy: false });
-      }
-      // Fallback si "redraw" nunca llega (ej. chart no montado).
-      setTimeout(() => {
-        if (!this._pendingFocusCenterId) return;
-        this._pendingFocusCenterId = null;
+      } else if (targetNode) {
+        this._pendingFocusCenterId = focusNodeId;
+      } else {
         this.chart.fit();
         this.setState({ chartBusy: false });
-      }, 500);
-    }, 10);
+      }
+    } catch (e) {
+      if (intentosRestantes > 0) {
+        setTimeout(() => this._intentarExpandirFoco(tree, focusNodeId, intentosRestantes - 1), 75);
+        return;
+      }
+      console.warn("loadFocusTree: chart aún no listo", e);
+      this.setState({ chartBusy: false });
+      return;
+    }
+    // Fallback si "redraw" nunca llega (ej. chart no montado).
+    setTimeout(() => {
+      if (!this._pendingFocusCenterId) return;
+      this._pendingFocusCenterId = null;
+      this.chart.fit();
+      this.setState({ chartBusy: false });
+    }, 500);
   }
 
   // Flechas de navegación, ancladas en las puntas de las barras de scroll
