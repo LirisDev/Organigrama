@@ -119,8 +119,15 @@ export default function App() {
     setFocusNodeId(nuevoId);
     const nodoFoco = nuevoId && tree ? tree.finalArray.find((n) => String(n.id) === String(nuevoId)) : null;
     const codPosFoco = nodoFoco && (nodoFoco.codPosicion || nodoFoco.id);
-    const esSantiago = codPosFoco === "00003" && !(nodoFoco.tags || []).includes("fantasma");
-    setExpandedHeadIds(esSantiago ? new Set([nuevoId]) : new Set());
+    const esFantasma = nodoFoco && (nodoFoco.tags || []).includes("fantasma");
+    // Santiago Y Antonio arrancan expandidos al enfocarlos directo — mismo
+    // criterio, sus líneas de negocio (RETAIL para Antonio) cuelgan como
+    // cajas de grupo (GRP_RETAIL), no como childrenIds jerárquicos
+    // normales, así que el expand genérico de _intentarExpandirFoco
+    // (OrgChartCanvas) no las revela solo — necesitan este mismo id en
+    // expandedHeadIds para que focus.js las agregue.
+    const esSantiagoOAntonio = !esFantasma && (codPosFoco === "00003" || codPosFoco === "00001");
+    setExpandedHeadIds(esSantiagoOAntonio ? new Set([nuevoId]) : new Set());
   }
 
   const displayTree = focusTree || tree;
