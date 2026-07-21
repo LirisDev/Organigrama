@@ -763,3 +763,89 @@ div.boc-node.level-6[data-n-id] {
 .boc-edit-form > .boc-edit-form-toolbar {
   display: none;
 }
+
+/* Flechas de scroll horizontal, ancladas a las puntas de la barra de scroll
+   X de Balkan (custom-drawn por la librería, no hay scrollbar nativa a la
+   que engancharse). Se paran justo encima de esa franja inferior, mismo
+   tono grisáceo, para leerse como parte de ella y no como un botón nuevo. */
+.chart-hscroll-arrow {
+  position: absolute;
+  bottom: 0;
+  z-index: 5;
+  /* Mismo grosor (20px) que chart.xScrollUI.bar de Balkan — quedan a la
+     misma altura exacta que esa franja, no flotando por encima. */
+  width: 20px;
+  /* height: 20px; */
+  border: 1px solid #c1c1c1;
+  border-radius: 0;
+  background: #f1f1f1;
+  color: #6b6b6b;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background-color 0.15s, color 0.15s;
+}
+.chart-hscroll-arrow:hover {
+  background: #e0e0e0;
+  color: #333333;
+}
+.chart-hscroll-arrow:active {
+  background: #cfcfcf;
+}
+.chart-hscroll-arrow--left {
+  left: 0;
+  border-top-right-radius: 3px;
+}
+.chart-hscroll-arrow--right {
+  /* 20px = ancho exacto de yScrollUI.bar (la columna vertical a la
+     derecha) — queda pegado justo antes de esa columna, en la otra punta
+     real de la franja horizontal, no a mitad de camino. */
+  right: 14px;
+  border-top-left-radius: 3px;
+}
+
+/* Mismo control que arriba, replicado en el eje vertical (yScrollUI.bar de
+   Balkan) — misma columna a la derecha (right:0, ancho de esa barra), una
+   punta arriba y otra abajo (offset 14px, igual que el par horizontal, para
+   despejar la esquina donde ambas barras se cruzan). */
+.chart-vscroll-arrow {
+  position: absolute;
+  right: 0;
+  z-index: 5;
+  width: 15px;
+  border: 1px solid #c1c1c1;
+  border-radius: 0;
+  background: #f1f1f1;
+  color: #6b6b6b;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background-color 0.15s, color 0.15s;
+}
+.chart-vscroll-arrow span {
+  display: inline-block;
+  transform: rotate(90deg);
+}
+.chart-vscroll-arrow:hover {
+  background: #e0e0e0;
+  color: #333333;
+}
+.chart-vscroll-arrow:active {
+  background: #cfcfcf;
+}
+.chart-vscroll-arrow--up {
+  top: 0;
+  border-bottom-left-radius: 3px;
+}
+.chart-vscroll-arrow--down {
+  bottom: 0px;
+  border-top-left-radius: 3px;
+}

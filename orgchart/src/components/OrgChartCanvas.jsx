@@ -22,7 +22,7 @@ export default class OrgChartCanvas extends Component {
     // fogonazo de cajas colapsadas/ovaladas (template "min") antes de
     // llenarse. Se oculta recién cuando la secuencia completa termina
     // (onListo de postCargaConReintento), no apenas se llama chart.load().
-    this.state = { chartBusy: true };
+    this.state = { chartBusy: true, hScrollNeeded: false, vScrollNeeded: false };
   }
 
   componentDidMount() {
@@ -395,11 +395,6 @@ export default class OrgChartCanvas extends Component {
           }
         }
       }
-      // Marca que el próximo cambio de estado de la scrollbar Y viene de
-      // un expand/collapse real de nodo individual (ver listener de
-      // yScrollUI más abajo).
-      this._pendingVScrollCheck = true;
-      this._pendingHScrollCheck = true;
       return true;
     });
 
@@ -423,8 +418,17 @@ export default class OrgChartCanvas extends Component {
     // patrón que chart.searchUI.on(...) más abajo en este archivo.
     if (this.chart.yScrollUI && this.chart.yScrollUI.on) {
       this.chart.yScrollUI.on("change", (sender, args) => {
-        if (!this._pendingVScrollCheck) return;
-        this._pendingVScrollCheck = false;
+        // Pedido: esto debe correr SIEMPRE que la scrollbar se oculte, sin
+        // importar la causa (colapsar un nodo, hacer zoom out con los
+        // controles/rueda, o soltar un drag) — antes solo reaccionaba tras
+        // un expand/collapse (flag _pendingVScrollCheck, eliminado), así
+        // que hacer zoom out hasta que todo entrara en pantalla, o
+        // arrastrar el lienzo, dejaba el árbol descentrado sin corrección
+        // (el usuario podía "deslizarse" libremente, como en la vista
+        // PECUARIOS reportada). Se deja afuera únicamente mientras el
+        // centrado de Modo Foco (_pendingFocusCenterId) todavía no corrió,
+        // para no competir con su propio fit().
+        if (this._pendingFocusCenterId) return;
         if (args.isScrollBarVisible) return; // sigue haciendo falta scroll, no tocar nada
         const boundary = this.chart.response && this.chart.response.boundary;
         if (!boundary) return;
@@ -468,8 +472,13 @@ export default class OrgChartCanvas extends Component {
     // por "redraw" — la señal de "layout ya asentado" — en vez de
     // pan-end.
     this.chart.onRedraw(() => {
-      if (!this._pendingHScrollCheck) return;
-      this._pendingHScrollCheck = false;
+      // Mismo motivo que el bloque de yScrollUI de arriba: correr en TODOS
+      // los redraw (zoom in/out, drag, expand/collapse, load), no solo tras
+      // un expand/collapse — si no, hacer menos zoom hasta que el árbol
+      // entero cupiera en pantalla dejaba el lienzo "pegado" donde el
+      // usuario lo hubiera arrastrado antes, en vez de recentrarse como al
+      // alejar el zoom en Word.
+      if (this._pendingFocusCenterId) return;
       const boundary = this.chart.response && this.chart.response.boundary;
       if (!boundary) return;
       const vb = this.chart.getViewBox();
@@ -480,14 +489,24 @@ export default class OrgChartCanvas extends Component {
       // boundary.left/right (y top/bottom) vienen invertidos —
       // left > right — cuando el contenido restante ya entra completo en
       // el viewport en ese eje (no hay rango de scroll válido). Pedido:
-      // filtrando por una sola línea de negocio, colapsar el nodo cabeza
-      // puede achicar el árbol tan de golpe que quede "pegado" en una
-      // esquina con la mayoría de la pantalla en blanco — si entra
-      // completo en AMBOS ejes, mejor un fit real (centra + reencuadra)
-      // que un simple alineado a un borde.
+      // si entra completo en AMBOS ejes, recentrar SIN tocar la escala —
+      // chart.fit() reencuadra Y cambia el zoom (lo "acerca" de vuelta),
+      // pisando el zoom out que el usuario eligió a propósito. En su
+      // lugar, se traslada el viewBox al punto medio del rango válido de
+      // boundary (mismo significado que boundary.left/right: rango válido
+      // de viewBox[0]/[1]) conservando w/h intactos — se ve chico y
+      // centrado, no "ajustado a pantalla".
       if (boundary.left > boundary.right && boundary.top > boundary.bottom) {
-        this._pendingVScrollCheck = false; // ya lo resuelve el fit, que el fix vertical no pise encima
-        this.chart.fit();
+        const targetX = (boundary.left + boundary.right) / 2;
+        const targetY = (boundary.top + boundary.bottom) / 2;
+        if (Math.abs(x - targetX) < 1 && Math.abs(y - targetY) < 1) return;
+        OrgChart.animate(
+          this.chart.getSvg(),
+          { viewbox: vb },
+          { viewbox: [targetX, targetY, w, h] },
+          this.chart.config.anim.duration,
+          this.chart.config.anim.func
+        );
         return;
       }
 
@@ -534,6 +553,22 @@ export default class OrgChartCanvas extends Component {
         }
         this.setState({ chartBusy: false });
       });
+    });
+
+    // Pedido: las flechas de navegación (arriba) deben desaparecer cuando
+    // no hace falta scroll en ese eje — mismo criterio que Balkan usa para
+    // ocultar su propia barra (bar.scrollWidth/Height > clientWidth/Height,
+    // ver xScrollUI/yScrollUI.setPosition en el vendor). Se chequea en cada
+    // redraw (zoom, pan, expand/collapse, load) para que aparezcan/
+    // desaparezcan en el momento justo, no solo al cargar.
+    this.chart.onRedraw(() => {
+      const xbar = this.chart.xScrollUI && this.chart.xScrollUI.bar;
+      const ybar = this.chart.yScrollUI && this.chart.yScrollUI.bar;
+      const hScrollNeeded = !!xbar && xbar.scrollWidth - xbar.clientWidth > 1;
+      const vScrollNeeded = !!ybar && ybar.scrollHeight - ybar.clientHeight > 1;
+      if (hScrollNeeded !== this.state.hScrollNeeded || vScrollNeeded !== this.state.vScrollNeeded) {
+        this.setState({ hScrollNeeded, vScrollNeeded });
+      }
     });
 
     // Garantiza que fichaGradient esté siempre en el SVG exportado.
@@ -858,6 +893,42 @@ export default class OrgChartCanvas extends Component {
     }, 10);
   }
 
+  // Flechas de navegación, ancladas en las puntas de las barras de scroll
+  // X/Y de Balkan (custom-drawn, no hay scrollbar nativa del navegador a la
+  // que engancharse — pedido explícito de no agregar un botón nuevo
+  // "flotante", así que se estilizan como continuación de esas barras en
+  // vez de un control aparte).
+  //
+  // xScrollUI.bar/yScrollUI.bar SON divs con overflow-x/y:scroll reales
+  // (Balkan usa la scrollbar nativa del navegador puertas adentro de un div
+  // recortado a 20px, no algo dibujado a mano) — mover el viewBox del SVG a
+  // mano (OrgChart.animate directo, como se hacía antes) no toca
+  // bar.scrollLeft/Top, así que la barra se quedaba quieta y chart.response
+  // (el estado interno de Balkan) desincronizado. La forma correcta es
+  // mover el scroll nativo del bar: su propio listener "scroll" (registrado
+  // por Balkan en xScrollUI/yScrollUI.addListener) traduce eso a viewBox Y
+  // mantiene su estado interno consistente — misma fuente única que un
+  // drag manual de esa barra.
+  panHorizontal(direction) {
+    const bar = this.chart && this.chart.xScrollUI && this.chart.xScrollUI.bar;
+    if (!bar) return;
+    const maxScroll = bar.scrollWidth - bar.clientWidth;
+    if (maxScroll <= 0) return;
+    const step = bar.clientWidth * 0.4;
+    const target = Math.min(Math.max(bar.scrollLeft + direction * step, 0), maxScroll);
+    bar.scrollTo({ left: target, behavior: "smooth" });
+  }
+
+  panVertical(direction) {
+    const bar = this.chart && this.chart.yScrollUI && this.chart.yScrollUI.bar;
+    if (!bar) return;
+    const maxScroll = bar.scrollHeight - bar.clientHeight;
+    if (maxScroll <= 0) return;
+    const step = bar.clientHeight * 0.4;
+    const target = Math.min(Math.max(bar.scrollTop + direction * step, 0), maxScroll);
+    bar.scrollTo({ top: target, behavior: "smooth" });
+  }
+
   render() {
     const { isFocusMode, focusNodeId } = this.props;
     return (
@@ -870,6 +941,46 @@ export default class OrgChartCanvas extends Component {
           <style>{`[data-focus-btn="${focusNodeId}"] rect:first-child { fill: #E74C3C !important; }`}</style>
         )}
         <div ref={this.divRef} style={{ width: "100%", height: "100%" }} />
+        {this.state.hScrollNeeded && (
+          <>
+            <button
+              type="button"
+              className="chart-hscroll-arrow chart-hscroll-arrow--left"
+              title="Desplazar a la izquierda"
+              onClick={() => this.panHorizontal(-1)}
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className="chart-hscroll-arrow chart-hscroll-arrow--right"
+              title="Desplazar a la derecha"
+              onClick={() => this.panHorizontal(1)}
+            >
+              ›
+            </button>
+          </>
+        )}
+        {this.state.vScrollNeeded && (
+          <>
+            <button
+              type="button"
+              className="chart-vscroll-arrow chart-vscroll-arrow--up"
+              title="Desplazar hacia arriba"
+              onClick={() => this.panVertical(-1)}
+            >
+              <span>‹</span>
+            </button>
+            <button
+              type="button"
+              className="chart-vscroll-arrow chart-vscroll-arrow--down"
+              title="Desplazar hacia abajo"
+              onClick={() => this.panVertical(1)}
+            >
+              <span>›</span>
+            </button>
+          </>
+        )}
         {this.state.chartBusy && (
           <div className="chart-busy-overlay">
             <div className="chart-busy-spinner" />
