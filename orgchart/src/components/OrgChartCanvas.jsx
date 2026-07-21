@@ -130,6 +130,7 @@ export default class OrgChartCanvas extends Component {
   }
 
   componentWillUnmount() {
+    if (this._axisCorrectionTimer) clearTimeout(this._axisCorrectionTimer);
     if (this.divRef.current && this._handleFocusBtnMouseDown) {
       this.divRef.current.removeEventListener("mousedown", this._handleFocusBtnMouseDown, true);
     }
@@ -321,8 +322,8 @@ export default class OrgChartCanvas extends Component {
       },
     };
 
-    OrgChart.scroll.smooth = 2;
-    OrgChart.scroll.speed = 10;
+    OrgChart.scroll.smooth = 4;
+    OrgChart.scroll.speed = 24;
     OrgChart.SEARCH_PLACEHOLDER = "Buscar por nombre o cargo...";
     // Sin límite se veía una lista interminable con nombres comunes (ej.
     // "david") — con scroll interno (CSS) alcanza, pero igual se acota acá
@@ -483,24 +484,45 @@ export default class OrgChartCanvas extends Component {
       return Math.min(Math.max(val, lo), hi);
     };
     this.chart.onRedraw(() => {
-      if (this._pendingFocusCenterId) return;
-      const boundary = this.chart.response && this.chart.response.boundary;
-      if (!boundary) return;
-      const vb = this.chart.getViewBox();
-      if (!Array.isArray(vb) || vb.length !== 4 || !vb.every(Number.isFinite)) return;
-      const [x, y, w, h] = vb;
-      if (w <= 0 || h <= 0) return;
+      // Mientras chartBusy (secuencia de carga inicial: expandir
+      // Corporativo/cabezas fantasma en postCargaConReintento) dispara
+      // varios redraw intermedios con un boundary que todavía no es el
+      // final — recentrar en esos instantes producía el salto brusco al
+      // cargar. Se espera a que asiente.
+      if (this._pendingFocusCenterId || this.state.chartBusy) return;
+      // Pedido: al filtrar por línea de negocio, chart.fit() (llamado por
+      // expandirFantasmas) ya centra bien, pero esto reaccionaba a un
+      // "redraw" publicado DURANTE la propia animación de fit() — en ese
+      // instante boundary ya es el final, pero el viewBox todavía está a
+      // mitad de camino de esa animación, así que se calculaba una
+      // corrección hacia un punto que competía con el destino real de
+      // fit(): las dos animaciones (la de fit() y la nuestra) peleaban por
+      // el mismo viewBox y el resultado quedaba descentrado. Se hace debounce:
+      // solo corrige cuando los redraw dejan de llegar por un rato (fit(),
+      // o cualquier animación nativa de Balkan, ya terminó de asentarse).
+      if (this._axisCorrectionTimer) clearTimeout(this._axisCorrectionTimer);
+      const delay = (this.chart.config.anim.duration || 300) + 100;
+      this._axisCorrectionTimer = setTimeout(() => {
+        this._axisCorrectionTimer = null;
+        if (!this.chart || this._pendingFocusCenterId || this.state.chartBusy) return;
+        const boundary = this.chart.response && this.chart.response.boundary;
+        if (!boundary) return;
+        const vb = this.chart.getViewBox();
+        if (!Array.isArray(vb) || vb.length !== 4 || !vb.every(Number.isFinite)) return;
+        const [x, y, w, h] = vb;
+        if (w <= 0 || h <= 0) return;
 
-      const newX = correctAxis(x, boundary.left, boundary.right);
-      const newY = correctAxis(y, boundary.top, boundary.bottom);
-      if (Math.abs(x - newX) < 1 && Math.abs(y - newY) < 1) return;
-      OrgChart.animate(
-        this.chart.getSvg(),
-        { viewbox: vb },
-        { viewbox: [newX, newY, w, h] },
-        this.chart.config.anim.duration,
-        this.chart.config.anim.func
-      );
+        const newX = correctAxis(x, boundary.left, boundary.right);
+        const newY = correctAxis(y, boundary.top, boundary.bottom);
+        if (Math.abs(x - newX) < 1 && Math.abs(y - newY) < 1) return;
+        OrgChart.animate(
+          this.chart.getSvg(),
+          { viewbox: vb },
+          { viewbox: [newX, newY, w, h] },
+          this.chart.config.anim.duration,
+          this.chart.config.anim.func
+        );
+      }, delay);
     });
 
     // Pedido: mientras un eje no tiene rango de scroll válido (cabe

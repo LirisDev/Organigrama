@@ -523,7 +523,13 @@ path.link[data-l-id*="sub-level"] {
 .chart-busy-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(248, 248, 248, 0.85);
+  /* Pedido: opaco de verdad — con 0.85 se veía "a través" el reacomodo
+     brusco de escala que hace Balkan mientras expande Corporativo y las
+     cabezas fantasma (expandCollapse/expand no reencuadran solos, solo el
+     chart.fit() final en expandLogic.js lo hace, ~200-400ms después). El
+     overlay tiene que taparlo por completo hasta que asiente, no solo
+     atenuarlo. */
+  background: #f8f8f8;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -775,7 +781,7 @@ div.boc-node.level-6[data-n-id] {
   /* Mismo grosor (20px) que chart.xScrollUI.bar de Balkan — quedan a la
      misma altura exacta que esa franja, no flotando por encima. */
   width: 20px;
-  /* height: 20px; */
+  height: 16px;
   border: 1px solid #c1c1c1;
   border-radius: 0;
   background: #f1f1f1;
@@ -816,7 +822,8 @@ div.boc-node.level-6[data-n-id] {
   position: absolute;
   right: 0;
   z-index: 5;
-  width: 15px;
+  width: 16px;
+  height: 16px;
   border: 1px solid #c1c1c1;
   border-radius: 0;
   background: #f1f1f1;
