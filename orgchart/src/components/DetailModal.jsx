@@ -92,7 +92,7 @@ export default function DetailModal({ node, onClose }) {
           </div>
           <div className="details-info-line">
             <span className="details-info-label">Área:</span>
-            <span className="details-info-value">{personData.area || "N/A"}</span>
+            <span className="details-info-value">{personData.area || personData.departamento || "N/A"}</span>
           </div>
         </div>
 
