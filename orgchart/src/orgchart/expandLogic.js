@@ -11,11 +11,21 @@ export function expandirFantasmas(chart, lineaFiltro, onListo) {
     })
     .map((n) => n.id);
 
+  // Pedido: en la primera carga en frío del navegador (fetch + parse +
+  // primer layout, más lento que una carga posterior con todo ya tibio) un
+  // margen de 200ms podía no alcanzar para que Balkan terminara de asentar
+  // el layout antes de este fit() — el árbol quedaba sin ajustar del todo
+  // hasta cambiar de filtro y volver. Se probó reemplazar este margen fijo
+  // por un debounce sobre el evento "redraw" (mismo patrón que sí funcionó
+  // para el recentrado por eje y el centrado de Modo Foco) pero acá dio
+  // PEOR resultado (quedaba más zoomeado/cortado, no menos) — revertido.
+  // Mientras no se entienda esa diferencia, se sube el margen fijo en vez
+  // de tocar la estructura del flujo.
   if (fantasmas.length === 0) {
     setTimeout(() => {
       chart.fit();
       if (onListo) onListo();
-    }, 200);
+    }, 500);
     return;
   }
 
@@ -29,7 +39,7 @@ export function expandirFantasmas(chart, lineaFiltro, onListo) {
     setTimeout(() => {
       chart.fit();
       if (onListo) onListo();
-    }, 200);
+    }, 500);
   });
 }
 

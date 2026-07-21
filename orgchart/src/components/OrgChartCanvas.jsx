@@ -60,9 +60,14 @@ export default class OrgChartCanvas extends Component {
     // automático y las flechas de scroll para decidir si un eje "cabe".
     this._dragAxisLock = { x: false, y: false };
     this._dragFrozen = null;
-    const nodeAttrSel = "[data-n-id]";
+    // Pedido: el bloqueo debe aplicar arrancando el drag desde CUALQUIER
+    // parte del lienzo — nodos/grupos incluidos, no solo el espacio en
+    // blanco. Con enableDragDrop:false (ver chartConfig) Balkan no manda
+    // el mousedown sobre un nodo a su manejador de "mover nodo" — cae al
+    // mismo gesto de paneo que el fondo (_globalMouseDownHandler solo
+    // desvía a esa otra rama si enableDragDrop/movable están activos), así
+    // que no hace falta (ni conviene) distinguir el target acá.
     this._handleCanvasMouseDown = (e) => {
-      if (e.target.closest && e.target.closest(nodeAttrSel)) return;
       this._dragFrozen = { x: e.clientX, y: e.clientY };
     };
     this._handleCanvasMouseMoveCapture = (e) => {
@@ -924,7 +929,22 @@ export default class OrgChartCanvas extends Component {
             this._pendingFocusCenterId = focusNodeId;
           });
         } else {
-          this._pendingFocusCenterId = focusNodeId;
+          // Sin hijos: no hay ningún expandCollapse/expand que dispare un
+          // "redraw" propio — confirmado que en ese caso NO alcanza con
+          // solo marcar _pendingFocusCenterId y esperar (a diferencia de
+          // Santiago/Antonio, que si bien tampoco llaman expandCollapse acá,
+          // SÍ vienen de un chart.config.expand con ids reales al cargar,
+          // que sí dispara redraw): quedaba en blanco, nada dibujado.
+          // Se llama center() de una para garantizar que algo se dibuje —
+          // pero el fit() final NO se hace en su callback (eso corría
+          // antes de que Balkan asentara el boundary del árbol recién
+          // cargado, dejándolo sin ajustar) — en cambio se marca
+          // _pendingFocusCenterId ahí, para que el fit() real lo haga el
+          // listener de "redraw" con su propio debounce, una vez asentado.
+          const parentState = window.OrgChart && window.OrgChart.COLLAPSE_PARENT;
+          this.chart.center(focusNodeId, { anim: true, duration: 200, parentState }, () => {
+            this._pendingFocusCenterId = focusNodeId;
+          });
         }
       } else if (targetNode) {
         this._pendingFocusCenterId = focusNodeId;
