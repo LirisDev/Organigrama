@@ -325,6 +325,13 @@ path.link[data-l-id*="sub-level"] {
   stroke: #27ae60 !important;
   fill: #27ae60 !important;
 }
+/* Grupos de cargo compartido (GRPCARGO_<posición>, ver api.js) — id
+   dinámico, uno por cada posición con 2+ empleados, no se puede hardcodear
+   por id como las líneas de negocio de arriba. Selector por prefijo. */
+[data-n-id^="GRPCARGO_"] rect {
+  stroke: #2980b9 !important;
+  fill: #2980b9 !important;
+}
 
 /* ==========================================================================
    Ficha de detalle (DetailModal) — portado de styles.css, rama vanilla

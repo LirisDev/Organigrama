@@ -37,7 +37,13 @@ function agregarDescendencia(
   const idBusqueda = idOriginalPadre || idVisualPadre;
 
   sourceMap.forEach((node) => {
-    if (node.pid !== idBusqueda) return;
+    // Además de pid, también stpid — necesario para los grupos de cargo
+    // compartido (GRPCARGO_*, ver api.js): sus miembros (2+ empleados con
+    // la misma posición) cuelgan del grupo por stpid, no por pid, y sin
+    // este check nunca se descubren acá (el resto de usos de stpid en este
+    // archivo — Santiago/Antonio, cabezas de línea — los arma el propio
+    // buildTree() directo en nodesToRender, no pasan por acá).
+    if (node.pid !== idBusqueda && node.stpid !== idBusqueda) return;
     if (idsAExcluir.includes(node.id)) return;
     if (filtroEstricto && !filtroEstricto(node)) return;
 
@@ -591,6 +597,12 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
     "GRP_MARKETING",
   ];
 
+  // Grupos de cargo compartido (GRPCARGO_<posición>, ver api.js): a
+  // diferencia de las cajas de línea de negocio de arriba (siempre
+  // expandidas), estos tienen botón +/- nativo (template "groupCargo") y
+  // arrancan COLAPSADOS como cualquier tarjeta normal con reportes — no se
+  // agregan acá a propósito.
+
   finalArray.forEach((node) => {
     if (!node.tags || !node.tags.includes("fantasma")) return;
     if (String(node.id).includes("CARNICERIA") && lineaFiltro !== "CARNICERIA") return;
@@ -658,6 +670,23 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
   );
   const antonioId = antonioParaSlink ? String(antonioParaSlink.id) : null;
   const slinks = [];
+
+  // Grupos de cargo compartido (GRPCARGO_<posición>, ver api.js): Balkan no
+  // dibuja línea nativa de ENTRADA a ningún nodo con template "group" —
+  // mismo motivo por el que las cajas de línea de negocio (abajo) usan
+  // este sistema de líneas manuales en vez del link nativo. Con el order
+  // corregido (api.js, parentOrder+1) ya no hay hueco de sub-nivel de por
+  // medio, así que esta línea conecta directo, corta, sin atravesar
+  // espacio vacío. Mismo patrón que Omar→GRP_CARNICERIA (manager normal →
+  // caja de grupo, sin straight/routeLeft/routeRight — esas flags son solo
+  // para cuando el origen es Santiago/Antonio pegados a GRP_CORPORATIVO).
+  finalArray.forEach((node) => {
+    if (!node.tags || !node.tags.includes("group")) return;
+    if (!String(node.id).startsWith("GRPCARGO_")) return;
+    if (!node.pid) return;
+    slinks.push({ from: node.pid, to: node.id, color: "#aeaeae", dropNearSource: true });
+  });
+
   if (antonioParaSlink) {
     if (corporativoExpandido && !nodosAExpandir.includes(antonioParaSlink.id)) {
       nodosAExpandir.push(antonioParaSlink.id);

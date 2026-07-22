@@ -228,6 +228,16 @@ export function registerTemplates() {
   OrgChart.templates.group.min.img_0 = ``;
   OrgChart.templates.group.min.size = [310, 190];
 
+  // GroupCargo: mismo cuadro que "group" (cargos compartidos, ver
+  // GRPCARGO_* en api.js), pero CON botón +/- nativo de Balkan — a
+  // diferencia de las cajas de línea de negocio (siempre expandidas, sin
+  // botón), acá el usuario pidió el mismo control de expandir/colapsar que
+  // usan las tarjetas de persona con reportes (botonGrupo).
+  OrgChart.templates.groupCargo = Object.assign({}, OrgChart.templates.group);
+  OrgChart.templates.groupCargo.plus = botonGrupo;
+  OrgChart.templates.groupCargo.minus = botonGrupo;
+  OrgChart.templates.groupCargo.min.size = [250, 160];
+
   OrgChart.templates.group.miGlobo = "{val}";
   OrgChart.templates.group.counter =
     '<g transform="translate({cx}, {h})">' +
@@ -353,6 +363,7 @@ export function buildTagsConfig(OrgChart) {
     "group-head-align": { levelSeparation: 100 },
     group: { template: "group", nodeBinding: { conteo: "conteo", imgs: "grupoMinFotos" } },
     groupNoLink: { template: "groupNoLink", nodeBinding: { conteo: "conteo", imgs: "grupoMinFotos" } },
+    groupCargo: { template: "groupCargo" },
     fichaComplex: { template: "fichaComplex" },
     "jefe-carniceria": { template: "jefeCarniceria" },
     "jefe-marketing": { template: "jefeMarketing" },
