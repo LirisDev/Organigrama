@@ -32,6 +32,21 @@ export function buildFocusTree(finalArray, targetNodeId, headsExpandidos = []) {
   }
   agregarAscendencia(targetNodeId);
 
+  // Santiago/Antonio: sus reportes directos (Celia, Angie, etc.) deben
+  // aparecer/ocultarse EN SINCRO con sus líneas de negocio, mismo botón +/-,
+  // mismo headsSet — pero SIN sacarlos del array (probado: si no están en
+  // los datos, Balkan no tiene de dónde inferir que existe un hijo y no
+  // dibuja el botón +/- en absoluto, quedaba sin forma de reabrir). Quedan
+  // siempre presentes; el control real es collapsed:true forzado más abajo
+  // (mismo mecanismo ya usado en buildTree.js para el bug de Balkan
+  // "recordando" collapsed por id entre loads) + nodosAExpandir.
+  function esHeadSantiagoOAntonio(node) {
+    if (!node) return false;
+    if ((node.tags || []).includes("fantasma")) return false;
+    const codPos = node.codPosicion || node.id;
+    return codPos === "00003" || codPos === "00001";
+  }
+
   function agregarDescendenciaFoco(nodeId) {
     sourceMap.forEach((node) => {
       if ((node.pid === nodeId || node.stpid === nodeId) && !nodosDelFoco.has(node.id)) {
@@ -257,7 +272,16 @@ export function buildFocusTree(finalArray, targetNodeId, headsExpandidos = []) {
   focusArray.forEach((n) => {
     delete n.state;
     delete n.expanded;
-    delete n.collapsed;
+    // Santiago/Antonio: forzar collapsed explícito según headsSet (no
+    // delete/undefined) — con undefined, Balkan por defecto MUESTRA los
+    // hijos ya presentes en el array (Celia, Angie) sin importar el
+    // headsSet. true/false explícito es lo que realmente sincroniza la
+    // tarjeta con sus líneas de negocio.
+    if (esHeadSantiagoOAntonio(n)) {
+      n.collapsed = !headsSet.has(n.id);
+    } else {
+      delete n.collapsed;
+    }
     // Igual que x/y/w/h: si esta caja venía minimizada (Balkan escribe
     // min=true directo sobre el objeto para GRP_CARNICOS/PECUARIOS cuando
     // el usuario los minimizó en la vista "Todas las Líneas"), heredar ese

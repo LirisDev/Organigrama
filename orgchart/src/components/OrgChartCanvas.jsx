@@ -441,6 +441,17 @@ export default class OrgChartCanvas extends Component {
             // Al recolapsar, volver al estado sin sus líneas de negocio.
             this.props.onCollapseFocusHead(nodeId);
           }
+          // Bloquear el toggle NATIVO de Balkan acá — dejarlo correr en
+          // paralelo (return true) hacía que Balkan llevara su propio
+          // collapsed interno por id, que diverge del árbol React (focus.js
+          // borra collapsed en cada rebuild): tras el primer click, Balkan
+          // quedaba con un estado propio que ya no coincidía, y en el
+          // segundo click dejaba de reportar collapsing correctamente
+          // (mismo problema ya documentado para otros nodos en
+          // buildTree.js, sin parchear acá). Celia/Angie no dependen de
+          // este collapse nativo de todos modos (siempre están en el árbol
+          // de foco), así que bloquearlo no pierde nada.
+          return false;
         }
       }
       return true;
@@ -943,6 +954,17 @@ export default class OrgChartCanvas extends Component {
       // acá — pisaría el expand recién cargado y las líneas de negocio
       // quedarían sin sus hijos reales sincronizados.
       const debeQuedarExpandido = (tree.nodosAExpandir || []).includes(focusNodeId);
+      // Santiago/Antonio como objetivo DIRECTO del foco: su expand/collapse
+      // lo gobierna 100% headsExpandidos/nodosAExpandir (ver focus.js), no
+      // este auto-expand genérico de "mostrar hijos directos al entrar en
+      // foco" — sin este freno, CADA reload (incluido el que dispara el
+      // click de colapsar su propia tarjeta) volvía a abrir a Celia/Angie
+      // acá, pisando el collapse recién pedido.
+      const nodeData =
+        tree && tree.finalArray ? tree.finalArray.find((n) => String(n.id) === String(focusNodeId)) : null;
+      const codPosTarget = nodeData && (nodeData.codPosicion || nodeData.id);
+      const esFantasmaTarget = nodeData && (nodeData.tags || []).includes("fantasma");
+      const esHeadTarget = !esFantasmaTarget && (codPosTarget === "00003" || codPosTarget === "00001");
       if (targetNode && !debeQuedarExpandido) {
         // Pedido: el foco arranca mostrando los hijos DIRECTOS del
         // objetivo (antes se colapsaban, requería un click para verlos).
@@ -951,7 +973,11 @@ export default class OrgChartCanvas extends Component {
         // colapsado por default (confirmado empíricamente: el hijo de un
         // nodo sin este expand explícito se ve con badge de conteo, no
         // sus propios hijos) — no hace falta colapsarlos a mano.
-        const childIds = targetNode.childrenIds || [];
+        // Excepción: Santiago/Antonio como objetivo directo y colapsado a
+        // propósito (esHeadTarget) — NO expandir sus hijos acá (headsSet
+        // manda), pero SIGUE haciendo falta el center()/fit() de abajo o
+        // queda en blanco (mismo caso ya documentado para "sin hijos").
+        const childIds = esHeadTarget ? [] : targetNode.childrenIds || [];
         // El center() real corre desde el listener de "redraw" en
         // createChart (_pendingFocusCenterId) — ver comentario ahí.
         if (childIds.length > 0) {
