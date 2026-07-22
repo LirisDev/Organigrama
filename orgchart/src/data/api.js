@@ -1,4 +1,5 @@
 import { sanitizeCircularReferences, aplicarSubnivelesRelativos } from "./sanitize";
+import { buildMiembrosHtml } from "../orgchart/templates";
 
 // Fase 1: solo vista Persona. Vista Cargo queda para fase 2.
 export async function fetchPersonaData(apiUrl) {
@@ -57,12 +58,12 @@ export async function fetchPersonaData(apiUrl) {
   // si solo hay uno, o el id del grupo sintético si hay 2+ Y además tiene
   // subordinados reales.
   const positionToEmployeeMap = new Map();
-  const sharedPositionGroups = new Map(); // positionId -> { groupId, empleados: [ids] }
+  const sharedPositionGroups = new Map(); // positionId -> { groupId, empleadosDetalle: [...] }
   positionToEmployeesMap.forEach((empleados, positionId) => {
     if (empleados.length > 1 && posicionesConSubordinados.has(positionId)) {
       const groupId = `GRPCARGO_${positionId}`;
       positionToEmployeeMap.set(positionId, groupId);
-      sharedPositionGroups.set(positionId, { groupId, empleados });
+      sharedPositionGroups.set(positionId, { groupId, positionId, empleadosDetalle: [] });
     } else {
       positionToEmployeeMap.set(positionId, empleados[0]);
     }
@@ -85,11 +86,11 @@ export async function fetchPersonaData(apiUrl) {
       }
 
       // Este empleado ocupa una posición compartida (2+ empleados activos
-      // con el mismo codigoPosicion) — pasa a ser MIEMBRO del grupo
-      // sintético en vez de reportar directo a su manager; el grupo mismo
-      // hereda ese pid (una sola vez, todos los que comparten posición
+      // con el mismo codigoPosicion) — no se arma como nodo Balkan propio,
+      // sus datos se pliegan dentro del nodo de grupo (listaEmpleados, ver
+      // más abajo) en vez de crear un nodo por persona. El nodo de grupo
+      // mismo hereda el pid (una sola vez, todos los que comparten posición
       // reportan a la misma posición superior).
-      let stpid;
       if (!isVacant) {
         const propiaPosicion = emp.codigoPosicion != null ? String(emp.codigoPosicion).trim() : null;
         const compartida = propiaPosicion && sharedPositionGroups.get(propiaPosicion);
@@ -105,8 +106,16 @@ export async function fetchPersonaData(apiUrl) {
             compartida.lineaNegocio = emp.nombreLineaNegocio2 || "N/A";
             compartida.centroCosto = emp.nombreCentroCosto2 || "N/A";
           }
-          stpid = compartida.groupId;
-          pid = undefined;
+          compartida.empleadosDetalle.push({
+            codigoEmpleado: emp.codigoEmpleado,
+            nombre: emp.nombre || "",
+            apellido: emp.apellido || "",
+            foto: emp.foto || "Logo-Liris.png",
+            puestoEmpleado: emp.puesto || compartida.puesto,
+            emailCorporativo: emp.emailCorporativo,
+            codDepAx: emp.codDepAx,
+          });
+          return null;
         }
       }
 
@@ -144,7 +153,6 @@ export async function fetchPersonaData(apiUrl) {
       return {
         id,
         pid,
-        stpid,
         tags,
         CodEmpleado,
         order,
@@ -166,43 +174,44 @@ export async function fetchPersonaData(apiUrl) {
     })
     .filter(Boolean);
 
-  // Nodo de grupo por cada posición compartida — "Holding"/GRP_CORPORATIVO
-  // usan exactamente este mismo patrón (tags:["group"], template "group"
-  // resuelto automáticamente por Balkan vía buildTagsConfig): una caja con
-  // título, los miembros adentro (pid:null + stpid=este id, ya asignados
-  // arriba) y quienes reportan a la posición compartida cuelgan de ella
-  // como de cualquier otro padre normal.
-  //
-  // AL PRINCIPIO del array, no al final — Balkan arma el agrupamiento
-  // visual (stpid) en el mismo orden en que procesa config.nodes; mismo
-  // ajuste ya documentado en focus.js para GRP_CORPORATIVO/líneas de
-  // negocio. Agregarlos al final dejaba la caja vacía (sin miembros ni
-  // hijos reportándole), aunque los datos de sus miembros ya apuntaran bien.
+  // Nodo de grupo por cada posición compartida — a diferencia del intento
+  // anterior (contenedor "group" nativo de Balkan con miembros como nodos
+  // stpid propios), ahora es un nodo ÚNICO de tamaño FIJO igual a una
+  // tarjeta normal (110 de alto, ver groupCargoCompact en templates.js):
+  // a ojos de Balkan es una tarjeta cualquiera con hijos (pid), así que
+  // nunca puede desalinear la fila con sus hermanos ni pisar el layout de
+  // nodos no relacionados. Los miembros (2 o 3+) van en `listaEmpleados`
+  // (mismo campo que ya usa la Vista Cargo para "N empleados en un cargo",
+  // reutiliza el modal de detalle tal cual) y se dibujan a mano dentro del
+  // nodo vía `miembrosHtml` (variante B del mockup aprobado por David).
   const gruposCargo = Array.from(sharedPositionGroups.values()).map(
-    ({ groupId, puesto, order, pid, lineaNegocio, centroCosto }) => ({
-      id: groupId,
-      pid: pid || undefined,
-      // Sin nombre/cargoPuesto: personaBinding.field_0 usa "nombre" (no
-      // "title", ese binding no aplica acá) — ese texto es el header que
-      // agrega alto extra a la caja de grupo, corriendo a los miembros hacia
-      // abajo y desalineando a los hermanos normales (ej. Lizardo) que
-      // tienen altura fija de tarjeta. Pedido explícito de sacarlo.
-      nombre: "",
-      cargoPuesto: "",
-      title: "",
-      // "groupCargo" PRIMERO — Balkan resuelve el template recorriendo
-      // tags en orden y usa el primero con mapeo (ver buildTagsConfig),
-      // así que el orden importa acá. "group" se deja también, al final,
-      // solo para que los `tags.includes("group")` de buildTree.js/
-      // OrgChartCanvas.jsx (saltar badges de empleado, saltar el modal de
-      // detalle, etc.) lo sigan reconociendo como caja de grupo.
-      tags: ["groupCargo", "group"],
-      order: order || 99,
-      lineaNegocio: lineaNegocio || "N/A",
-      centroCosto: centroCosto || "N/A",
-    }),
+    ({ groupId, positionId, puesto, order, pid, lineaNegocio, centroCosto, empleadosDetalle }) => {
+      const esAncho = empleadosDetalle.length >= 3;
+      const size = esAncho ? [340, 110] : [250, 110];
+      return {
+        id: groupId,
+        pid: pid || undefined,
+        cargoPuesto: puesto || "Cargo compartido",
+        cargoPersona: `${empleadosDetalle.length} personas`,
+        listaEmpleados: empleadosDetalle,
+        codPosicion: positionId,
+        // "group" acá es solo una marca para el resto del código (saltar
+        // el conteo individual en calcularConteoVisual, no reasignar
+        // template por _directos/_total) — el template real que Balkan
+        // resuelve es groupCargoCompact(3), primero en la lista.
+        tags: [esAncho ? "groupCargoCompact3" : "groupCargoCompact", "group"],
+        // El binding por tag (buildTagsConfig) no terminó pegándole a
+        // field_0 de forma confiable — se usa el binding GLOBAL
+        // (personaBinding.field_0 = "nombre", field_0 = "{val}" en el
+        // template) poniendo el HTML de los miembros directo acá.
+        nombre: buildMiembrosHtml(empleadosDetalle, size[0], size[1]),
+        order: order || 99,
+        lineaNegocio: lineaNegocio || "N/A",
+        centroCosto: centroCosto || "N/A",
+      };
+    },
   );
-  balkanNodes.unshift(...gruposCargo);
+  balkanNodes.push(...gruposCargo);
 
   const sanitizedNodes = sanitizeCircularReferences(balkanNodes);
   aplicarSubnivelesRelativos(sanitizedNodes);

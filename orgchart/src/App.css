@@ -289,7 +289,10 @@ path.link[data-l-id*="sub-level"] {
 /* ==========================================================================
    Colores para las líneas de negocio (portado de styles.css, rama vanilla)
    ========================================================================== */
-.node.group rect {
+/* :not(...) — GRPCARGO_* (groupCargoCompact/3, ver api.js) comparte la
+   clase "group" con las cajas de línea de negocio de abajo pero es una
+   tarjeta normal (fondo degradé sólido), no una caja semitransparente. */
+.node.group:not(.groupCargoCompact):not(.groupCargoCompact3) rect {
   stroke-width: 3px;
   fill-opacity: 0.1;
 }
@@ -324,13 +327,6 @@ path.link[data-l-id*="sub-level"] {
 [data-n-id="GRP_RETAIL"] rect {
   stroke: #27ae60 !important;
   fill: #27ae60 !important;
-}
-/* Grupos de cargo compartido (GRPCARGO_<posición>, ver api.js) — id
-   dinámico, uno por cada posición con 2+ empleados, no se puede hardcodear
-   por id como las líneas de negocio de arriba. Selector por prefijo. */
-[data-n-id^="GRPCARGO_"] rect {
-  stroke: #2980b9 !important;
-  fill: #2980b9 !important;
 }
 
 /* ==========================================================================

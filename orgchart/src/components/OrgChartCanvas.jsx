@@ -319,7 +319,14 @@ export default class OrgChartCanvas extends Component {
         show: (nodeId) => {
           const data = this._balkanInstance && this._balkanInstance.get(nodeId);
           if (!data) return;
-          if (data.tags && (data.tags.includes("group") || data.tags.includes("fantasma"))) return;
+          // GRPCARGO_* (cargo compartido, ver api.js) SÍ debe abrir el
+          // modal — tiene listaEmpleados aunque cargue el tag "group"
+          // (ese tag acá es solo para las cajas de línea de negocio, que
+          // no representan personas).
+          const esGrupoConEmpleados = Array.isArray(data.listaEmpleados) && data.listaEmpleados.length > 0;
+          if (!esGrupoConEmpleados && data.tags && (data.tags.includes("group") || data.tags.includes("fantasma"))) {
+            return;
+          }
           if (this.props.onShowDetail) this.props.onShowDetail(data);
         },
         hide: () => {
@@ -682,11 +689,6 @@ export default class OrgChartCanvas extends Component {
         const fromNode = sender.getNode(link.from);
         const { tn: toNode, offset: effectiveLaneOffset } = resolveTarget(link);
         if (!fromNode || !toNode) return;
-        // Pedido: si el destino está colapsado (botón +/- sin abrir, ej.
-        // GRPCARGO_* — arrancan cerrados), no debe dibujarse ninguna línea
-        // hacia él — quedaba un tramo suelto colgando de la tarjeta del
-        // manager sin nada del otro lado.
-        if (link.dropNearSource && toNode.collapsed) return;
 
         const fromPt = nodeBack(fromNode);
         const toPt = nodeFront(toNode);
@@ -702,17 +704,7 @@ export default class OrgChartCanvas extends Component {
         const corpCrossEnd = grpCorp ? corpCrossStart + crossSize(grpCorp) : null;
 
         let puntos;
-        if (link.dropNearSource) {
-          // Pedido: para conectores genéricos lejos de Corporativo (ej.
-          // GRPCARGO_* — grupos de cargo compartido, ver buildTree.js) el
-          // quiebre debe caer cerca del ORIGEN (disimulado pegado a la
-          // tarjeta del manager), no cerca del destino — el carril por
-          // default (más abajo) calcula el quiebre a `target.y - 30`, casi
-          // pegado a la caja destino, y con un tramo recto larguísimo antes
-          // se ve como un codo raro clavado en el borde de la caja.
-          const dropAlong = fAlong + 30;
-          puntos = [pt(fAlong, fCross), pt(dropAlong, fCross), pt(dropAlong, tCross), pt(tAlong, tCross)];
-        } else if (link.straight) {
+        if (link.straight) {
           // Filtro de una sola línea de Santiago: sin otras líneas con las
           // que compartir carril, alcanza con un escalón simple — baja hasta
           // el espacio en blanco debajo del borde de Corporativo, salta al
@@ -758,21 +750,6 @@ export default class OrgChartCanvas extends Component {
         const d = puntos.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
         svgLines += `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.8" stroke-opacity="0.75" stroke-linecap="round" stroke-linejoin="round"/>`;
       });
-
-      // Balkan dibuja su PROPIA línea nativa cuando hay niveles saltados
-      // (fantasma "sub-level", ver sanitize.js aplicarSubnivelesRelativos) —
-      // eso es independiente del template.link del nodo (que en "group" está
-      // en ""), así que para un GRPCARGO_* con salto de nivel Balkan SÍ
-      // dibuja esta línea nativa, duplicando la nuestra (dropNearSource) a
-      // otra altura → se ven dos líneas desalineadas (confirmado via
-      // DevTools: data-l-id="[origen][GRPCARGO_xxxxx_sub_level_index_N]").
-      // Se quita solo cuando el DESTINO (segundo corchete) es un grupo de
-      // cargo — las líneas nativas de salto de nivel en el resto del árbol
-      // deben seguir intactas.
-      args.content = args.content.replace(
-        /<g class="link"[^>]*data-l-id="\[[^\]]*\]\[GRPCARGO_[^\]]*\]"[^>]*>[\s\S]*?<\/g>/g,
-        "",
-      );
 
       // Prepend (string concat, no .push) para que las líneas queden detrás
       // de los nodos.

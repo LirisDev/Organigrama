@@ -7,6 +7,47 @@ let _registered = false;
 const PERSON_ICON_PATH =
   "M7.461 2.356c-1.292 0 -2.339 1.223 -2.339 2.731 0 1.046 0.504 1.954 1.243 2.413l-0.858 0.398 -2.282 1.059c-0.221 0.11 -0.331 0.297 -0.331 0.562v2.514c0.018 0.314 0.207 0.607 0.512 0.612h8.12c0.349 -0.03 0.526 -0.312 0.529 -0.612V9.518c0 -0.265 -0.11 -0.452 -0.331 -0.562l-2.2 -1.059 -0.914 -0.433c0.709 -0.469 1.188 -1.358 1.188 -2.377 0 -1.508 -1.047 -2.731 -2.339 -2.731m-3.773 0.96c-0.556 0.021 -0.996 0.262 -1.331 0.645 -0.37 0.461 -0.551 1.009 -0.554 1.554 0.023 0.806 0.383 1.569 1.025 1.968L0.265 8.675C0.088 8.741 0 8.895 0 9.138v2.017c0.014 0.268 0.153 0.492 0.413 0.496h1.704V9.518c0.028 -0.57 0.296 -1.032 0.777 -1.257l1.703 -0.81c0.132 -0.077 0.259 -0.182 0.38 -0.314 -0.702 -1.083 -0.8 -2.381 -0.347 -3.523 -0.294 -0.18 -0.625 -0.296 -0.943 -0.298m7.607 0c-0.364 0.008 -0.7 0.141 -0.975 0.331 0.44 1.152 0.319 2.45 -0.331 3.457 0.143 0.165 0.293 0.292 0.447 0.38l1.637 0.777c0.499 0.274 0.756 0.739 0.761 1.257v2.134h1.753c0.288 -0.025 0.411 -0.255 0.414 -0.496V9.138c0 -0.221 -0.088 -0.375 -0.265 -0.463l-2.53 -1.208c0.656 -0.484 0.986 -1.209 0.992 -1.951 -0.017 -0.588 -0.197 -1.133 -0.554 -1.554 -0.373 -0.405 -0.836 -0.641 -1.348 -0.645";
 
+function escXml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Contenido interno del nodo groupCargoCompact/groupCargoCompact3 (cargos
+// compartidos, ver GRPCARGO_* en api.js) — franjas lado a lado (foto +
+// nombre abreviado + cargo), separadas por línea punteada, generado una
+// sola vez al armar el nodo (no en cada render) e inyectado crudo vía
+// field_0 = "{val}" (mismo truco que group.miGlobo). `w`/`h` deben calzar
+// con el `.size` del template usado (groupCargoCompact = [250,110],
+// groupCargoCompact3 = [340,110]).
+export function buildMiembrosHtml(miembros, w, h) {
+  const n = miembros.length || 1;
+  const slotW = w / n;
+  const slots = miembros
+    .map((m, i) => {
+      const nombreCorto = `${(m.nombre || "").split(" ")[0]} ${(m.apellido || "").split(" ")[0]}`.trim();
+      const borde = i < n - 1 ? "border-right:1px dashed #7fa8c9;" : "";
+      return (
+        `<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;` +
+        `justify-content:center;gap:3px;padding:0 4px;${borde}">` +
+        `<img src="${escXml(m.foto || "/Logo-Liris.png")}" style="width:36px;height:36px;border-radius:50%;` +
+        `object-fit:cover;border:1.5px solid #2980b9;" />` +
+        `<div style="font-size:9px;font-weight:700;color:#D35400;text-align:center;line-height:1.15;` +
+        `max-width:${Math.max(slotW - 10, 30)}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">` +
+        `${escXml(nombreCorto)}</div>` +
+        `<div style="font-size:8px;color:#797D7F;text-align:center;line-height:1.1;` +
+        `max-width:${Math.max(slotW - 10, 30)}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">` +
+        `${escXml(m.puestoEmpleado || "")}</div>` +
+        `</div>`
+      );
+    })
+    .join("");
+  return (
+    `<foreignObject x="0" y="0" width="${w}" height="${h}">` +
+    `<div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;width:100%;height:100%;align-items:center;box-sizing:border-box;">` +
+    slots +
+    `</div></foreignObject>`
+  );
+}
+
 export function registerTemplates() {
   if (_registered) return;
   const OrgChart = window.OrgChart;
@@ -228,15 +269,53 @@ export function registerTemplates() {
   OrgChart.templates.group.min.img_0 = ``;
   OrgChart.templates.group.min.size = [310, 190];
 
-  // GroupCargo: mismo cuadro que "group" (cargos compartidos, ver
-  // GRPCARGO_* en api.js), pero CON botón +/- nativo de Balkan — a
-  // diferencia de las cajas de línea de negocio (siempre expandidas, sin
-  // botón), acá el usuario pidió el mismo control de expandir/colapsar que
-  // usan las tarjetas de persona con reportes (botonGrupo).
-  OrgChart.templates.groupCargo = Object.assign({}, OrgChart.templates.group);
-  OrgChart.templates.groupCargo.plus = botonGrupo;
-  OrgChart.templates.groupCargo.minus = botonGrupo;
-  OrgChart.templates.groupCargo.min.size = [250, 160];
+  // GroupCargo compacto (cargos compartidos, ver GRPCARGO_* en api.js):
+  // NO usa el contenedor "group" nativo de Balkan — ese contenedor reserva
+  // un padding vertical fijo (195px medido con DevTools, sin config
+  // expuesta) que desalineaba la fila entera contra los hermanos normales
+  // (110px) cada vez que el grupo aparecía al lado de tarjetas comunes, y
+  // un parche a mano sobre el SVG renderizado desestabilizaba el layout de
+  // nodos NO relacionados al expandir/colapsar otras partes del árbol.
+  //
+  // En cambio es un nodo ÚNICO de tamaño FIJO (igual alto que fichaTemplate,
+  // 110) — a los ojos de Balkan es una tarjeta normal con hijos (pid), así
+  // que hereda gratis el link nativo (línea de reporte normal, sin
+  // _slinksManuales) y nunca puede desalinear nada. Los miembros (2 o 3+)
+  // se dibujan a mano adentro, en franjas separadas por una línea punteada
+  // (variante B aprobada por David sobre un mockup) — foto + nombre
+  // abreviado + cargo, generados en `buildMiembrosHtml` e inyectados crudos
+  // vía field_0 (mismo truco que `group.miGlobo = "{val}"` de abajo).
+  // Clonado de fichaTemplate (no de "base") — así hereda gratis el degradé
+  // (defs) y el resto de estilos base; "base" a secas dejaba el fondo y el
+  // botón de foco transparentes (probado, no alcanza con repetir a mano el
+  // mismo fill/stroke).
+  OrgChart.templates.groupCargoCompact = Object.assign({}, OrgChart.templates.fichaTemplate);
+  OrgChart.templates.groupCargoCompact.size = [250, 110];
+  OrgChart.templates.groupCargoCompact.node =
+    '<rect x="0" y="0" width="{w}" height="{h}" rx="6" ry="6" fill="url(#fichaGradient)" stroke="#FDBE86"></rect>';
+  OrgChart.templates.groupCargoCompact.img_0 = "";
+  OrgChart.templates.groupCargoCompact.field_0 = "{val}";
+  OrgChart.templates.groupCargoCompact.field_1 = "";
+  OrgChart.templates.groupCargoCompact.field_2 = "";
+  // Foco (🎯) apunta al GRUPO, no a un miembro puntual — un botón por
+  // miembro requeriría zonas de click a mano dentro del foreignObject de
+  // abajo; se prefirió foco a nivel grupo por simplicidad, mismo criterio
+  // que "cargoPersona"/detalle abajo (el modal SÍ lista a cada miembro).
+  // field_3 hereda tal cual de fichaTemplate (mismo botón, misma posición
+  // translate(220,5) — calza con size[0]=250).
+  OrgChart.templates.groupCargoCompact.plus = botonGrupo;
+  OrgChart.templates.groupCargoCompact.minus = botonGrupo;
+
+  // Variante ancha (3+ miembros): mismo alto (110, es lo único que importa
+  // para no desalinear filas), más ancho para que cada franja no quede
+  // ilegible — el botón de foco se reposiciona a mano porque su transform
+  // no sigue el ancho dinámico del nodo.
+  OrgChart.templates.groupCargoCompact3 = Object.assign({}, OrgChart.templates.groupCargoCompact);
+  OrgChart.templates.groupCargoCompact3.size = [340, 110];
+  OrgChart.templates.groupCargoCompact3.field_3 = OrgChart.templates.groupCargoCompact.field_3.replace(
+    "translate(220, 5)",
+    "translate(310, 5)",
+  );
 
   OrgChart.templates.group.miGlobo = "{val}";
   OrgChart.templates.group.counter =
@@ -363,7 +442,8 @@ export function buildTagsConfig(OrgChart) {
     "group-head-align": { levelSeparation: 100 },
     group: { template: "group", nodeBinding: { conteo: "conteo", imgs: "grupoMinFotos" } },
     groupNoLink: { template: "groupNoLink", nodeBinding: { conteo: "conteo", imgs: "grupoMinFotos" } },
-    groupCargo: { template: "groupCargo" },
+    groupCargoCompact: { template: "groupCargoCompact" },
+    groupCargoCompact3: { template: "groupCargoCompact3" },
     fichaComplex: { template: "fichaComplex" },
     "jefe-carniceria": { template: "jefeCarniceria" },
     "jefe-marketing": { template: "jefeMarketing" },

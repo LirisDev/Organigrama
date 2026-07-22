@@ -37,13 +37,7 @@ function agregarDescendencia(
   const idBusqueda = idOriginalPadre || idVisualPadre;
 
   sourceMap.forEach((node) => {
-    // Además de pid, también stpid — necesario para los grupos de cargo
-    // compartido (GRPCARGO_*, ver api.js): sus miembros (2+ empleados con
-    // la misma posición) cuelgan del grupo por stpid, no por pid, y sin
-    // este check nunca se descubren acá (el resto de usos de stpid en este
-    // archivo — Santiago/Antonio, cabezas de línea — los arma el propio
-    // buildTree() directo en nodesToRender, no pasan por acá).
-    if (node.pid !== idBusqueda && node.stpid !== idBusqueda) return;
+    if (node.pid !== idBusqueda) return;
     if (idsAExcluir.includes(node.id)) return;
     if (filtroEstricto && !filtroEstricto(node)) return;
 
@@ -399,19 +393,28 @@ export function calcularConteoVisual(finalArray) {
     const nombrePuesto = node.puesto ? node.puesto.toUpperCase().trim() : "";
     if (nombrePuesto === "COMITE" || nombrePuesto === "COMITÉ") return;
 
+    // Grupo de cargo compartido (GRPCARGO_*, ver api.js): un solo nodo
+    // representa a N empleados reales (listaEmpleados) — cuenta como N, no
+    // como 1, y NO se salta pese a estar tagueado "group" (ese tag acá es
+    // solo para el resto de checks de este archivo que sí quieren tratarlo
+    // como caja, no como empleado individual).
+    const tieneListaEmpleados = Array.isArray(node.listaEmpleados) && node.listaEmpleados.length > 0;
+
     if (
+      !tieneListaEmpleados &&
       node.tags &&
       (node.tags.includes("group") || node.tags.includes("fantasma") || node.tags.includes("head-of-group"))
     ) {
       return;
     }
 
+    const cantidad = tieneListaEmpleados ? node.listaEmpleados.length : 1;
     const lineaRealEmpleado = node.lineaNegocio ? node.lineaNegocio.trim().toUpperCase().replace(/\s/g, "") : "N/A";
 
     if (node.stpid) {
       const nombreCaja = node.stpid.replace("GRP_", "");
       if (nombreCaja === lineaRealEmpleado && visualCounts[nombreCaja] !== undefined) {
-        visualCounts[nombreCaja]++;
+        visualCounts[nombreCaja] += cantidad;
       }
       // else: invitado en otra caja (ej. Omar en Carnicería) — no suma.
     } else {
@@ -432,7 +435,7 @@ export function calcularConteoVisual(finalArray) {
         return "CORPORATIVO";
       })();
       if (visualCounts[cajaVisual] !== undefined) {
-        visualCounts[cajaVisual]++;
+        visualCounts[cajaVisual] += cantidad;
       }
     }
   });
@@ -599,9 +602,9 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
 
   // Grupos de cargo compartido (GRPCARGO_<posición>, ver api.js): a
   // diferencia de las cajas de línea de negocio de arriba (siempre
-  // expandidas), estos tienen botón +/- nativo (template "groupCargo") y
-  // arrancan COLAPSADOS como cualquier tarjeta normal con reportes — no se
-  // agregan acá a propósito.
+  // expandidas), estos son tarjetas normales con botón +/- nativo (template
+  // groupCargoCompact/3) y arrancan COLAPSADAS como cualquier tarjeta con
+  // reportes — no se agregan acá a propósito.
 
   finalArray.forEach((node) => {
     if (!node.tags || !node.tags.includes("fantasma")) return;
@@ -670,22 +673,6 @@ function finalizeTree(nodesToRender, allNodes, lineaFiltro, corporativoExpandido
   );
   const antonioId = antonioParaSlink ? String(antonioParaSlink.id) : null;
   const slinks = [];
-
-  // Grupos de cargo compartido (GRPCARGO_<posición>, ver api.js): Balkan no
-  // dibuja línea nativa de ENTRADA a ningún nodo con template "group" —
-  // mismo motivo por el que las cajas de línea de negocio (abajo) usan
-  // este sistema de líneas manuales en vez del link nativo. Con el order
-  // corregido (api.js, parentOrder+1) ya no hay hueco de sub-nivel de por
-  // medio, así que esta línea conecta directo, corta, sin atravesar
-  // espacio vacío. Mismo patrón que Omar→GRP_CARNICERIA (manager normal →
-  // caja de grupo, sin straight/routeLeft/routeRight — esas flags son solo
-  // para cuando el origen es Santiago/Antonio pegados a GRP_CORPORATIVO).
-  finalArray.forEach((node) => {
-    if (!node.tags || !node.tags.includes("group")) return;
-    if (!String(node.id).startsWith("GRPCARGO_")) return;
-    if (!node.pid) return;
-    slinks.push({ from: node.pid, to: node.id, color: "#aeaeae", dropNearSource: true });
-  });
 
   if (antonioParaSlink) {
     if (corporativoExpandido && !nodosAExpandir.includes(antonioParaSlink.id)) {
